@@ -1,17 +1,16 @@
-# koodori
+# Honodori
 
 https://koodori.netlify.app/
-
-![ogp](https://user-images.githubusercontent.com/39970521/146682390-fc504d09-66aa-4e86-aef3-49a136543461.png)
+を参考に別モノに進化？したAIコーディングのWEBベースグルボです。
 
 ## 概要
 
-ステップ・シーケンサー機能を搭載した本格シンセサイザーWebアプリです。
-Chrome, Safariで動作確認しています。PC推奨ですがSPでも動くとは思います。
+ステップ・シーケンサー機能を搭載したWebアプリです。
+Chrome, Safariで動作確認しています。
 
 ## 機能説明 (左上から)
 
-<img width="759" alt="koodori" src="https://user-images.githubusercontent.com/39970521/146682494-85e820b9-cd84-4d39-9d79-04096d97cc3e.png">
+
 
 ### プレイヤーセクション (最上段)
 
