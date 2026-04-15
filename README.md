@@ -1,6 +1,6 @@
 EM‑224 — HONODORI Music Sequencer
 多音源対応・PATTERN / SONG / MML の 3 モードを備えたマルチシーケンサー
-###########################################################
+
 EM‑224（通称 HONODORI）は、
 SUBTRACTIVE / FM / PSG / DRUM / PCM を組み合わせて演奏できる
 WEBベースのミュージックグルーブボックスです。
@@ -8,7 +8,7 @@ WEBベースのミュージックグルーブボックスです。
 https://koodori.netlify.app/ を参考にしました。
 
 Chrome, Safari等で動きます。(Web Audioを使用できるもの)
-###########################################################
+
 
 PATTERN（ループ制作）
 
