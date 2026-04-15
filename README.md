@@ -137,7 +137,8 @@ CLR PART で初期化
 
 🔷 PSG 音源（3ch）
 AY-3-8910 をオマージュしつつ拡張。
-https://github.com/IchigoJam/AY38910/　を参考にしました。
+https://github.com/IchigoJam/AY38910/
+を参考にしました。
 
 ● 波形
 SQ（矩形波）
