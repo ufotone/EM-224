@@ -139,6 +139,8 @@ input[type=range]{width:60px;height:12px;accent-color:#4a7;cursor:pointer}
     複数チャンネル: <span style="color:#668">A B C</span> (音程) / <span style="color:#668">D</span> (ドラム)　
     音符: <span style="color:#668">CDEFGAB R</span>　音長: <span style="color:#668">4 8 16 .</span>　
     オクターブ: <span style="color:#668">O4 &lt; &gt;</span>　テンポ: <span style="color:#668">T120</span>　音量: <span style="color:#668">V8</span>　音色: <span style="color:#668">@0</span>-<span style="color:#668">@9</span> (SUB/@1-6:FM1-6/@7-9:PSG1-3)　タイ: <span style="color:#668">&amp;</span><br>
+    ゲートタイム: <span style="color:#668">C80</span> (1〜100%)　デチューン: <span style="color:#668">D-5</span>　トランスポーズ: <span style="color:#668">K3</span>　パン: <span style="color:#668">p3</span> (1=L 3=C 5=R)　ポルタメント: <span style="color:#668">M</span>(スキップ)<br>
+    MUCOM88互換: <span style="color:#668">; コメント</span>　<span style="color:#668"># タグ行</span>スキップ　<span style="color:#668">| ループ区切り</span>スキップ　<span style="color:#668"># *n{...}</span> マクロ定義・<span style="color:#668">*n</span>展開<br>
     ドラム(Dチャンネル): <span style="color:#a86">%K</span>=KICK <span style="color:#a86">%S</span>=SNARE <span style="color:#a86">%H</span>=HAT <span style="color:#a86">%TH</span>=TOM Hi <span style="color:#a86">%TM</span>=TOM Mid <span style="color:#a86">%TL</span>=TOM Lo <span style="color:#a86">%OH</span>=Open HH <span style="color:#a86">%CH</span>=Close HH <span style="color:#a86">%P</span>=PCM　音長は後に数字: <span style="color:#a86">%K8</span>
   </div>
   <div id="mmlChannels">
@@ -1111,37 +1113,57 @@ function _playHH(open, when, vol) {
 function playOpenHH(when, vol)  { _playHH(true,  when, vol); }
 function playCloseHH(when, vol) { _playHH(false, when, vol); }
 
-function tickLoop() {
-  if (!state.playing) return;
+// =============================================
+// Lookahead Scheduler
+// =============================================
+// setTimeoutの誤差を排除するため、AudioContext.currentTimeを絶対基準として
+// 先読み窓（SCHEDULE_AHEAD_TIME）内のステップを先にスケジュールする方式。
+const SCHEDULE_AHEAD_TIME = 0.12; // 秒: この先まで先読みしてスケジュール
+const TICK_INTERVAL_MS    = 25;   // ms: ポーリング間隔
+
+let nextStepTime  = 0;   // 次のステップのAudioContext絶対時刻
+let schedulerTimer = null;
+
+function scheduleStep() {
+  if (!state.playing || !audioCtx) return;
+
   const stepTime = (60 / state.bpm) / 4;
-  const when = audioCtx ? audioCtx.currentTime + 0.05 : 0;
-  const stepLen = getStepLen();
-  const step = (state.currentStep + 1) % stepLen;
-  state.currentStep = step;
 
-  // ソングモード: 最終ステップ再生後に次のバンクへ進む
-  if (state.mode === 'song' && step === 0) {
-    const nextCursor = state.song.cursor + 1;
-    if (nextCursor >= state.song.steps.length) {
-      if (state.song.loop && state.song.steps.length > 0) {
-        state.song.cursor = 0;
+  // 先読み窓内のステップをすべてスケジュール
+  while (nextStepTime < audioCtx.currentTime + SCHEDULE_AHEAD_TIME) {
+    const when  = nextStepTime;
+    const stepLen = getStepLen();
+    const step = (state.currentStep + 1) % stepLen;
+    state.currentStep = step;
+
+    // ソングモード: step==0 でバンク切替
+    if (state.mode === 'song' && step === 0) {
+      const nextCursor = state.song.cursor + 1;
+      if (nextCursor >= state.song.steps.length) {
+        if (state.song.loop && state.song.steps.length > 0) {
+          state.song.cursor = 0;
+        } else {
+          // 最後のステップが終わった後に停止
+          const stopDelay = Math.max(0, (nextStepTime - audioCtx.currentTime) * 1000 + stepTime * 1000);
+          setTimeout(() => stopPlay(), stopDelay);
+          return;
+        }
       } else {
-        stopPlay();
-        return;
+        state.song.cursor = nextCursor;
       }
-    } else {
-      state.song.cursor = nextCursor;
+      state.currentBank = state.song.steps[state.song.cursor];
+      // UI更新はメインスレッドで非同期に（音声タイミングには影響しない）
+      setTimeout(() => {
+        document.querySelectorAll('.bank-btn').forEach((b,j) => b.classList.toggle('active', j===state.currentBank));
+        renderSeq();
+        updateSongGrid();
+        updateStepIndicatorCount();
+      }, 0);
     }
-    state.currentBank = state.song.steps[state.song.cursor];
-    document.querySelectorAll('.bank-btn').forEach((b,j) => b.classList.toggle('active', j===state.currentBank));
-    renderSeq();
-    updateSongGrid();
-    updateStepIndicatorCount();
-  }
 
-  const seq = getSeqData();
-  if (audioCtx) {
-    // PAN：各チャンネルのseqData.panをstate.mixに反映
+    const seq = getSeqData();
+
+    // PAN反映（UIは後で更新）
     const panMap = [
       ['sub','panSub'],
       ['fm1','panFm1'],['fm2','panFm2'],['fm3','panFm3'],['fm4','panFm4'],['fm5','panFm5'],['fm6','panFm6'],
@@ -1149,16 +1171,11 @@ function tickLoop() {
     ];
     panMap.forEach(([ch, pk]) => {
       if (seq[ch] && seq[ch].pan && seq[ch].pan[step] !== undefined) {
-        const v = seq[ch].pan[step];
-        state.mix[pk] = v;
-        const uiCh = pk.slice(3);
-        const el  = document.getElementById('pan' + uiCh);
-        const vEl = document.getElementById('pan' + uiCh + 'V');
-        if (el) el.value = v;
-        if (vEl) vEl.textContent = v === 0 ? 'C' : (v < 0 ? 'L'+Math.abs(v) : 'R'+v);
+        state.mix[pk] = seq[ch].pan[step];
       }
     });
 
+    // 発音スケジュール（whenはAudioContext絶対時刻）
     if (seq.sub.on[step]  && seq.sub.notes[step])  playSubtractive(noteToHz(seq.sub.notes[step]),  seq.sub.vols[step]  ?? 80, when, seq.sub.tie[step]);
     if (seq.fm1.on[step]  && seq.fm1.notes[step])  playFM(0, noteToHz(seq.fm1.notes[step]),  seq.fm1.vols[step]  ?? 80, when, seq.fm1.tie[step]);
     if (seq.fm2.on[step]  && seq.fm2.notes[step])  playFM(1, noteToHz(seq.fm2.notes[step]),  seq.fm2.vols[step]  ?? 80, when, seq.fm2.tie[step]);
@@ -1186,12 +1203,40 @@ function tickLoop() {
       const applyFxParam = (key, audioFn) => {
         const ch = fx[key];
         if (!ch || !ch.on[step]) return;
-        const v = ch.vals[step];
-        audioFn(v);
-        // UIスライダーも同期
+        audioFn(ch.vals[step]);
+      };
+      applyFxParam('delayWet',    v => { if(delayWetGain) delayWetGain.gain.setValueAtTime(v/100, when); if(delayDryGain) delayDryGain.gain.setValueAtTime(1-(v/100)*0.5, when); state.fx.delayWet=v; });
+      applyFxParam('delayFb',     v => { if(delayFeedback) delayFeedback.gain.setValueAtTime(v/100, when); state.fx.delayFb=v; });
+      applyFxParam('chorusRate',  v => { if(chorusLFO) chorusLFO.frequency.setValueAtTime((v/100)*5, when); state.fx.chorusRate=v; });
+      applyFxParam('chorusDepth', v => { if(chorusLFOGain) chorusLFOGain.gain.setValueAtTime((v/100)*0.01, when); state.fx.chorusDepth=v; });
+      applyFxParam('chorusWet',   v => { if(chorusWetGain) chorusWetGain.gain.setValueAtTime(v/100, when); state.fx.chorusWet=v; });
+      applyFxParam('djFreq',      v => { if(masterFilter) masterFilter.frequency.setValueAtTime(v, when); state.fx.djFilterFreq=v; });
+      applyFxParam('djRes',       v => { if(masterFilter) masterFilter.Q.setValueAtTime(v, when); state.fx.djFilterRes=v; });
+    }
+
+    // ステップインジケーターUI更新（非同期）
+    const _step = step;
+    const delay = Math.max(0, (when - audioCtx.currentTime) * 1000);
+    setTimeout(() => {
+      updateStepIndicator(_step);
+      // PANのUI同期
+      panMap.forEach(([ch, pk]) => {
+        if (seq[ch] && seq[ch].pan && seq[ch].pan[_step] !== undefined) {
+          const v = seq[ch].pan[_step];
+          const uiCh = pk.slice(3);
+          const el  = document.getElementById('pan' + uiCh);
+          const vEl = document.getElementById('pan' + uiCh + 'V');
+          if (el) el.value = v;
+          if (vEl) vEl.textContent = v === 0 ? 'C' : (v < 0 ? 'L'+Math.abs(v) : 'R'+v);
+        }
+      });
+      // FX UI同期
+      if (fx) {
         const elMap = { delayWet:'delayWet', delayFb:'delayFb', chorusRate:'chorusRate', chorusDepth:'chorusDepth', chorusWet:'chorusWet', djFreq:'djFilterFreq', djRes:'djFilterRes' };
-        const elId = elMap[key];
-        if (elId) {
+        Object.entries(elMap).forEach(([key, elId]) => {
+          const ch = fx[key];
+          if (!ch || !ch.on[_step]) return;
+          const v = ch.vals[_step];
           const el = document.getElementById(elId);
           const vEl = document.getElementById(elId + 'Val');
           if (el) el.value = v;
@@ -1201,45 +1246,43 @@ function tickLoop() {
             else if (elId === 'djFilterRes') vEl.textContent = parseFloat(v).toFixed(1);
             else vEl.textContent = Math.round(v)+'%';
           }
-        }
-      };
-      applyFxParam('delayWet',    v => { if(delayWetGain) delayWetGain.gain.value=v/100; if(delayDryGain) delayDryGain.gain.value=1-(v/100)*0.5; state.fx.delayWet=v; });
-      applyFxParam('delayFb',     v => { if(delayFeedback) delayFeedback.gain.value=v/100; state.fx.delayFb=v; });
-      applyFxParam('chorusRate',  v => { if(chorusLFO) chorusLFO.frequency.value=(v/100)*5; state.fx.chorusRate=v; });
-      applyFxParam('chorusDepth', v => { if(chorusLFOGain) chorusLFOGain.gain.value=(v/100)*0.01; state.fx.chorusDepth=v; });
-      applyFxParam('chorusWet',   v => { if(chorusWetGain) chorusWetGain.gain.value=v/100; state.fx.chorusWet=v; });
-      applyFxParam('djFreq',      v => { if(masterFilter) masterFilter.frequency.value=v; state.fx.djFilterFreq=v; });
-      applyFxParam('djRes',       v => { if(masterFilter) masterFilter.Q.value=v; state.fx.djFilterRes=v; });
-    }
+        });
+      }
+    }, delay);
+
+    nextStepTime += stepTime;
   }
-  updateStepIndicator(step);
-  setTimeout(tickLoop, Math.round(stepTime * 1000));
+
+  schedulerTimer = setTimeout(scheduleStep, TICK_INTERVAL_MS);
 }
+
+function tickLoop() {} // 後方互換のため残す（未使用）
 
 function startPlay() {
   initAudio();
   if (state.playing) return;
   if (state.mode === 'song') {
     if (state.song.steps.length === 0) return;
-    // cursor=-1から始め、tickLoopの最初のstep==0でcursor=0にジャンプさせる
     state.song.cursor = -1;
     state.currentBank = state.song.steps[0];
     document.querySelectorAll('.bank-btn').forEach((b,j) => b.classList.toggle('active', j===state.currentBank));
     renderSeq();
   }
   state.playing = true;
-  document.getElementById('playBtn').style.opacity = '0.5';
   state.currentStep = -1;
-  tickLoop();
+  document.getElementById('playBtn').style.opacity = '0.5';
+  // 次ステップ時刻を少し先に設定してスタート
+  nextStepTime = audioCtx.currentTime + 0.05;
+  if (schedulerTimer) clearTimeout(schedulerTimer);
+  scheduleStep();
 }
 
 function stopPlay() {
   state.playing = false;
   state.currentStep = -1;
   state.song.cursor = -1;
-  // アクティブノードを全解放
+  if (schedulerTimer) { clearTimeout(schedulerTimer); schedulerTimer = null; }
   Object.keys(activeNodes).forEach(ch => releaseNode(ch));
-  // PCMソースを全停止
   activePcmSources.forEach(src => { try { src.stop(); } catch(e) {} });
   activePcmSources.clear();
   document.getElementById('playBtn').style.opacity = '1';
@@ -2146,13 +2189,53 @@ const MML = {
   },
 
   // MML文字列を解析してイベント列 [{time, freq, vol, dur, ch, tie}] を返す
+  // MUCOM88 MML前処理：コメント除去・#タグ除去・マクロ展開
+  preprocess(text) {
+    // 1. 行コメント（;以降）を除去
+    let lines = text.split('\n').map(l => {
+      const ci = l.indexOf(';');
+      return ci >= 0 ? l.slice(0, ci) : l;
+    });
+
+    // 2. #タグ行を除去（#mucom88, #title, #voice, #driver 等）
+    //    ただし # *n{...} マクロ定義は保持
+    const macros = {}; // { n: 展開文字列 }
+    const cleaned = [];
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // マクロ定義: # *n{ ... } or #*n{...}
+      const macroMatch = trimmed.match(/^#\s*\*(\d+)\s*\{([\s\S]*?)\}/);
+      if (macroMatch) {
+        macros[macroMatch[1]] = macroMatch[2];
+        continue;
+      }
+      // その他の#タグ行はスキップ
+      if (trimmed.startsWith('#')) continue;
+      cleaned.push(line);
+    }
+
+    let result = cleaned.join('\n');
+
+    // 3. マクロ展開（*n → マクロ内容、長い番号から順に）
+    const macroKeys = Object.keys(macros).sort((a,b) => b.length - a.length);
+    for (const k of macroKeys) {
+      result = result.split('*' + k).join(macros[k]);
+    }
+
+    return result;
+  },
+
   parse(text, tempo) {
     const events = [];
     let pos = 0;
     let oct = 4, defLen = 4, vel = 10, bpm = tempo || state.bpm;
-    let t = 0; // 現在時刻(秒)
+    let t = 0;
     let tieNext = false;
     let timbre = 0; // @0=SUB @1-6=FM1-6 @7-9=PSG1-3
+    let detune = 0;    // Dn: セント単位デチューン（MUCOM88: -127〜127, 1単位≒3.125セント）
+    let keyTrans = 0;  // Kn: 半音単位トランスポーズ
+    let gate = 1.0;    // Cn/Qn: ゲートタイム比（0〜100% → 0〜1.0）
+    let panVal = 0;    // pn: -100〜100
 
     const beatSec = () => 60 / bpm;
     const lenSec = (n, dot) => {
@@ -2160,63 +2243,123 @@ const MML = {
       return dot ? base * 1.5 : base;
     };
 
+    // 符号付き整数を読む（+/-付きも対応）
+    const readInt = () => {
+      let n = '';
+      if (pos < s.length && (s[pos] === '-' || s[pos] === '+')) n += s[pos++];
+      while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+      return n === '' || n === '-' || n === '+' ? null : parseInt(n);
+    };
+
+    // カンマ区切りの整数を複数読む
+    const readInts = (count) => {
+      const vals = [];
+      for (let i = 0; i < count; i++) {
+        const v = readInt();
+        vals.push(v ?? 0);
+        if (pos < s.length && s[pos] === ',') pos++;
+        else break;
+      }
+      return vals;
+    };
+
     const noteMap = {
-      'c':0,'d':2,'e':4,'f':5,'g':7,'a':9,'b':11,
       'C':0,'D':2,'E':4,'F':5,'G':7,'A':9,'B':11
     };
 
-    const s = text.replace(/\s+/g,'').toUpperCase();
+    // 前処理（コメント除去・マクロ展開・#タグ除去）
+    const preprocessed = this.preprocess(text);
+    // | はループ区切りとしてスペースに置換
+    const s = preprocessed.replace(/\|/g, ' ').replace(/\s+/g,'').toUpperCase();
     pos = 0;
 
     while (pos < s.length) {
       const ch = s[pos];
 
-      // テンポ
+      // テンポ T
       if (ch === 'T') {
         pos++;
-        let n = '';
-        while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
-        bpm = parseInt(n) || bpm;
+        const n = readInt();
+        if (n !== null) bpm = n;
         continue;
       }
-      // オクターブ
+      // オクターブ O
       if (ch === 'O') {
         pos++;
-        let n = '';
-        while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
-        oct = parseInt(n);
+        const n = readInt();
+        if (n !== null) oct = Math.max(1, Math.min(8, n));
         continue;
       }
+      // オクターブ上下
       if (ch === '<') { oct = Math.max(1, oct - 1); pos++; continue; }
       if (ch === '>') { oct = Math.min(8, oct + 1); pos++; continue; }
-      // デフォルト音長
+      // デフォルト音長 L
       if (ch === 'L') {
         pos++;
-        let n = '';
-        while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
-        defLen = parseInt(n) || defLen;
+        const n = readInt();
+        if (n !== null && n > 0) defLen = n;
         continue;
       }
-      // ベロシティ
+      // ベロシティ V
       if (ch === 'V') {
         pos++;
-        let n = '';
-        while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
-        vel = Math.min(15, parseInt(n) || vel);
+        const n = readInt();
+        if (n !== null) vel = Math.max(0, Math.min(15, n));
         continue;
       }
-      // 音色
+      // 音色 @  （@n:{...} 形式はpreprocessで除去済みのため番号のみ）
       if (ch === '@') {
         pos++;
-        let n = '';
-        while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
-        timbre = Math.min(9, parseInt(n) || 0);
+        const n = readInt();
+        if (n !== null) timbre = Math.min(9, Math.max(0, n));
         continue;
       }
-      // タイ記号
+      // タイ
       if (ch === '&') { tieNext = true; pos++; continue; }
 
-      // 休符
+      // パン p1〜5（MUCOM88: 1=L,--, 2=L, 3=C, 4=R, 5=R,-- 近似）
+      if (ch === 'P') {
+        pos++;
+        const n = readInt();
+        if (n !== null) {
+          // 1〜5 → -100〜100
+          const panMap = {1:-100, 2:-50, 3:0, 4:50, 5:100};
+          panVal = panMap[n] ?? 0;
+        }
+        continue;
+      }
+      // デチューン D（MUCOM88: -127〜127、1単位≒3.125セント相当）
+      if (ch === 'D') {
+        pos++;
+        const n = readInt();
+        if (n !== null) detune = n * 3.125; // セントに変換
+        continue;
+      }
+      // キートランスポーズ K（半音単位）
+      if (ch === 'K') {
+        pos++;
+        const n = readInt();
+        if (n !== null) keyTrans = n;
+        continue;
+      }
+      // ゲートタイム C / Q（1〜100%）
+      if (ch === 'C' || ch === 'Q') {
+        pos++;
+        const n = readInt();
+        if (n !== null) gate = Math.max(0.01, Math.min(1.0, n / 100));
+        continue;
+      }
+      // ポルタメント M,n1,n2,n3,n4 → スキップ（4引数消費）
+      if (ch === 'M') {
+        pos++;
+        readInts(4);
+        continue;
+      }
+      // ゲートタイム2 Q（Cの別名として上で処理済み）
+      // ループ { } → スキップ（|は前処理済み）
+      if (ch === '{' || ch === '}') { pos++; continue; }
+
+      // 休符 R
       if (ch === 'R') {
         pos++;
         let n = '';
@@ -2228,7 +2371,7 @@ const MML = {
         continue;
       }
 
-      // 音符
+      // 音符 C D E F G A B
       if (noteMap[ch] !== undefined) {
         pos++;
         let semi = noteMap[ch];
@@ -2240,15 +2383,19 @@ const MML = {
         while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
         const dot = s[pos] === '.' ? (pos++, true) : false;
         const len = parseInt(n) || defLen;
-        const dur = lenSec(len, dot);
-        // 周波数計算
-        const midiNote = (oct + 1) * 12 + semi;
-        const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+        const fullDur = lenSec(len, dot);
+        const dur = fullDur * gate; // ゲートタイム適用
+
+        // キートランスポーズ・デチューン適用
+        const semiTotal = semi + keyTrans;
+        const midiNote = (oct + 1) * 12 + semiTotal;
+        const baseFreq = 440 * Math.pow(2, (midiNote - 69) / 12);
+        const freq = baseFreq * Math.pow(2, detune / 1200);
         const vol = Math.round(vel / 15 * 100);
 
-        events.push({ time: t, freq, vol, dur, timbre, tie: tieNext });
+        events.push({ time: t, freq, vol, dur, timbre, tie: tieNext, pan: panVal });
         tieNext = false;
-        t += dur;
+        t += fullDur; // 次音符の開始はgateではなくfullDurで進める
         continue;
       }
 
@@ -2279,7 +2426,7 @@ const MML = {
       'OH': 'openhh', 'CH': 'closehh', 'P': 'pcm'
     };
 
-    const s = text.replace(/\s+/g,'').toUpperCase();
+    const s = this.preprocess(text).replace(/\|/g,' ').replace(/\s+/g,'').toUpperCase();
 
     while (pos < s.length) {
       const ch = s[pos];
@@ -2400,7 +2547,10 @@ const MML = {
             const pct = Math.round(ev.time / maxEnd * 100);
             document.getElementById('mmlStatus').textContent = `▶ DRUM:${ev.drum}  ${pct}%`;
           } else {
-            const { freq, vol, dur, timbre, tie } = ev;
+            const { freq, vol, dur, timbre, tie, pan } = ev;
+            // pコマンドによるパン一時適用
+            const panKeys = ['panSub','panFm1','panFm2','panFm3','panFm4','panFm5','panFm6','panPsg1','panPsg2','panPsg3'];
+            if (pan !== undefined) state.mix[panKeys[timbre]] = pan;
             // 音色に応じた発音 @0=SUB @1-6=FM1-6 @7-9=PSG1-3
             switch(timbre) {
               case 0: playSubtractive(freq, vol, when, tie, dur); break;
@@ -2862,7 +3012,7 @@ document.getElementById('saveConfigBtn').onclick = () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'koodori_config.json';
+  a.download = 'honodori_config.json';
   a.click();
   URL.revokeObjectURL(url);
 };
