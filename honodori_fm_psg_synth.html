@@ -220,56 +220,38 @@ input[type=range]{width:60px;height:12px;accent-color:#4a7;cursor:pointer}
 
 <!-- FM-1 panel -->
 <div class="panel" id="tab-fm1" style="display:none">
-  <div style="margin-bottom:6px">
-    <div class="small-title" style="display:inline">ALGORITHM</div>
-    <div class="algo-grid" id="fmAlgo1" style="margin-top:4px;max-width:300px"></div>
-  </div>
-  <div class="fm-panel" id="fmOps1"></div>
+  <div id="fmAlgo1"></div>
+  <div id="fmOps1"></div>
 </div>
 
 <!-- FM-2 panel -->
 <div class="panel" id="tab-fm2" style="display:none">
-  <div style="margin-bottom:6px">
-    <div class="small-title" style="display:inline">ALGORITHM</div>
-    <div class="algo-grid" id="fmAlgo2" style="margin-top:4px;max-width:300px"></div>
-  </div>
-  <div class="fm-panel" id="fmOps2"></div>
+  <div id="fmAlgo2"></div>
+  <div id="fmOps2"></div>
 </div>
 
 <!-- FM-3 panel -->
 <div class="panel" id="tab-fm3" style="display:none">
-  <div style="margin-bottom:6px">
-    <div class="small-title" style="display:inline">ALGORITHM</div>
-    <div class="algo-grid" id="fmAlgo3" style="margin-top:4px;max-width:300px"></div>
-  </div>
-  <div class="fm-panel" id="fmOps3"></div>
+  <div id="fmAlgo3"></div>
+  <div id="fmOps3"></div>
 </div>
 
 <!-- FM-4 panel -->
 <div class="panel" id="tab-fm4" style="display:none">
-  <div style="margin-bottom:6px">
-    <div class="small-title" style="display:inline">ALGORITHM</div>
-    <div class="algo-grid" id="fmAlgo4" style="margin-top:4px;max-width:300px"></div>
-  </div>
-  <div class="fm-panel" id="fmOps4"></div>
+  <div id="fmAlgo4"></div>
+  <div id="fmOps4"></div>
 </div>
 
 <!-- FM-5 panel -->
 <div class="panel" id="tab-fm5" style="display:none">
-  <div style="margin-bottom:6px">
-    <div class="small-title" style="display:inline">ALGORITHM</div>
-    <div class="algo-grid" id="fmAlgo5" style="margin-top:4px;max-width:300px"></div>
-  </div>
-  <div class="fm-panel" id="fmOps5"></div>
+  <div id="fmAlgo5"></div>
+  <div id="fmOps5"></div>
 </div>
 
 <!-- FM-6 panel -->
 <div class="panel" id="tab-fm6" style="display:none">
-  <div style="margin-bottom:6px">
-    <div class="small-title" style="display:inline">ALGORITHM</div>
-    <div class="algo-grid" id="fmAlgo6" style="margin-top:4px;max-width:300px"></div>
-  </div>
-  <div class="fm-panel" id="fmOps6"></div>
+  <div id="fmAlgo6"></div>
+  <div id="fmOps6"></div>
 </div>
 
 <!-- PSG panel -->
@@ -455,18 +437,48 @@ const state = {
     }
   })),
   currentSeqTab: 'sub',
+  // OPN2(YM2612)相当パラメーター
+  // ops[4]: { ar, dr, sr, rr, sl, tl, ks, mul, dt }
+  // チャンネル単位: { algo, fb }
   fmParams: [
-    { algo: 0, ops: [{r:6,a:246,d:100,s:14,rel:200},{r:1,a:338,d:491,s:12,rel:300},{r:3.25,a:384,d:362,s:12,rel:400},{r:3.5,a:283,d:565,s:19,rel:100}] },
-    { algo: 0, ops: [{r:2,a:246,d:100,s:60,rel:200},{r:2,a:5,d:200,s:40,rel:300},{r:1.75,a:1,d:140,s:42,rel:400},{r:1.25,a:384,d:473,s:14,rel:100}] },
-    { algo: 2, ops: [{r:1,a:10,d:100,s:60,rel:200},{r:2,a:5,d:200,s:40,rel:300},{r:0.5,a:20,d:500,s:20,rel:400},{r:3,a:1,d:50,s:80,rel:100}] },
-    { algo: 2, ops: [{r:1,a:10,d:100,s:60,rel:200},{r:2,a:5,d:200,s:40,rel:300},{r:0.5,a:20,d:500,s:20,rel:400},{r:3,a:1,d:50,s:80,rel:100}] },
-    { algo: 4, ops: [{r:1,a:10,d:100,s:60,rel:200},{r:2,a:5,d:200,s:40,rel:300},{r:0.5,a:20,d:500,s:20,rel:400},{r:3,a:1,d:50,s:80,rel:100}] },
-    { algo: 4, ops: [{r:1,a:10,d:100,s:60,rel:200},{r:2,a:5,d:200,s:40,rel:300},{r:0.5,a:20,d:500,s:20,rel:400},{r:3,a:1,d:50,s:80,rel:100}] },
+    { algo:4, fb:4, ops:[
+      {ar:31,dr:8, sr:0,rr:4,sl:1, tl:20, ks:1,mul:1, dt:3},
+      {ar:20,dr:10,sr:0,rr:4,sl:3, tl:38, ks:1,mul:6, dt:0},
+      {ar:31,dr:6, sr:0,rr:4,sl:1, tl:10, ks:1,mul:1, dt:0},
+      {ar:20,dr:8, sr:0,rr:4,sl:3, tl:0,  ks:1,mul:3, dt:0}]},
+    { algo:4, fb:4, ops:[
+      {ar:28,dr:12,sr:0,rr:5,sl:2, tl:30, ks:1,mul:2, dt:0},
+      {ar:20,dr:10,sr:0,rr:4,sl:3, tl:42, ks:1,mul:4, dt:0},
+      {ar:25,dr:8, sr:0,rr:4,sl:2, tl:20, ks:1,mul:2, dt:3},
+      {ar:20,dr:8, sr:0,rr:4,sl:3, tl:0,  ks:1,mul:1, dt:0}]},
+    { algo:5, fb:0, ops:[
+      {ar:31,dr:18,sr:0,rr:7,sl:1, tl:0,  ks:0,mul:1, dt:0},
+      {ar:31,dr:18,sr:0,rr:7,sl:1, tl:0,  ks:0,mul:2, dt:0},
+      {ar:31,dr:18,sr:0,rr:7,sl:1, tl:0,  ks:0,mul:3, dt:0},
+      {ar:31,dr:18,sr:0,rr:7,sl:1, tl:0,  ks:0,mul:4, dt:0}]},
+    { algo:5, fb:0, ops:[
+      {ar:31,dr:18,sr:0,rr:7,sl:1, tl:0,  ks:0,mul:1, dt:0},
+      {ar:31,dr:18,sr:0,rr:7,sl:1, tl:0,  ks:0,mul:2, dt:0},
+      {ar:31,dr:18,sr:0,rr:7,sl:1, tl:0,  ks:0,mul:3, dt:0},
+      {ar:31,dr:18,sr:0,rr:7,sl:1, tl:0,  ks:0,mul:4, dt:0}]},
+    { algo:0, fb:6, ops:[
+      {ar:31,dr:5, sr:0,rr:3,sl:0, tl:24, ks:0,mul:14,dt:0},
+      {ar:22,dr:14,sr:6,rr:5,sl:3, tl:50, ks:0,mul:1, dt:0},
+      {ar:31,dr:5, sr:0,rr:3,sl:0, tl:18, ks:0,mul:14,dt:0},
+      {ar:22,dr:14,sr:6,rr:5,sl:3, tl:0,  ks:0,mul:1, dt:0}]},
+    { algo:0, fb:6, ops:[
+      {ar:31,dr:5, sr:0,rr:3,sl:0, tl:24, ks:0,mul:14,dt:0},
+      {ar:22,dr:14,sr:6,rr:5,sl:3, tl:50, ks:0,mul:1, dt:0},
+      {ar:31,dr:5, sr:0,rr:3,sl:0, tl:18, ks:0,mul:14,dt:0},
+      {ar:22,dr:14,sr:6,rr:5,sl:3, tl:0,  ks:0,mul:1, dt:0}]},
   ],
   psgParams: [
-    { wave: 'square',   detune: 0,  noise: false, noiseMix: 0, noisePeriod: 16, envType: 'none', envTime: 500 },
-    { wave: 'square',   detune: 7,  noise: false, noiseMix: 0, noisePeriod: 16, envType: 'none', envTime: 500 },
-    { wave: 'sawtooth', detune: -5, noise: false, noiseMix: 0, noisePeriod: 16, envType: 'none', envTime: 500 }
+    { wave: 'square',   detune: 0,  noise: false, noiseMix: 0, noisePeriod: 16, envType: 'none', envTime: 500,
+      lfo: { type: 'none', rate: 4, depth: 0, dest: 'pitch' } },
+    { wave: 'square',   detune: 7,  noise: false, noiseMix: 0, noisePeriod: 16, envType: 'none', envTime: 500,
+      lfo: { type: 'none', rate: 4, depth: 0, dest: 'pitch' } },
+    { wave: 'sawtooth', detune: -5, noise: false, noiseMix: 0, noisePeriod: 16, envType: 'none', envTime: 500,
+      lfo: { type: 'none', rate: 4, depth: 0, dest: 'pitch' } }
   ],
   subParams: { wave: 'sine', length: 300, filterFreq: 8000, filterRes: 1, filterType: 'lowpass', envA: 10, envD: 100, envS: 60, envR: 200 },
   fx: { delayFb: 30, delayWet: 0, chorusRate: 30, chorusDepth: 0, chorusWet: 0, djFilterFreq: 20000, djFilterType: 'lowpass', djFilterRes: 1, delaySync: '3' },
@@ -608,12 +620,16 @@ function releaseNode(ch) {
       n.gn.gain.linearRampToValueAtTime(0, now + R);
       n.osc.stop(now + R + 0.05);
     } else if (ch.startsWith('fm')) {
-      n.ops.forEach(op => {
-        op.env.gain.cancelScheduledValues(now);
-        op.env.gain.setValueAtTime(op.env.gain.value, now);
-        op.env.gain.linearRampToValueAtTime(0, now + 0.15);
-        op.osc.stop(now + 0.2);
+      const oscs = n.oscs ?? (n.ops ? n.ops.map(o=>o.osc) : []);
+      const envs = n.envs ?? (n.ops ? n.ops.map(o=>o.env) : []);
+      envs.forEach(env => {
+        try {
+          env.gain.cancelScheduledValues(now);
+          env.gain.setValueAtTime(env.gain.value, now);
+          env.gain.linearRampToValueAtTime(0, now + 0.15);
+        } catch(e) {}
       });
+      oscs.forEach(osc => { try { osc.stop(now + 0.2); } catch(e) {} });
     } else {
       // PSG: osc（トーン）とnoise（ノイズ）それぞれ停止
       try {
@@ -621,6 +637,9 @@ function releaseNode(ch) {
       } catch(e) {}
       try {
         if (n.noise) { n.noise.stop(now + 0.05); }
+      } catch(e) {}
+      try {
+        if (n.lfo)   { n.lfo.stop(now + 0.05); }
       } catch(e) {}
     }
   } catch(e) {}
@@ -667,61 +686,139 @@ function playSubtractive(freq, vol, when, tie, dur) {
   activeNodes.sub = { osc, gn, filt };
 }
 
+// OPN2レートを秒に変換 (rate=0〜31, ks=0〜3, octave)
+function opn2RateToSec(rate, ks, freq) {
+  if (rate === 0) return 9999;
+  // key scale: 高音ほど速く
+  const note = Math.log2(freq / 440) * 12 + 57;
+  const ksr = Math.floor(note / (1 << (3 - Math.min(3, ks))));
+  const effective = Math.min(63, rate * 2 + ksr);
+  // 近似: rate63≒0.001s, rate1≒8s (対数)
+  return Math.pow(2, (63 - effective) / 8) * 0.001;
+}
+
+// OPN2アルゴリズム接続マップ (op0〜3, carriers=最終出力OP)
+const OPN2_ALGO = [
+  // algo0: 0→1→2→3→out
+  { mod: [[0,1],[1,2],[2,3]], car: [3] },
+  // algo1: (0+1)→2→3→out
+  { mod: [[0,2],[1,2],[2,3]], car: [3] },
+  // algo2: (0+2→3)+(1→3)→out
+  { mod: [[0,3],[1,2],[2,3]], car: [3] },
+  // algo3: (0+1→2)+(1→3)→out  実際: 0→1→out, 2→3→out, 1→2も
+  { mod: [[0,1],[2,3]], car: [1,3] },  // 実OPN2 algo3に近似
+  // algo4: (0→1)+(2→3)→out
+  { mod: [[0,1],[2,3]], car: [1,3] },
+  // algo5: 0→(1+2+3)→out
+  { mod: [[0,1],[0,2],[0,3]], car: [1,2,3] },
+  // algo6: 0→1, 2→out, 3→out
+  { mod: [[0,1]], car: [1,2,3] },
+  // algo7: 全部→out
+  { mod: [], car: [0,1,2,3] },
+];
+
 function playFM(fmIdx, freq, vol, when, tie, dur) {
   if (!audioCtx) return;
   const ch = ['fm1','fm2','fm3','fm4','fm5','fm6'][fmIdx];
   const p = state.fmParams[fmIdx];
   const mixVol = state.mix[ch] ?? 65;
-  const v = (vol/100) * (mixVol/100) * 0.4;
-  const noteLen = (dur != null) ? Math.max(dur - 0.05, 0.05) : 0.3;
+  const masterV = (vol/100) * (mixVol/100);
+  const noteLen = (dur != null) ? Math.max(dur - 0.01, 0.01) : 0.3;
 
+  // タイ処理
   if (tie && activeNodes[ch]) {
     try {
-      activeNodes[ch].ops.forEach((op, oi) => {
-        op.osc.frequency.setTargetAtTime(freq * p.ops[oi].r, when, 0.01);
-        op.osc.stop(when + noteLen + 0.25);
+      activeNodes[ch].oscs.forEach((osc, oi) => {
+        const mul = p.ops[oi].mul === 0 ? 0.5 : p.ops[oi].mul;
+        osc.frequency.setTargetAtTime(freq * mul, when, 0.01);
       });
     } catch(e) {}
     return;
   }
 
   releaseNode(ch);
+
   const dest = audioCtx.createGain();
-  dest.gain.value = v;
+  dest.gain.value = masterV;
   const panFM = audioCtx.createStereoPanner();
   const panKey = ['panFm1','panFm2','panFm3','panFm4','panFm5','panFm6'][fmIdx];
   panFM.pan.value = (state.mix[panKey] ?? 0) / 100;
   dest.connect(panFM); panFM.connect(masterGainNode);
-  const ops = p.ops.map(op => {
+
+  const algo = Math.min(7, p.algo ?? 0);
+  const fb   = p.fb ?? 0;
+  const algoMap = OPN2_ALGO[algo];
+
+  // 各OPのノード生成
+  const oscs = [], envs = [], fbGains = [];
+  p.ops.forEach((op, oi) => {
+    const mul = (op.mul === 0 ? 0.5 : (op.mul ?? 1));
+    // DT: 0-3=+, 4-7=- (OPN2のDT1相当、セント換算)
+    const dt = op.dt ?? 0;
+    const dtCent = dt <= 3 ? dt * 6 : -(dt - 4) * 6;
+    const detunedFreq = freq * mul * Math.pow(2, dtCent / 1200);
+
     const osc = audioCtx.createOscillator();
-    const env = audioCtx.createGain();
     osc.type = 'sine';
-    osc.frequency.value = freq * op.r;
-    const A = op.a/1000, D = op.d/1000, S = op.s/100;
+    osc.frequency.value = detunedFreq;
+
+    // TL: 0=最大, 127=無音 (対数スケール)
+    const tl = Math.max(0, Math.min(127, op.tl ?? 0));
+    const tlGain = Math.pow(10, -tl * 0.0469); // 0.0469 ≈ 6dB/127 * log10(2)
+
+    // OPN2エンベロープ → 時間変換
+    const AR = opn2RateToSec(op.ar ?? 31, op.ks ?? 0, freq);
+    const DR = opn2RateToSec(op.dr ?? 0,  op.ks ?? 0, freq);
+    const SR = opn2RateToSec(op.sr ?? 0,  op.ks ?? 0, freq);
+    const RR = opn2RateToSec((op.rr ?? 7) * 2, op.ks ?? 0, freq);
+    const SL = 1 - (op.sl ?? 0) / 15; // 0〜15 → 1〜0
+    const sustainStart = AR + DR;
+
+    const env = audioCtx.createGain();
     env.gain.setValueAtTime(0, when);
-    env.gain.linearRampToValueAtTime(1, when + A);
-    env.gain.linearRampToValueAtTime(S, when + A + D);
+    env.gain.linearRampToValueAtTime(tlGain, when + AR);
+    env.gain.linearRampToValueAtTime(tlGain * SL, when + AR + DR);
+    // SR (sustain rate): SL→0 まで
+    if (op.sr > 0) {
+      env.gain.linearRampToValueAtTime(0, when + AR + DR + SR);
+    } else {
+      env.gain.setValueAtTime(tlGain * SL, when + noteLen);
+    }
+    env.gain.linearRampToValueAtTime(0, when + noteLen + RR);
+
     osc.connect(env);
-    return { osc, env };
+    oscs.push(osc);
+    envs.push(env);
+    fbGains.push(null);
   });
-  const algo = p.algo;
-  if (algo === 0) {
-    ops[0].env.connect(ops[1].env); ops[1].env.connect(ops[2].env); ops[2].env.connect(ops[3].env); ops[3].env.connect(dest);
-  } else if (algo === 1 || algo === 6 || algo === 7) {
-    ops[0].env.connect(ops[1].env); ops[1].env.connect(dest);
-    ops[2].env.connect(ops[3].env); ops[3].env.connect(dest);
-  } else if (algo === 2 || algo === 3) {
-    ops[0].env.connect(ops[1].env); ops[1].env.connect(dest);
-    ops[2].env.connect(dest); ops[3].env.connect(dest);
-  } else {
-    ops.forEach(op => op.env.connect(dest));
+
+  // フィードバック（OP1のセルフFB）
+  if (fb > 0) {
+    const fbAmt = Math.pow(2, fb - 1) / 512; // OPN2近似
+    const fbDelay = audioCtx.createDelay(0.001);
+    fbDelay.delayTime.value = 0.0003;
+    const fbGain = audioCtx.createGain();
+    fbGain.gain.value = fbAmt;
+    envs[0].connect(fbDelay);
+    fbDelay.connect(fbGain);
+    fbGain.connect(oscs[0].frequency); // FM変調として周波数加算
   }
-  ops.forEach(op => {
-    op.env.gain.setValueAtTime(op.env.gain.value, when + noteLen);
-    op.env.gain.linearRampToValueAtTime(0, when + noteLen + 0.2);
-    op.osc.start(when); op.osc.stop(when + noteLen + 0.25);
+
+  // アルゴリズム接続
+  algoMap.mod.forEach(([from, to]) => {
+    // モジュレーター→キャリアのFM変調: envをoscのFrequencyに接続
+    const modGain = audioCtx.createGain();
+    modGain.gain.value = freq * (p.ops[to].mul === 0 ? 0.5 : (p.ops[to].mul ?? 1));
+    envs[from].connect(modGain);
+    modGain.connect(oscs[to].frequency);
   });
-  activeNodes[ch] = { ops, dest };
+  algoMap.car.forEach(ci => {
+    envs[ci].connect(dest);
+  });
+
+  const stopAt = when + noteLen + 0.5;
+  oscs.forEach(osc => { osc.start(when); osc.stop(stopAt); });
+  activeNodes[ch] = { oscs, envs, dest };
 }
 
 function playPSG(psgIdx, freq, vol, when, tie, dur) {
@@ -801,6 +898,29 @@ function playPSG(psgIdx, freq, vol, when, tie, dur) {
   const psgPanKey = ['panPsg1','panPsg2','panPsg3'][psgIdx];
   const psgPanVal = (state.mix[psgPanKey] ?? 0) / 100;
 
+  // ---- LFOノード生成 ----
+  const lfo = p.lfo ?? { type: 'none', rate: 4, depth: 0, dest: 'pitch' };
+  const lfoActive = lfo.type !== 'none' && lfo.depth > 0;
+  let lfoOsc = null, lfoGain = null;
+  if (lfoActive) {
+    lfoOsc  = audioCtx.createOscillator();
+    lfoGain = audioCtx.createGain();
+    const waveMap = { sine:'sine', square:'square', saw:'sawtooth', tri:'triangle' };
+    lfoOsc.type = waveMap[lfo.type] ?? 'sine';
+    lfoOsc.frequency.value = Math.max(0.1, Math.min(20, lfo.rate ?? 4));
+    // depth: pitch=半音単位(0〜100→0〜2400cent→Hzスケール), volume=0〜1, pan=-1〜1
+    if (lfo.dest === 'pitch') {
+      lfoGain.gain.value = freq * (Math.pow(2, (lfo.depth / 100) * 2) - 1);
+    } else if (lfo.dest === 'volume') {
+      lfoGain.gain.value = (lfo.depth / 100) * v * 0.5;
+    } else if (lfo.dest === 'pan') {
+      lfoGain.gain.value = (lfo.depth / 100);
+    }
+    lfoOsc.connect(lfoGain);
+    lfoOsc.start(when);
+    lfoOsc.stop(stopAt);
+  }
+
   // ---- トーン部 ----
   let oscNode = null;
   if (toneMix > 0) {
@@ -812,6 +932,13 @@ function playPSG(psgIdx, freq, vol, when, tie, dur) {
     oscNode.type = p.wave;
     oscNode.frequency.value = freq * Math.pow(2, (p.detune ?? 0) / 1200);
     applyEnvelope(toneGn, v * toneMix, when, noteLen);
+
+    if (lfoActive && lfoGain) {
+      if (lfo.dest === 'pitch')  lfoGain.connect(oscNode.frequency);
+      else if (lfo.dest === 'volume') lfoGain.connect(toneGn.gain);
+      else if (lfo.dest === 'pan')    lfoGain.connect(tonePan.pan);
+    }
+
     oscNode.connect(toneGn); toneGn.connect(tonePan); tonePan.connect(masterGainNode);
     oscNode.start(when); oscNode.stop(stopAt);
   }
@@ -847,12 +974,17 @@ function playPSG(psgIdx, freq, vol, when, tie, dur) {
     noiseGn.gain.value = 0;
     noisePan.pan.value = psgPanVal;
     applyEnvelope(noiseGn, v * noiseMix, when, noteLen);
-    noiseSrc.connect(noiseGn); noiseGn.connect(noisePan); noisePan.connect(masterGainNode);
+    noiseSrc.connect(noiseGn);
+    if (lfoActive && lfoGain) {
+      if (lfo.dest === 'volume') lfoGain.connect(noiseGn.gain);
+      else if (lfo.dest === 'pan')    lfoGain.connect(noisePan.pan);
+    }
+    noiseGn.connect(noisePan); noisePan.connect(masterGainNode);
     noiseSrc.start(when); noiseSrc.stop(stopAt);
     noiseNode = noiseSrc;
   }
 
-  activeNodes[ch] = { osc: oscNode, noise: noiseNode, gn: null };
+  activeNodes[ch] = { osc: oscNode, noise: noiseNode, lfo: lfoOsc, gn: null };
 }
 
 function playKick(when, vol) {
@@ -1239,48 +1371,302 @@ document.getElementById('clearBank').onclick = () => {
 };
 
 // FM panels
+// OPN2アルゴリズム図をSVGで描画
+// OP配置: 各アルゴリズムで視覚的に分かりやすい座標を定義
+const ALGO_SVG = (() => {
+  // OP box: cx,cy = 中心座標, w=32,h=14
+  const W=32, H=14, CW=190, CH=90;
+  const box = (cx,cy,lbl,isCar) =>
+    `<rect x="${cx-W/2}" y="${cy-H/2}" width="${W}" height="${H}" rx="2"
+      fill="${isCar?'#1a3a1a':'#1a1a3a'}" stroke="${isCar?'#4c8':'#48f'}" stroke-width="1.2"/>
+     <text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="9" fill="${isCar?'#4c8':'#8af'}">${lbl}</text>`;
+
+  const arrow = (x1,y1,x2,y2,col='#666') => {
+    const dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy);
+    const ux=dx/len, uy=dy/len;
+    const ex=x2-ux*7, ey=y2-uy*7;
+    return `<line x1="${x1}" y1="${y1}" x2="${ex}" y2="${ey}" stroke="${col}" stroke-width="1.2"/>
+      <polygon points="${x2},${y2} ${x2-uy*4-ux*6},${y2+ux*4-uy*6} ${x2+uy*4-ux*6},${y2-ux*4-uy*6}"
+        fill="${col}"/>`;
+  };
+  const fbArrow = (cx,cy) =>
+    `<path d="M${cx-6},${cy-H/2} C${cx-20},${cy-28} ${cx+20},${cy-28} ${cx+6},${cy-H/2}"
+      fill="none" stroke="#a84" stroke-width="1.2"/>
+     <polygon points="${cx+6},${cy-H/2} ${cx+2},${cy-H/2-6} ${cx+12},${cy-H/2-4}" fill="#a84"/>`;
+  const outLabel = (cx,cy) =>
+    `<text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="8" fill="#fa0">OUT</text>
+     <rect x="${cx-12}" y="${cy-7}" width="24" height="14" rx="2" fill="none" stroke="#fa0" stroke-width="1"/>`;
+
+  const SVG = (content) =>
+    `<svg width="${CW}" height="${CH}" style="display:block" xmlns="http://www.w3.org/2000/svg">${content}</svg>`;
+
+  // 各アルゴリズムのSVG生成関数 (fb=true/false)
+  return [
+    // algo0: OP1→OP2→OP3→OP4→OUT (縦一列)
+    (fb) => SVG(
+      box(24,45,'OP1',false) + (fb?fbArrow(24,45):'') +
+      arrow(24,45+H/2, 24,52) + box(24,66,'OP2',false) +
+      arrow(70,45, 95,45) + box(110,45,'OP3',false) +
+      arrow(110,45+H/2, 110,52) + box(110,66,'OP4',true) +
+      arrow(24,66+H/2, 24,83) + `<line x1="24" y1="83" x2="110" y2="83" stroke="#666" stroke-width="1.2"/>` +
+      arrow(110,83, 110,66+H/2+1) +
+      arrow(110+W/2, 66, 160,66) + outLabel(175,66)
+    ),
+    // algo1: (OP1+OP2)→OP3→OP4→OUT
+    (fb) => SVG(
+      box(25,28,'OP1',false) + (fb?fbArrow(25,28):'') +
+      box(25,62,'OP2',false) +
+      arrow(25+W/2,28, 75,44) + arrow(25+W/2,62, 75,48) +
+      box(95,45,'OP3',false) + arrow(95+W/2,45, 140,45) +
+      box(155,45,'OP4',true) + arrow(155+W/2,45, 188,45) + outLabel(188,45)
+    ),
+    // algo2: OP1→OP4, OP2→OP3→OP4→OUT
+    (fb) => SVG(
+      box(22,28,'OP1',false) + (fb?fbArrow(22,28):'') +
+      box(22,62,'OP2',false) +
+      box(80,62,'OP3',false) +
+      box(140,45,'OP4',true) +
+      arrow(22+W/2,28, 124,38) + arrow(22+W/2,62, 47,62) +
+      arrow(80+W/2,62, 124,52) + arrow(140+W/2,45, 188,45) + outLabel(188,45)
+    ),
+    // algo3: (OP1→OP2)→OUT, OP3→OP4→OUT
+    (fb) => SVG(
+      box(30,28,'OP1',false) + (fb?fbArrow(30,28):'') +
+      box(30,62,'OP2',true) +
+      box(110,28,'OP3',false) +
+      box(110,62,'OP4',true) +
+      arrow(30,28+H/2, 30,55) + arrow(110,28+H/2, 110,55) +
+      arrow(30+W/2,62, 68,75) + arrow(110+W/2,62, 68+40,75) +
+      `<line x1="68" y1="75" x2="128" y2="75" stroke="#666" stroke-width="1.2"/>` +
+      arrow(98,75, 98,83) + outLabel(98,83)
+    ),
+    // algo4: (OP1→OP2)→OUT, (OP3→OP4)→OUT
+    (fb) => SVG(
+      box(30,28,'OP1',false) + (fb?fbArrow(30,28):'') +
+      box(30,62,'OP2',true) +
+      box(110,28,'OP3',false) +
+      box(110,62,'OP4',true) +
+      arrow(30,28+H/2, 30,55) + arrow(110,28+H/2, 110,55) +
+      arrow(30+W/2,62, 68,75) + arrow(110+W/2,62, 68+40,75) +
+      `<line x1="68" y1="75" x2="128" y2="75" stroke="#666" stroke-width="1.2"/>` +
+      arrow(98,75, 98,83) + outLabel(98,83)
+    ),
+    // algo5: OP1→(OP2+OP3+OP4)→OUT
+    (fb) => SVG(
+      box(22,45,'OP1',false) + (fb?fbArrow(22,45):'') +
+      box(90,20,'OP2',true) + box(90,45,'OP3',true) + box(90,70,'OP4',true) +
+      arrow(22+W/2,38, 73,22) + arrow(22+W/2,45, 73,45) + arrow(22+W/2,52, 73,68) +
+      arrow(90+W/2,20, 153,35) + arrow(90+W/2,45, 153,45) + arrow(90+W/2,70, 153,55) +
+      `<line x1="153" y1="35" x2="153" y2="55" stroke="#666" stroke-width="1.2"/>` +
+      arrow(153,45, 175,45) + outLabel(175,45)
+    ),
+    // algo6: OP1→OP2→OUT, OP3→OUT, OP4→OUT
+    (fb) => SVG(
+      box(22,20,'OP1',false) + (fb?fbArrow(22,20):'') +
+      box(22,50,'OP2',true) +
+      box(80,65,'OP3',true) +
+      box(140,65,'OP4',true) +
+      arrow(22,20+H/2, 22,43) +
+      arrow(22+W/2,50, 64,68) + arrow(80+W/2,65, 100,75) +
+      `<line x1="100" y1="75" x2="160" y2="75" stroke="#666" stroke-width="1.2"/>` +
+      arrow(140+W/2,65, 140+W/2+5,75) +
+      arrow(120,75, 120,83) + outLabel(120,83)
+    ),
+    // algo7: OP1+OP2+OP3+OP4→OUT (全キャリア)
+    (fb) => SVG(
+      box(22,45,'OP1',true) + (fb?fbArrow(22,45):'') +
+      box(70,45,'OP2',true) + box(118,45,'OP3',true) + box(166,45,'OP4',true) +
+      arrow(22,45+H/2, 22,78) + arrow(70,45+H/2, 70,78) +
+      arrow(118,45+H/2, 118,78) + arrow(166,45+H/2, 166,78) +
+      `<line x1="22" y1="78" x2="166" y2="78" stroke="#666" stroke-width="1.2"/>` +
+      arrow(94,78, 94,83) + outLabel(94,83)
+    ),
+  ];
+})();
+
 function buildFMPanel(idx) {
   const algoContainer = document.getElementById('fmAlgo'+(idx+1));
-  const opsContainer = document.getElementById('fmOps'+(idx+1));
+  const opsContainer  = document.getElementById('fmOps'+(idx+1));
+  algoContainer.innerHTML = '';
+  opsContainer.innerHTML  = '';
+
+  const p = state.fmParams[idx];
+
+  // ----- ALGORITHM + FEEDBACK + 図 -----
+  const topRow = document.createElement('div');
+  topRow.style.cssText = 'display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:6px';
+
+  // ALGボタン + FB
+  const leftCol = document.createElement('div');
+  leftCol.style.cssText = 'display:flex;flex-direction:column;gap:4px';
+
+  const algoBtns = document.createElement('div');
+  algoBtns.style.cssText = 'display:flex;gap:2px;flex-wrap:wrap';
+
+  // SVGキャンバス
+  const svgWrap = document.createElement('div');
+  svgWrap.id = `fmSvg${idx}`;
+  svgWrap.style.cssText = 'background:#0a0a12;border:1px solid #223;border-radius:3px;padding:2px';
+
+  const renderAlgoSvg = () => {
+    svgWrap.innerHTML = ALGO_SVG[p.algo ?? 0](p.fb > 0);
+  };
+
   ALGO_LABELS.forEach((lbl, ai) => {
     const btn = document.createElement('button');
-    btn.className = 'algo-btn' + (ai===state.fmParams[idx].algo?' active':'');
-    btn.textContent = 'A'+(ai+1);
+    btn.className = 'algo-btn' + (ai === p.algo ? ' active' : '');
+    btn.textContent = 'A' + (ai + 1);
     btn.title = lbl;
     btn.onclick = () => {
-      state.fmParams[idx].algo = ai;
-      algoContainer.querySelectorAll('.algo-btn').forEach((b,j) => b.classList.toggle('active', j===ai));
+      p.algo = ai;
+      algoBtns.querySelectorAll('.algo-btn').forEach((b, j) => b.classList.toggle('active', j === ai));
+      renderAlgoSvg();
     };
-    algoContainer.appendChild(btn);
+    algoBtns.appendChild(btn);
   });
-  opsContainer.innerHTML = '';
-  ['OP1','OP2','OP3','OP4'].forEach((opName, oi) => {
-    const op = state.fmParams[idx].ops[oi];
-    const box = document.createElement('div');
-    box.className = 'op-box';
-    box.innerHTML = `<div class="op-title">${opName}</div>
-      <div class="env-row"><span class="env-label" style="width:16px;color:#666;font-size:7px">RATIO</span>
-        <input type="range" min="0.25" max="8" step="0.25" value="${op.r}" style="width:70px" id="fm${idx}op${oi}r">
-        <span id="fm${idx}op${oi}rv" class="knob-val">${op.r}</span></div>
-      <div class="env-row"><span class="env-label">A</span>
-        <input type="range" min="1" max="500" value="${op.a}" style="width:70px" id="fm${idx}op${oi}a">
-        <span id="fm${idx}op${oi}av" class="knob-val">${op.a}ms</span></div>
-      <div class="env-row"><span class="env-label">D</span>
-        <input type="range" min="1" max="1000" value="${op.d}" style="width:70px" id="fm${idx}op${oi}d">
-        <span id="fm${idx}op${oi}dv" class="knob-val">${op.d}ms</span></div>
-      <div class="env-row"><span class="env-label">S</span>
-        <input type="range" min="0" max="100" value="${op.s}" style="width:70px" id="fm${idx}op${oi}s">
-        <span id="fm${idx}op${oi}sv" class="knob-val">${op.s}%</span></div>`;
-    opsContainer.appendChild(box);
-    ['r','a','d','s'].forEach(param => {
-      const el = document.getElementById(`fm${idx}op${oi}${param}`);
-      const vEl = document.getElementById(`fm${idx}op${oi}${param}v`);
-      el.oninput = () => {
-        state.fmParams[idx].ops[oi][param] = parseFloat(el.value);
-        vEl.textContent = param==='r' ? el.value : el.value+(param==='s'?'%':'ms');
-      };
+  leftCol.appendChild(algoBtns);
+
+  // FB スライダー
+  const fbWrap = document.createElement('div');
+  fbWrap.style.cssText = 'display:flex;align-items:center;gap:4px';
+  fbWrap.innerHTML = `<span style="font-size:7px;color:#888;width:18px">FB</span>
+    <input type="range" min="0" max="7" value="${p.fb ?? 0}" style="width:60px" id="fm${idx}fb">
+    <span id="fm${idx}fbv" class="knob-val">${p.fb ?? 0}</span>`;
+  leftCol.appendChild(fbWrap);
+  topRow.appendChild(leftCol);
+  topRow.appendChild(svgWrap);
+  algoContainer.appendChild(topRow);
+
+  renderAlgoSvg();
+
+  // エンベロープSVG描画関数
+  const EW = 80, EH = 52; // 1OPあたりのキャンバスサイズ
+  const renderEnvSvg = () => {
+    const cols = ['#58f','#5c8','#f84','#c5f'];
+    let html = '';
+    p.ops.forEach((op, oi) => {
+      const tl  = Math.max(0, Math.min(127, op.tl ?? 0));
+      const maxH = EH - 10;
+      const yBase = EH - 4;
+      const peak = maxH * Math.pow(10, -tl * 0.0469) * (1 - (op.sl ?? 0) / 15 * 0.3);
+      const sl   = maxH * Math.pow(10, -tl * 0.0469) * (1 - (op.sl ?? 0) / 15);
+
+      // 各フェーズの幅を AR/DR/SR/RR から比例配分（最小幅保証）
+      const ar = Math.max(1, op.ar ?? 31);
+      const dr = Math.max(0, op.dr ?? 0);
+      const sr = Math.max(0, op.sr ?? 0);
+      const rr = Math.max(1, op.rr ?? 7);
+      const hold = 8; // サスティン保持幅
+      const total = (32-ar)*0.6 + (dr+1)*0.8 + hold + (sr+1)*0.5 + (16-rr)*0.7 + 2;
+      const scale = (EW - 6) / total;
+      const wAR = (32 - ar) * 0.6 * scale;
+      const wDR = (dr + 1) * 0.8 * scale;
+      const wHD = hold * scale;
+      const wSR = (sr + 1) * 0.5 * scale;
+      const wRR = (16 - rr) * 0.7 * scale;
+
+      let x = 3;
+      const pts = [
+        [x, yBase],
+        [x += wAR, yBase - peak],
+        [x += wDR, yBase - sl],
+        [x += wHD, yBase - sl],
+        [x += wSR, yBase - sl * 0.3],
+        [x += wRR, yBase],
+      ];
+      const path = pts.map((p,i) => (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+      const col = cols[oi];
+      const label = ['OP1','OP2','OP3','OP4'][oi];
+
+      html += `<svg width="${EW}" height="${EH}" style="display:inline-block;background:#06060f;border:1px solid #223;border-radius:2px" xmlns="http://www.w3.org/2000/svg">
+        <text x="${EW/2}" y="9" text-anchor="middle" font-size="7" fill="${col}">${label}</text>
+        <path d="${path}" fill="none" stroke="${col}" stroke-width="1.3"/>
+        <path d="${path} L${pts[pts.length-1][0]},${yBase} L3,${yBase} Z" fill="${col}" fill-opacity="0.12"/>
+      </svg>`;
     });
+    envWrap.innerHTML = html;
+  };
+
+  // envWrap をtopRowに追加
+  const envWrap = document.createElement('div');
+  envWrap.style.cssText = 'display:flex;gap:3px;align-items:flex-start;flex-wrap:wrap';
+  topRow.appendChild(envWrap);
+
+  renderEnvSvg();
+
+  document.getElementById(`fm${idx}fb`).oninput = (e) => {
+    p.fb = parseInt(e.target.value);
+    document.getElementById(`fm${idx}fbv`).textContent = e.target.value;
+    renderAlgoSvg();
+  };
+
+  // ----- OP パラメーター (OP1〜4) -----
+  // OPN2パラメーター定義
+  const opParams = [
+    { key:'ar',  label:'AR', min:0, max:31, step:1, fmt: v=>v },
+    { key:'dr',  label:'DR', min:0, max:31, step:1, fmt: v=>v },
+    { key:'sr',  label:'SR', min:0, max:31, step:1, fmt: v=>v },
+    { key:'rr',  label:'RR', min:0, max:15, step:1, fmt: v=>v },
+    { key:'sl',  label:'SL', min:0, max:15, step:1, fmt: v=>v },
+    { key:'tl',  label:'TL', min:0, max:127,step:1, fmt: v=>v },
+    { key:'ks',  label:'KS', min:0, max:3,  step:1, fmt: v=>v },
+    { key:'mul', label:'MUL',min:0, max:15, step:1, fmt: v=>v },
+    { key:'dt',  label:'DT', min:0, max:7,  step:1, fmt: v=>v },
+  ];
+
+  // テーブルレイアウト: 行=パラメーター、列=OP1〜4
+  const tbl = document.createElement('div');
+  tbl.style.cssText = 'display:grid;grid-template-columns:28px repeat(4,1fr);gap:1px 4px;align-items:center;font-size:7px';
+
+  // ヘッダー行
+  const hdr = document.createElement('div'); hdr.style.cssText='font-size:7px;color:#444';
+  tbl.appendChild(hdr);
+  ['OP1','OP2','OP3','OP4'].forEach(lbl => {
+    const h = document.createElement('div');
+    h.style.cssText = 'text-align:center;color:#8af;font-size:8px;font-weight:bold';
+    h.textContent = lbl;
+    tbl.appendChild(h);
   });
+
+  opParams.forEach(({ key, label, min, max, step, fmt }) => {
+    // ラベル列
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'color:#666;font-size:7px;text-align:right;padding-right:2px';
+    lbl.textContent = label;
+    tbl.appendChild(lbl);
+
+    for (let oi = 0; oi < 4; oi++) {
+      const op = p.ops[oi];
+      const val = op[key] ?? 0;
+      const cell = document.createElement('div');
+      cell.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:1px';
+
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.min = min; slider.max = max; slider.step = step;
+      slider.value = val;
+      slider.style.cssText = 'width:100%;height:14px;padding:0;margin:0';
+      slider.id = `fm${idx}op${oi}_${key}`;
+
+      const vspan = document.createElement('span');
+      vspan.style.cssText = 'font-size:6px;color:#888;line-height:1';
+      vspan.textContent = fmt(val);
+      vspan.id = `fm${idx}op${oi}_${key}v`;
+
+      slider.oninput = () => {
+        const v = parseFloat(slider.value);
+        p.ops[oi][key] = v;
+        vspan.textContent = fmt(v);
+        renderEnvSvg(); // エンベロープグラフを再描画
+      };
+
+      cell.appendChild(slider);
+      cell.appendChild(vspan);
+      tbl.appendChild(cell);
+    }
+  });
+
+  opsContainer.appendChild(tbl);
 }
 for (let i = 0; i < 6; i++) buildFMPanel(i);
 
@@ -2392,6 +2778,35 @@ function buildPSGPanels() {
         <span style="font-size:7px;color:#666;width:36px">TIME</span>
         <input type="range" min="10" max="2000" value="${p.envTime??500}" style="width:70px" id="psgEnvTime${pi}">
         <span id="psgEnvTimeV${pi}" class="knob-val">${p.envTime??500}ms</span>
+      </div>
+      <div class="small-title" style="margin-top:6px;margin-bottom:2px">LFO</div>
+      <div class="env-row">
+        <span style="font-size:7px;color:#666;width:36px">WAVE</span>
+        <select id="psgLfoType${pi}" style="width:80px;font-size:8px">
+          <option value="none"   ${(p.lfo?.type??'none')==='none'  ?'selected':''}>none</option>
+          <option value="sine"   ${(p.lfo?.type??'none')==='sine'  ?'selected':''}>sine</option>
+          <option value="square" ${(p.lfo?.type??'none')==='square'?'selected':''}>square</option>
+          <option value="saw"    ${(p.lfo?.type??'none')==='saw'   ?'selected':''}>saw</option>
+          <option value="tri"    ${(p.lfo?.type??'none')==='tri'   ?'selected':''}>tri</option>
+        </select>
+      </div>
+      <div class="env-row" style="margin-top:2px">
+        <span style="font-size:7px;color:#666;width:36px">RATE</span>
+        <input type="range" min="0.1" max="20" step="0.1" value="${p.lfo?.rate??4}" style="width:70px" id="psgLfoRate${pi}">
+        <span id="psgLfoRateV${pi}" class="knob-val">${(p.lfo?.rate??4).toFixed(1)}Hz</span>
+      </div>
+      <div class="env-row" style="margin-top:2px">
+        <span style="font-size:7px;color:#666;width:36px">DEPTH</span>
+        <input type="range" min="0" max="100" value="${p.lfo?.depth??0}" style="width:70px" id="psgLfoDep${pi}">
+        <span id="psgLfoDepV${pi}" class="knob-val">${p.lfo?.depth??0}%</span>
+      </div>
+      <div class="env-row" style="margin-top:2px">
+        <span style="font-size:7px;color:#666;width:36px">DEST</span>
+        <select id="psgLfoDest${pi}" style="width:80px;font-size:8px">
+          <option value="pitch"  ${(p.lfo?.dest??'pitch')==='pitch' ?'selected':''}>pitch</option>
+          <option value="volume" ${(p.lfo?.dest??'pitch')==='volume'?'selected':''}>volume</option>
+          <option value="pan"    ${(p.lfo?.dest??'pitch')==='pan'   ?'selected':''}>pan</option>
+        </select>
       </div>`;
     psgContainer.appendChild(ch);
 
@@ -2419,6 +2834,22 @@ function buildPSGPanels() {
     document.getElementById('psgEnvTime'+pi).oninput = (e) => {
       state.psgParams[pi].envTime = parseInt(e.target.value);
       document.getElementById('psgEnvTimeV'+pi).textContent = e.target.value+'ms';
+    };
+    // LFO
+    if (!state.psgParams[pi].lfo) state.psgParams[pi].lfo = { type:'none', rate:4, depth:0, dest:'pitch' };
+    document.getElementById('psgLfoType'+pi).onchange = (e) => {
+      state.psgParams[pi].lfo.type = e.target.value;
+    };
+    document.getElementById('psgLfoRate'+pi).oninput = (e) => {
+      state.psgParams[pi].lfo.rate = parseFloat(e.target.value);
+      document.getElementById('psgLfoRateV'+pi).textContent = parseFloat(e.target.value).toFixed(1)+'Hz';
+    };
+    document.getElementById('psgLfoDep'+pi).oninput = (e) => {
+      state.psgParams[pi].lfo.depth = parseInt(e.target.value);
+      document.getElementById('psgLfoDepV'+pi).textContent = e.target.value+'%';
+    };
+    document.getElementById('psgLfoDest'+pi).onchange = (e) => {
+      state.psgParams[pi].lfo.dest = e.target.value;
     };
   });
 }
