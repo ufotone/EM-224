@@ -2947,10 +2947,12 @@
         const fillBtn = document.createElement('button');
         fillBtn.className = 'btn';
         fillBtn.style.cssText = 'font-size:8px;border-color:#446;color:#68a';
-        fillBtn.textContent = 'FILL GLOBAL';
-        fillBtn.title = '全STEPにグローバルBPMを書き込む';
+        fillBtn.textContent = 'FILL StoE';
+        fillBtn.title = 'STEP1に入力したBPMを全STEPに書き込む';
         fillBtn.onclick = () => {
-          for (let i = 0; i < len; i++) bank.bpmTrack[i] = state.bpm;
+          const firstVal = bank.bpmTrack[0];
+          if (firstVal == null) { alert('STEP1にBPMを入力してください'); return; }
+          for (let i = 0; i < len; i++) bank.bpmTrack[i] = firstVal;
           renderSeq();
         };
 
