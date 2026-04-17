@@ -80,6 +80,7 @@ Example:%KICK4 %SNARE8 %HHAT16 %HHAT16 %PPCM4
 ---
 
 ## 📂 Project Structure
+
 index.html     - main application
 
 ---
@@ -93,8 +94,7 @@ Open index.html in your browser.
 No build step required.
 
 ---
-
-##📜 License
+## 📜 License
 
 This project is released under the CC0 1.0 Universal (Public Domain Dedication).
 To the extent possible under law, 
