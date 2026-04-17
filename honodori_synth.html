@@ -461,6 +461,12 @@
       border-color: #555
     }
 
+    .song-slot.filled:hover {
+      background: #2a1010;
+      border-color: #a44;
+      color: #f88
+    }
+
     .song-slot.filled {
       background: #12202a;
       border-color: #356;
@@ -477,26 +483,6 @@
       border-color: #fa6 !important;
       background: #2a1a0a;
       color: #fc9
-    }
-
-    .song-slot .slot-del {
-      display: none;
-      position: absolute;
-      top: -4px;
-      right: -4px;
-      width: 10px;
-      height: 10px;
-      background: #a33;
-      border-radius: 50%;
-      font-size: 7px;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      cursor: pointer
-    }
-
-    .song-slot:hover .slot-del {
-      display: flex
     }
 
     .song-add {
@@ -2019,24 +2005,11 @@
         slot.className = 'song-slot filled' +
           (si === state.song.cursor ? ' song-playing' : '');
         slot.textContent = bankIdx + 1;
-        slot.title = 'バンク ' + (bankIdx + 1);
-        // 削除ボタン
-        const del = document.createElement('div');
-        del.className = 'slot-del';
-        del.textContent = '×';
-        del.onclick = (e) => {
-          e.stopPropagation();
+        slot.title = 'バンク ' + (bankIdx + 1) + ' (クリックで削除)';
+        // クリックで削除
+        slot.onclick = () => {
           state.song.steps.splice(si, 1);
           updateSongGrid();
-        };
-        slot.appendChild(del);
-        // クリックでそのstepにジャンプ（再生中でなければ）
-        slot.onclick = () => {
-          if (!state.playing) {
-            state.currentBank = bankIdx;
-            document.querySelectorAll('.bank-btn').forEach((b, j) => b.classList.toggle('active', j === bankIdx));
-            renderSeq();
-          }
         };
         grid.appendChild(slot);
       });
@@ -2662,16 +2635,11 @@
       tab.onclick = () => {
         const tabId = tab.dataset.tab;
         activateSynthTab(tabId);
-        // FM1〜6 → SEQ側も同チャンネルへ
         if (/^fm[1-6]$/.test(tabId)) {
           activateSeqTab(tabId);
-        }
-        // SUB(subtractive) → SEQ側をsubへ
-        else if (tabId === 'subtractive') {
+        } else if (tabId === 'subtractive') {
           activateSeqTab('sub');
-        }
-        // FX(fx) → SEQ側をfxseqへ
-        else if (tabId === 'fx') {
+        } else if (tabId === 'fx') {
           activateSeqTab('fxseq');
         }
       };
@@ -2681,16 +2649,11 @@
       tab.onclick = () => {
         const stabId = tab.dataset.stab;
         activateSeqTab(stabId);
-        // FM1〜6 → 音源エディット側も同チャンネルへ
         if (/^fm[1-6]$/.test(stabId)) {
           activateSynthTab(stabId);
-        }
-        // sub → 音源エディット側をsubtractiveへ
-        else if (stabId === 'sub') {
+        } else if (stabId === 'sub') {
           activateSynthTab('subtractive');
-        }
-        // fxseq → 音源エディット側をfxへ
-        else if (stabId === 'fxseq') {
+        } else if (stabId === 'fxseq') {
           activateSynthTab('fx');
         }
       };
