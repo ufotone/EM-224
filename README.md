@@ -35,7 +35,7 @@ It is designed for chiptune creators, sound designers, and anyone exploring retr
 
 ### **PATTERN Mode**
 - 16/32‑step sequencer  
-- Note, volume, pan, tie, step length  
+- Note, volume, pan, tie, step length ,Bpm
 - Per‑engine parameter editing
 
 ### **SONG Mode**
