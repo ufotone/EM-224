@@ -1,7 +1,7 @@
 # honodori  
 A browser‑based hybrid synthesizer and sequencer integrating FM, PSG, subtractive, and drum/PCM engines.
 
-![screenshot](./images/screenshot_main.png)
+![screenshot](./images/screenshot.png)
 
 ---
 
