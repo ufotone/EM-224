@@ -594,24 +594,9 @@
       box-shadow: 0 0 4px #33a6
     }
 
-    .tone-slot .ts-del {
-      display: none;
-      position: absolute;
-      top: -4px;
-      right: -4px;
-      width: 10px;
-      height: 10px;
-      background: #523;
-      border-radius: 50%;
-      font-size: 7px;
-      align-items: center;
-      justify-content: center;
-      color: #f99;
-      cursor: pointer
-    }
-
-    .tone-slot:hover .ts-del {
-      display: flex
+    .tone-slot.copied {
+      border-color: #a84;
+      box-shadow: 0 0 4px #a8426
     }
 
     .tone-seq-row select {
@@ -642,7 +627,6 @@
             <button class="mode-btn" id="modeMML">MML</button>
           </div>
           <div class="bank-btns" id="banks"></div>
-          <button class="btn" id="clearBank" title="バンクをクリア">🗑</button>
         </div>
         <div class="row" style="gap:8px;align-items:center">
           <button class="play-btn" id="playBtn">▶ PLAY</button>
@@ -738,7 +722,9 @@
       <div class="tab" data-tab="fm4">FM4</div>
       <div class="tab" data-tab="fm5">FM5</div>
       <div class="tab" data-tab="fm6">FM6</div>
-      <div class="tab" data-tab="psg">PSG</div>
+      <div class="tab" data-tab="psg1">PS1</div>
+      <div class="tab" data-tab="psg2">PS2</div>
+      <div class="tab" data-tab="psg3">PS3</div>
       <div class="tab" data-tab="fx">FX</div>
     </div>
 
@@ -826,9 +812,19 @@
       <div id="fmOps6"></div>
     </div>
 
-    <!-- PSG panel -->
-    <div class="panel" id="tab-psg" style="display:none">
-      <div class="psg-panel" id="psgChannels"></div>
+    <!-- PSG-1 panel -->
+    <div class="panel" id="tab-psg1" style="display:none">
+      <div class="psg-panel" id="psgChannel0"></div>
+    </div>
+
+    <!-- PSG-2 panel -->
+    <div class="panel" id="tab-psg2" style="display:none">
+      <div class="psg-panel" id="psgChannel1"></div>
+    </div>
+
+    <!-- PSG-3 panel -->
+    <div class="panel" id="tab-psg3" style="display:none">
+      <div class="psg-panel" id="psgChannel2"></div>
     </div>
 
     <!-- FX panel -->
@@ -985,7 +981,7 @@
         <button class="btn" id="clearPartBtn" title="現在のパートをすべてクリア"
           style="margin-left:6px;border-color:#733;color:#d55">CLR PART</button>
         <div style="display:flex;align-items:center;gap:4px;margin-left:6px">
-          <button class="btn" id="loadPcmBtn" style="border-color:#733;color:#d55">PCM: 未読込</button>
+          <button class="btn" id="loadPcmBtn" style="border-color:#733;color:#d55">PCM:LOAD</button>
           <input type="file" id="loadPcmInput" accept=".wav,.wave,audio/*" style="display:none">
           <button class="btn" id="clearPcmBtn" title="PCMを解放" style="border-color:#733;color:#d55">✕</button>
           <span style="font-size:8px;color:#666">BITS</span>
@@ -2178,15 +2174,6 @@
       b.oncontextmenu = (e) => showBankCtxMenu(e, i);
       bankBar.appendChild(b);
     }
-    document.getElementById('clearBank').onclick = () => {
-      const d = getSeqData();
-      ['sub', 'fm1', 'fm2', 'fm3', 'fm4', 'fm5', 'fm6', 'psg1', 'psg2', 'psg3'].forEach(k => { if (d[k]) d[k].on.fill(false); });
-      d.drums.kick.fill(false); d.drums.snare.fill(false); d.drums.hat.fill(false);
-      d.drums.tomhi.fill(false); d.drums.tommid.fill(false); d.drums.tomlo.fill(false);
-      d.drums.openhh.fill(false); d.drums.closehh.fill(false);
-      if (d.fmTone) d.fmTone.forEach(ft => { if (ft) { ft.on.fill(false); ft.slot.fill(-1); } });
-      renderSeq();
-    };
 
     // FM panels
     // OPN2アルゴリズム図をSVGで描画
@@ -2533,11 +2520,116 @@
 
       opsContainer.appendChild(tbl);
     }
-    for (let i = 0; i < 6; i++) buildFMPanel(i);
-
     // =============================================
     // FM Tone Bank ヘルパー関数
     // =============================================
+
+    // Tone Bank スロット用コンテキストメニュー
+    let toneSlotClipboard = null;    // コピーしたトーンデータ
+    let toneSlotClipboardIdx = -1;   // コピー元スロット番号
+
+    for (let i = 0; i < 6; i++) buildFMPanel(i);
+
+    const toneSlotCtxMenu = document.createElement('div');
+    toneSlotCtxMenu.id = 'toneSlotCtxMenu';
+    toneSlotCtxMenu.style.cssText = 'position:fixed;display:none;background:#1a1a2a;border:1px solid #446;border-radius:4px;z-index:9999;min-width:120px;font-size:11px;box-shadow:0 4px 12px #0008';
+    document.body.appendChild(toneSlotCtxMenu);
+
+    function hideToneSlotCtxMenu() {
+      toneSlotCtxMenu.style.display = 'none';
+    }
+    document.addEventListener('click', hideToneSlotCtxMenu);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') hideToneSlotCtxMenu(); });
+
+    function showToneSlotCtxMenu(e, fmIdx, si) {
+      e.preventDefault();
+      e.stopPropagation();
+      hideToneSlotCtxMenu();
+
+      toneSlotCtxMenu.innerHTML = '';
+      const stored = state.fmToneBank[si] !== null;
+
+      const menuItems = [
+        {
+          label: '📋 Copy', enabled: () => stored, action: () => {
+            toneSlotClipboard = JSON.parse(JSON.stringify(state.fmToneBank[si]));
+            toneSlotClipboardIdx = si;
+            // コピー元をハイライト（全FMパネルで反映）
+            document.querySelectorAll('.tone-slot').forEach(el => {
+              el.classList.toggle('copied', parseInt(el.dataset.si) === si);
+            });
+          }
+        },
+        {
+          label: '📌 Paste', enabled: () => toneSlotClipboard !== null, action: () => {
+            if (!toneSlotClipboard) return;
+            state.fmToneBank[si] = JSON.parse(JSON.stringify(toneSlotClipboard));
+            for (let i = 0; i < 6; i++) updateToneBankUI(i);
+            renderSeq();
+          }
+        },
+        {
+          label: '🔄 Swap', enabled: () => toneSlotClipboard !== null && toneSlotClipboardIdx >= 0 && toneSlotClipboardIdx !== si, action: () => {
+            if (!toneSlotClipboard || toneSlotClipboardIdx < 0) return;
+            const tmp = state.fmToneBank[si] ? JSON.parse(JSON.stringify(state.fmToneBank[si])) : null;
+            state.fmToneBank[si] = JSON.parse(JSON.stringify(toneSlotClipboard));
+            state.fmToneBank[toneSlotClipboardIdx] = tmp;
+            // Swapしたので元スロットのactiveToneも更新
+            for (let i = 0; i < 6; i++) {
+              if (state.fmActiveTone[i] === toneSlotClipboardIdx) state.fmActiveTone[i] = si;
+              else if (state.fmActiveTone[i] === si) state.fmActiveTone[i] = toneSlotClipboardIdx;
+            }
+            toneSlotClipboard = JSON.parse(JSON.stringify(state.fmToneBank[si]));
+            toneSlotClipboardIdx = si;
+            for (let i = 0; i < 6; i++) updateToneBankUI(i);
+            renderSeq();
+          }
+        },
+        null,
+        {
+          label: '🗑 Clear', enabled: () => stored, action: () => {
+            state.fmToneBank[si] = null;
+            for (let i = 0; i < 6; i++) {
+              if (state.fmActiveTone[i] === si) state.fmActiveTone[i] = -1;
+            }
+            for (let i = 0; i < 6; i++) updateToneBankUI(i);
+            renderSeq();
+          }
+        },
+      ];
+
+      const slotLabel = document.createElement('div');
+      slotLabel.style.cssText = 'padding:6px 12px 4px;color:#668;font-size:9px;border-bottom:1px solid #334';
+      slotLabel.textContent = `SLOT ${si}` + (stored ? ' ● STORED' : ' (空)');
+      toneSlotCtxMenu.appendChild(slotLabel);
+
+      menuItems.forEach(item => {
+        if (item === null) {
+          const sep = document.createElement('div');
+          sep.style.cssText = 'height:1px;background:#334;margin:2px 0';
+          toneSlotCtxMenu.appendChild(sep);
+          return;
+        }
+        const enabled = item.enabled ? item.enabled() : true;
+        const el = document.createElement('div');
+        el.style.cssText = `padding:6px 14px;cursor:${enabled ? 'pointer' : 'default'};color:${enabled ? '#cde' : '#456'};white-space:nowrap`;
+        el.textContent = item.label;
+        if (enabled) {
+          el.onmouseenter = () => { el.style.background = '#2a2a4a'; };
+          el.onmouseleave = () => { el.style.background = ''; };
+          el.onclick = (ev) => { ev.stopPropagation(); item.action(); hideToneSlotCtxMenu(); };
+        }
+        toneSlotCtxMenu.appendChild(el);
+      });
+
+      toneSlotCtxMenu.style.display = 'block';
+      const rect = toneSlotCtxMenu.getBoundingClientRect();
+      let x = e.clientX, y = e.clientY;
+      if (x + rect.width > window.innerWidth) x = window.innerWidth - rect.width - 4;
+      if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 4;
+      toneSlotCtxMenu.style.left = x + 'px';
+      toneSlotCtxMenu.style.top = y + 'px';
+    }
 
     function renderToneSlotGrid(fmIdx, container) {
       container.innerHTML = '';
@@ -2545,44 +2637,28 @@
         const slot = document.createElement('div');
         const stored = state.fmToneBank[si] !== null;
         const isActive = state.fmActiveTone[fmIdx] === si;
-        slot.className = 'tone-slot' + (stored ? ' stored' : '') + (isActive ? ' active-tone' : '');
+        const isCopied = toneSlotClipboardIdx === si && toneSlotClipboard !== null;
+        slot.className = 'tone-slot' + (stored ? ' stored' : '') + (isActive ? ' active-tone' : '') + (isCopied ? ' copied' : '');
+        slot.dataset.si = si;
         slot.textContent = si;
-        slot.title = stored ? `スロット ${si}: 保存済み (クリック=呼出)` : `スロット ${si}: 空 (クリック=選択)`;
+        slot.title = stored ? `スロット ${si}: 保存済み (クリック=呼出 / 右クリック=メニュー)` : `スロット ${si}: 空 (右クリック=メニュー)`;
 
-        // クリック: 保存済みなら呼出、空なら選択
+        // 左クリック: 保存済みなら呼出、空なら選択
         slot.onclick = () => {
           if (stored) {
-            // RECALL: バンクデータをFMパラメータに適用
             state.fmParams[fmIdx] = JSON.parse(JSON.stringify(state.fmToneBank[si]));
             state.fmActiveTone[fmIdx] = si;
             buildFMPanel(fmIdx);
             for (let i = 0; i < 6; i++) updateToneBankUI(i);
           } else {
-            // 空スロット選択: STOREボタンで保存する対象に設定
             state.fmActiveTone[fmIdx] = si;
             for (let i = 0; i < 6; i++) updateToneBankUI(i);
           }
         };
 
-        // 削除ボタン (保存済みのみ)
-        if (stored) {
-          const del = document.createElement('div');
-          del.className = 'ts-del';
-          del.textContent = '×';
-          del.title = 'このスロットをクリア';
-          del.onclick = (e) => {
-            e.stopPropagation();
-            state.fmToneBank[si] = null;
-            // このスロットを参照していたチャンネルのactiveToneをリセット
-            for (let i = 0; i < 6; i++) {
-              if (state.fmActiveTone[i] === si) state.fmActiveTone[i] = -1;
-            }
-            for (let i = 0; i < 6; i++) updateToneBankUI(i);
-            // シーケンサーのTONE行も更新
-            renderSeq();
-          };
-          slot.appendChild(del);
-        }
+        // 右クリック: コンテキストメニュー
+        slot.oncontextmenu = (e) => showToneSlotCtxMenu(e, fmIdx, si);
+
         container.appendChild(slot);
       }
     }
@@ -2617,7 +2693,7 @@
       document.querySelectorAll('#tabBar .tab').forEach(t => t.classList.remove('active'));
       const target = document.querySelector(`#tabBar .tab[data-tab="${tabId}"]`);
       if (target) target.classList.add('active');
-      ['subtractive', 'fm1', 'fm2', 'fm3', 'fm4', 'fm5', 'fm6', 'psg', 'fx'].forEach(id => {
+      ['subtractive', 'fm1', 'fm2', 'fm3', 'fm4', 'fm5', 'fm6', 'psg1', 'psg2', 'psg3', 'fx'].forEach(id => {
         document.getElementById('tab-' + id).style.display = tabId === id ? '' : 'none';
       });
     }
@@ -2641,6 +2717,8 @@
           activateSeqTab('sub');
         } else if (tabId === 'fx') {
           activateSeqTab('fxseq');
+        } else if (/^psg[1-3]$/.test(tabId)) {
+          activateSeqTab(tabId);
         }
       };
     });
@@ -2655,6 +2733,8 @@
           activateSynthTab('subtractive');
         } else if (stabId === 'fxseq') {
           activateSynthTab('fx');
+        } else if (/^psg[1-3]$/.test(stabId)) {
+          activateSynthTab(stabId);
         }
       };
     });
@@ -3766,8 +3846,7 @@
       // PSG params
       if (cfg.psgParams) {
         cfg.psgParams.forEach((p, i) => { if (state.psgParams[i]) Object.assign(state.psgParams[i], p); });
-        // PSGパネル再構築
-        document.getElementById('psgChannels').innerHTML = '';
+        // PSGパネル再構築（buildPSGPanels内で各コンテナをクリアする）
         buildPSGPanels();
       }
 
@@ -3896,8 +3975,9 @@
 
     // PSGパネルの再構築を関数化（applyConfigから呼べるよう）
     function buildPSGPanels() {
-      const psgContainer = document.getElementById('psgChannels');
       ['PSG-1', 'PSG-2', 'PSG-3'].forEach((name, pi) => {
+        const psgContainer = document.getElementById('psgChannel' + pi);
+        psgContainer.innerHTML = '';
         const p = state.psgParams[pi];
         const ch = document.createElement('div');
         ch.className = 'psg-ch';
