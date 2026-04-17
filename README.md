@@ -82,9 +82,6 @@ Example:%KICK4 %SNARE8 %HHAT16 %HHAT16 %PPCM4
 ## 📂 Project Structure
 index.html     - main application
 
-
-(※ 必要に応じて調整してください)
-
 ---
 
 ## 🧪 Demo
