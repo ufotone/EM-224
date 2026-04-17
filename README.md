@@ -1,29 +1,101 @@
-EM-224(honodori) — A Browser‑Based Hybrid Synthesizer and Sequencer
-honodori is a browser‑based multi‑engine synthesizer and sequencer that integrates
-FM, PSG, subtractive synthesis, and drum/PCM playback into a single, intuitive environment.
-It supports both GUI-based composition and MML scripting, making it ideal for chiptune creators, sound designers, and anyone exploring retro‑inspired electronic music.
+# honodori  
+A browser‑based hybrid synthesizer and sequencer integrating FM, PSG, subtractive, and drum/PCM engines.
 
-Features
-Hybrid Sound Architecture  
-SUB / FM (4‑operator, 8 algorithms) / PSG (AY‑style extended) / DRM (PCM loader)
-Three Composition Modes
-PATTERN — 16/32‑step sequencer for fast beat and phrase creation
-SONG — Arrange patterns to build full tracks
-MML — Supports note input, length, octave, tempo, velocity, pan, tie, and partial MUCOM88‑style syntax
-Drum‑Focused MML  
-%K (Kick), %S (Snare), %H (Hat), %P (PCM) and more for rapid rhythm programming
-Deep Sound Design Controls  
-FM operator parameters, PSG waveforms and LFO, SUB filters and envelopes, per‑engine panning, and more
-Built‑in Effects  
-Delay (sync‑able), Chorus, DJ Filter (LPF/HPF)
-Fully Browser‑Native  
-No installation required. Supports project Save/Load.
+![screenshot](./images/screenshot_main.png)
 
-Perfect For
-Chiptune and retro game music
-FM/PSG sound design
-Lightweight DAW‑style workflows in the browser
-Rapid prototyping of electronic music ideas
-Educational use for learning synthesis concepts
+---
 
-Creative Commons Zero（CC0 1.0 Universal）
+## 🎹 Overview
+
+**honodori** is a multi‑engine synthesizer and sequencer that runs entirely in the browser.  
+It combines **FM**, **PSG**, **SUB (subtractive)**, and **DRM (drum + PCM loader)** sound sources,  
+and supports both **GUI‑based composition** and **MML scripting**.
+
+It is designed for chiptune creators, sound designers, and anyone exploring retro‑inspired electronic music.
+
+---
+
+## 🚀 Features
+
+### 🔊 Hybrid Sound Architecture
+- **SUB** — subtractive synthesis (SINE / SQUARE / SAW / TRIANGLE, ADSR, LPF/HPF)
+- **FM** — 4‑operator engine with 8 algorithms  
+  - Operator parameters: AR / DR / SR / RR / SL / TL / KS / MUL / DT  
+  - Feedback, tone bank support
+- **PSG** — AY‑style extended PSG  
+  - Waveforms: SQ / SAW / TRI / SIN  
+  - Detune, envelope types, LFO (wave / rate / depth / destination)
+- **DRM** — drum engine + PCM loader  
+  - 8 fixed drum sounds + 1 PCM channel  
+  - PCM supports WAV/MP3 loading (6‑bit lo‑fi conversion)
+
+---
+
+## 🎼 Composition Modes
+
+### **PATTERN Mode**
+- 16/32‑step sequencer  
+- Note, volume, pan, tie, step length  
+- Per‑engine parameter editing
+
+### **SONG Mode**
+- Arrange multiple patterns to build full tracks  
+- Pattern chaining and structure editing
+
+### **MML Mode**
+- Supports note input (CDEFGAB), rests (R), note length, octave, tempo, velocity  
+- PAN, TIE, tone selection  
+- Partially MUCOM88‑compatible syntax  
+- Executes independently from PATTERN/SONG modes
+
+---
+
+## 🥁 Drum MML
+
+Drum channels support a dedicated MML syntax:
+
+- `%KICK`, `%SNARE`, `%HHAT`, `%OH`, `%CH`, `%THTOM`, `%TMTOM`, `%TLTOM`
+- `%PPCM` — play PCM sample
+- Note length can be specified (`%KICK4`) or inherit the default `L` value
+
+Example:%KICK4 %SNARE8 %HHAT16 %HHAT16 %PPCM4
+
+
+---
+
+## 🎛️ Effects & Mixer
+
+- **Delay** (sync‑able)
+- **Chorus**
+- **DJ Filter** (LPF / HPF)
+- Per‑engine **PAN** and **GAIN**
+
+---
+
+## 💾 Save & Load
+
+- Projects can be saved and loaded directly in the browser  
+- No installation required
+
+---
+
+## 📂 Project Structure
+index.html     - main application
+
+
+(※ 必要に応じて調整してください)
+
+---
+
+## 🧪 Demo
+
+Live demo:  
+https://ufotone.github.io/github.io/
+
+Open index.html in your browser.
+No build step required.
+---
+
+
+
+
