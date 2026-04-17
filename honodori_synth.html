@@ -611,6 +611,39 @@
       border-color: #44a;
       color: #9af
     }
+
+    .bpm-step-input {
+      background: #111;
+      border: 1px solid #333;
+      color: #aad;
+      font-family: monospace;
+      font-size: 9px;
+      width: 100%;
+      text-align: center;
+      padding: 1px 0;
+      border-radius: 2px;
+      -moz-appearance: textfield;
+    }
+    .bpm-step-input::-webkit-inner-spin-button,
+    .bpm-step-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .bpm-step-input.bpm-active {
+      background: #1a1a2a;
+      border-color: #55a;
+      color: #9cf;
+    }
+    .bpm-step-input.bpm-playing {
+      border-color: #8f8 !important;
+      box-shadow: 0 0 4px #4f4;
+    }
+    .tab[data-stab="bpmtrack"] {
+      border-color: #446;
+      color: #68a;
+    }
+    .tab[data-stab="bpmtrack"].active {
+      background: #1a1a2a;
+      border-color: #66d;
+      color: #aaf;
+    }
   </style>
 </head>
 
@@ -1005,6 +1038,7 @@
         <div class="tab" data-stab="psg3">PS3</div>
         <div class="tab" data-stab="drums">DRM</div>
         <div class="tab" data-stab="fxseq">FX</div>
+        <div class="tab" data-stab="bpmtrack" style="border-color:#446;color:#68a">BPM</div>
       </div>
       <div id="seqContent"></div>
       <div class="led" id="stepIndicator" style="margin-top:4px;padding-left:60px"></div>
@@ -1042,6 +1076,7 @@
       },
       banks: Array(32).fill(null).map(() => ({
         stepLen: 16,
+        bpmTrack: Array(32).fill(null), // null=グローバルBPM, 数値=STEPごとBPM
         seqData: {
           sub: { notes: Array(32).fill('A3'), vols: Array(32).fill(80), on: Array(32).fill(false), tie: Array(32).fill(false), pan: Array(32).fill(0) },
           fm1: { notes: Array(32).fill('A3'), vols: Array(32).fill(80), on: Array(32).fill(false), tie: Array(32).fill(false), pan: Array(32).fill(0) },
@@ -1787,14 +1822,19 @@
     function scheduleStep() {
       if (!state.playing || !audioCtx) return;
 
-      const stepTime = (60 / state.bpm) / 4;
-
       // 先読み窓内のステップをすべてスケジュール
       while (nextStepTime < audioCtx.currentTime + SCHEDULE_AHEAD_TIME) {
         const when = nextStepTime;
         const stepLen = getStepLen();
         const step = (state.currentStep + 1) % stepLen;
         state.currentStep = step;
+
+        // このSTEPのBPMを決定（BPMトラック優先、なければグローバルBPM）
+        const bank = state.banks[state.currentBank];
+        const stepBpm = (bank.bpmTrack && bank.bpmTrack[step] != null)
+          ? Math.max(20, Math.min(500, bank.bpmTrack[step]))
+          : state.bpm;
+        const stepTime = (60 / stepBpm) / 4;
 
         // ソングモード: step==0 でバンク切替
         if (state.mode === 'song' && step === 0) {
@@ -1895,9 +1935,13 @@
 
         // ステップインジケーターUI更新（非同期）
         const _step = step;
+        const _stepBpm = stepBpm;
         const delay = Math.max(0, (when - audioCtx.currentTime) * 1000);
         setTimeout(() => {
           updateStepIndicator(_step);
+          // BPMトラックが有効なら右上BPM表示欄を更新
+          const bpmEl = document.getElementById('bpmInput');
+          if (bpmEl) bpmEl.value = _stepBpm;
           // PANのUI同期
           panMap.forEach(([ch, pk]) => {
             if (seq[ch] && seq[ch].pan && seq[ch].pan[_step] !== undefined) {
@@ -1965,6 +2009,8 @@
       activePcmSources.forEach(src => { try { src.stop(); } catch (e) { } });
       activePcmSources.clear();
       document.getElementById('playBtn').style.opacity = '1';
+      // 停止時はグローバルBPMを表示欄に戻す
+      document.getElementById('bpmInput').value = state.bpm;
       updateStepIndicator(-1);
       updateSongGrid();
     }
@@ -1989,6 +2035,14 @@
         d.classList.toggle('playing', i === step);
         d.classList.toggle('active', i !== step);
       });
+      // BPMタブが開いている場合は入力欄もハイライト
+      if (state.currentSeqTab === 'bpmtrack') {
+        const len = getStepLen();
+        for (let i = 0; i < len; i++) {
+          const el = document.getElementById(`bpmStepInp_${i}`);
+          if (el) el.classList.toggle('bpm-playing', i === step);
+        }
+      }
     }
 
     // ---- Song Mode UI ----
@@ -2866,6 +2920,117 @@
           content.appendChild(onRow);
         });
 
+      } else if (tab === 'bpmtrack') {
+        // ========== BPM TRACK タブ ==========
+        const bank = state.banks[state.currentBank];
+        if (!bank.bpmTrack) bank.bpmTrack = Array(32).fill(null);
+
+        // 説明ヘッダー
+        const desc = document.createElement('div');
+        desc.style.cssText = 'font-size:8px;color:#557;margin-bottom:6px;padding:2px 4px;border-left:2px solid #446';
+        desc.innerHTML = 'STEP毎のBPMを設定。空欄 = グローバルBPM (<span style="color:#aad">' + state.bpm + '</span>) を使用。';
+        content.appendChild(desc);
+
+        // ツールボタン行
+        const toolRow = document.createElement('div');
+        toolRow.style.cssText = 'display:flex;gap:4px;align-items:center;margin-bottom:6px;flex-wrap:wrap';
+
+        const clearBtn = document.createElement('button');
+        clearBtn.className = 'btn';
+        clearBtn.style.cssText = 'font-size:8px;border-color:#733;color:#d55';
+        clearBtn.textContent = 'CLEAR ALL';
+        clearBtn.onclick = () => {
+          bank.bpmTrack.fill(null);
+          renderSeq();
+        };
+
+        const fillBtn = document.createElement('button');
+        fillBtn.className = 'btn';
+        fillBtn.style.cssText = 'font-size:8px;border-color:#446;color:#68a';
+        fillBtn.textContent = 'FILL GLOBAL';
+        fillBtn.title = '全STEPにグローバルBPMを書き込む';
+        fillBtn.onclick = () => {
+          for (let i = 0; i < len; i++) bank.bpmTrack[i] = state.bpm;
+          renderSeq();
+        };
+
+        const rampBtn = document.createElement('button');
+        rampBtn.className = 'btn';
+        rampBtn.style.cssText = 'font-size:8px;border-color:#446;color:#68a';
+        rampBtn.textContent = 'RAMP';
+        rampBtn.title = '先頭→末尾にかけてBPMをリニア補間';
+        rampBtn.onclick = () => {
+          const fromBpm = parseFloat(prompt('開始BPM:', bank.bpmTrack[0] ?? state.bpm));
+          const toBpm = parseFloat(prompt('終了BPM:', bank.bpmTrack[len - 1] ?? state.bpm));
+          if (isNaN(fromBpm) || isNaN(toBpm)) return;
+          for (let i = 0; i < len; i++) {
+            bank.bpmTrack[i] = Math.round(fromBpm + (toBpm - fromBpm) * (i / (len - 1)));
+          }
+          renderSeq();
+        };
+
+        toolRow.appendChild(clearBtn);
+        toolRow.appendChild(fillBtn);
+        toolRow.appendChild(rampBtn);
+        content.appendChild(toolRow);
+
+        // BPM入力グリッド
+        const bpmRow = document.createElement('div');
+        bpmRow.className = gridClass;
+        const blbl = document.createElement('div');
+        blbl.className = 'seq-label';
+        blbl.style.cssText = 'font-size:8px;color:#68a;letter-spacing:1px';
+        blbl.textContent = 'BPM';
+        bpmRow.appendChild(blbl);
+
+        for (let i = 0; i < len; i++) {
+          const inp = document.createElement('input');
+          inp.type = 'number';
+          inp.className = 'bpm-step-input' + (bank.bpmTrack[i] != null ? ' bpm-active' : '');
+          inp.min = 20; inp.max = 500;
+          inp.placeholder = state.bpm; // グローバルBPMをプレースホルダーで表示
+          inp.value = bank.bpmTrack[i] != null ? bank.bpmTrack[i] : '';
+          if (i > 0 && i % 8 === 0) inp.style.borderLeftColor = '#446';
+          inp.id = `bpmStepInp_${i}`;
+          inp.oninput = (e) => {
+            const v = e.target.value.trim();
+            if (v === '' || isNaN(parseFloat(v))) {
+              bank.bpmTrack[i] = null;
+              inp.classList.remove('bpm-active');
+            } else {
+              bank.bpmTrack[i] = Math.max(20, Math.min(500, parseFloat(v)));
+              inp.classList.add('bpm-active');
+            }
+          };
+          bpmRow.appendChild(inp);
+        }
+        content.appendChild(bpmRow);
+
+        // 現在のBPMプレビュー行（視覚的なバー）
+        const barRow = document.createElement('div');
+        barRow.className = gridClass;
+        const barlbl = document.createElement('div');
+        barlbl.className = 'seq-label';
+        barlbl.style.cssText = 'font-size:7px;color:#446';
+        barlbl.textContent = '▲';
+        barRow.appendChild(barlbl);
+
+        const globalBpm = state.bpm;
+        const allBpms = Array.from({length: len}, (_, i) => bank.bpmTrack[i] ?? globalBpm);
+        const minB = Math.min(...allBpms), maxB = Math.max(...allBpms);
+        const range = maxB - minB || 1;
+
+        for (let i = 0; i < len; i++) {
+          const bVal = bank.bpmTrack[i] ?? globalBpm;
+          const pct = ((bVal - minB) / range);
+          const h = Math.round(4 + pct * 14); // 4px〜18px
+          const bar = document.createElement('div');
+          bar.style.cssText = `height:${h}px;background:${bank.bpmTrack[i] != null ? '#446' : '#2a2a3a'};border-radius:1px;align-self:flex-end;margin-top:auto`;
+          if (i > 0 && i % 8 === 0) bar.style.borderLeft = '1px solid #446';
+          barRow.appendChild(bar);
+        }
+        content.appendChild(barRow);
+
       } else {
         const chData = seq[tab];
 
@@ -3211,6 +3376,16 @@
     document.getElementById('bpmInput').oninput = (e) => {
       state.bpm = Math.max(40, Math.min(300, parseInt(e.target.value) || 120));
       if (delayNode) delayNode.delayTime.value = getDelaySeconds();
+      // BPMタブ表示中なら説明文とプレースホルダーを更新
+      if (state.currentSeqTab === 'bpmtrack') {
+        const len = getStepLen();
+        for (let i = 0; i < len; i++) {
+          const el = document.getElementById(`bpmStepInp_${i}`);
+          if (el) el.placeholder = state.bpm;
+        }
+        const desc = document.querySelector('#seqContent > div[style*="border-left"]');
+        if (desc) desc.innerHTML = 'STEP毎のBPMを設定。空欄 = グローバルBPM (<span style="color:#aad">' + state.bpm + '</span>) を使用。';
+      }
     };
     document.getElementById('djFilterType').querySelectorAll('[data-djf]').forEach(btn => {
       btn.onclick = () => { if (masterFilter) masterFilter.type = btn.dataset.djf; document.getElementById('djFilterType').querySelectorAll('[data-djf]').forEach(b => b.classList.toggle('active', b === btn)); };
@@ -3707,6 +3882,7 @@
         },
         banks: state.banks.map(b => ({
           stepLen: b.stepLen,
+          bpmTrack: (b.bpmTrack ?? Array(32).fill(null)).slice(),
           seqData: {
             sub: { notes: b.seqData.sub.notes.slice(), vols: b.seqData.sub.vols.slice(), on: b.seqData.sub.on.slice(), tie: b.seqData.sub.tie.slice(), pan: (b.seqData.sub.pan ?? Array(32).fill(0)).slice() },
             fm1: { notes: b.seqData.fm1.notes.slice(), vols: b.seqData.fm1.vols.slice(), on: b.seqData.fm1.on.slice(), tie: b.seqData.fm1.tie.slice(), pan: (b.seqData.fm1.pan ?? Array(32).fill(0)).slice() },
@@ -3777,6 +3953,7 @@
         cfg.banks.forEach((b, i) => {
           if (!state.banks[i]) return;
           state.banks[i].stepLen = b.stepLen ?? 16;
+          state.banks[i].bpmTrack = b.bpmTrack ? b.bpmTrack.slice() : Array(32).fill(null);
           const sd = state.banks[i].seqData;
           const cs = b.seqData;
           ['sub', 'fm1', 'fm2', 'fm3', 'fm4', 'fm5', 'fm6', 'psg1', 'psg2', 'psg3'].forEach(ch => {
