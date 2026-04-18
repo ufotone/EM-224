@@ -3094,7 +3094,9 @@
             ps.on[i] = !ps.on[i];
             btn.classList.toggle('on', ps.on[i]);
             btn.style.background = ps.on[i] ? '#211608' : '';
-            if (ps.on[i]) btn.style.borderColor = '#7a5528';
+            btn.style.borderColor = ps.on[i] ? '#7a5528' : '';
+            // 8区切りの左ボーダーを復元
+            if (i > 0 && i % 8 === 0) btn.style.borderLeftColor = '#6a5020';
           };
           onRow.appendChild(btn);
         }
