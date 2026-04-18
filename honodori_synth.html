@@ -644,6 +644,38 @@
       border-color: #66d;
       color: #aaf;
     }
+    .tab[data-stab="pcmseq"] {
+      border-color: #553a1a;
+      color: #a8824a;
+    }
+    .tab[data-stab="pcmseq"].active {
+      background: #1a140a;
+      border-color: #8a6030;
+      color: #d4a060;
+    }
+    .pcm-freq-input {
+      background: #111;
+      border: 1px solid #4a3818;
+      color: #c4956a;
+      font-family: monospace;
+      font-size: 8px;
+      width: 100%;
+      text-align: center;
+      padding: 1px 0;
+      border-radius: 2px;
+      -moz-appearance: textfield;
+    }
+    .pcm-freq-input::-webkit-inner-spin-button,
+    .pcm-freq-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .pcm-freq-input.pcm-freq-active {
+      background: #160f06;
+      border-color: #7a5528;
+      color: #d4a060;
+    }
+    .pcm-freq-input.pcm-freq-playing {
+      border-color: #c89050 !important;
+      box-shadow: 0 0 4px #9a6830;
+    }
   </style>
 </head>
 
@@ -1023,6 +1055,15 @@
             <option value="6" selected>6</option>
             <option value="4">4</option>
           </select>
+          <span style="font-size:8px;color:#666">SMPL</span>
+          <select id="pcmSampleRateSelect" style="width:54px;font-size:9px" title="サンプリングレート (YM2608 ADPCM: 2k〜16kHz)">
+            <option value="2000">2kHz</option>
+            <option value="4000">4kHz</option>
+            <option value="6000" selected>6kHz</option>
+            <option value="8000">8kHz</option>
+            <option value="11025">11kHz</option>
+            <option value="16000">16kHz</option>
+          </select>
         </div>
       </div>
       <div id="seqTabBar" style="margin-top:4px;margin-bottom:0">
@@ -1038,6 +1079,7 @@
           <div class="tab" data-stab="psg2">PS2</div>
           <div class="tab" data-stab="psg3">PS3</div>
           <div class="tab" data-stab="drums">DRM</div>
+          <div class="tab" data-stab="pcmseq" style="border-color:#553a1a;color:#a8824a">PCM</div>
         </div>
         <div class="tab-bar" style="margin-bottom:6px;flex-wrap:nowrap">
           <div class="tab" data-stab="fxseq">FX</div>
@@ -1093,6 +1135,13 @@
           psg2: { notes: Array(32).fill('A3'), vols: Array(32).fill(80), on: Array(32).fill(false), tie: Array(32).fill(false), pan: Array(32).fill(0) },
           psg3: { notes: Array(32).fill('A3'), vols: Array(32).fill(80), on: Array(32).fill(false), tie: Array(32).fill(false), pan: Array(32).fill(0) },
           drums: { kick: Array(32).fill(false), snare: Array(32).fill(false), hat: Array(32).fill(false), tomhi: Array(32).fill(false), tommid: Array(32).fill(false), tomlo: Array(32).fill(false), openhh: Array(32).fill(false), closehh: Array(32).fill(false), pcm: Array(32).fill(false) },
+          pcmSeq: {
+            on: Array(32).fill(false),
+            // 各STEPの再生周波数(Hz): nullでグローバル(デフォルト6kHz相当)
+            freq: Array(32).fill(null),
+            // 各STEPの音量(0〜100): nullでデフォルト
+            vol: Array(32).fill(null),
+          },
           // FM音色切替シーケンス: {on[32], slot[32]} slot=-1でtoneチェンジなし
           fmTone: [
             { on: Array(32).fill(false), slot: Array(32).fill(-1) },
@@ -1750,6 +1799,10 @@
     let pcmBuffer = null; // 量子化済みバッファ（再生用）
     let pcmRawBuffer = null; // 元バッファ（bits変更時に再量子化）
     let pcmBits = 6;
+    let pcmSampleRate = 6000; // YM2608 ADPCM相当 ダウンサンプリング周波数 2k〜16kHz
+    // pcmDefaultPlayFreq: null = 元WAVと同じピッチ (playbackRate=1.0)
+    // 数値を指定するとピッチシフト: playbackRate = pcmDefaultPlayFreq / pcmSampleRate
+    let pcmDefaultPlayFreq = null;
 
     function reduceBitDepth(srcBuf, bits) {
       if (bits >= 16) return srcBuf; // 変換不要
@@ -1770,19 +1823,54 @@
       return out;
     }
 
+    // サンプリングレートを下げてADPCM風のローファイ感を演出するバッファ生成
+    // ピッチは変えず、音質（解像度）だけ落とす。
+    // 元サンプルをtargetSR間隔でサンプリングし直し、元の長さにステップ補間で埋め戻す。
+    function downsampleBuffer(srcBuf, targetSR) {
+      const origSR = srcBuf.sampleRate;
+      if (targetSR >= origSR) return srcBuf; // ダウンサンプル不要
+      const ratio = origSR / targetSR; // 何サンプルごとに1サンプル取るか
+      const len = srcBuf.length;
+      const out = audioCtx.createBuffer(srcBuf.numberOfChannels, len, origSR);
+      for (let ch = 0; ch < srcBuf.numberOfChannels; ch++) {
+        const src = srcBuf.getChannelData(ch);
+        const dst = out.getChannelData(ch);
+        // ステップ関数補間: ratio個ごとにサンプルを量子化し直す（階段波形）
+        for (let i = 0; i < len; i++) {
+          const srcIdx = Math.floor(i / ratio) * ratio; // 最寄りの量子化点
+          dst[i] = src[Math.min(Math.floor(srcIdx), len - 1)];
+        }
+      }
+      return out;
+    }
+
     function applyPcmBits() {
       if (!pcmRawBuffer || !audioCtx) return;
-      pcmBuffer = reduceBitDepth(pcmRawBuffer, pcmBits);
+      // まずビット深度削減、次にサンプリングレートダウンサンプリング
+      const bitReduced = reduceBitDepth(pcmRawBuffer, pcmBits);
+      pcmBuffer = downsampleBuffer(bitReduced, pcmSampleRate);
     }
 
     const activePcmSources = new Set();
 
-    function playPCM(when, vol, steps, stepDur) {
+    // playPCM: YM2608 ADPCM方式でピッチ制御
+    // playFreq: 再生周波数Hz (2000〜55500)。pcmSampleRateと同じなら等速再生。
+    //   playFreq/pcmSampleRate = playbackRate
+    //   例: pcmSampleRate=6000, playFreq=12000 → 2倍速 (1オクターブ上)
+    function playPCM(when, vol, steps, stepDur, playFreq) {
       if (!audioCtx || !pcmBuffer) return;
-      const v = (vol ?? 100) / 100;
+      // vol は 0〜1 の正規化済み値。drumsGain.pcm(0〜100) を掛けてミキサーに通す
+      const v = (vol ?? 1) * ((state.drumsGain.pcm ?? 100) / 100);
       const src = audioCtx.createBufferSource();
       const gn = audioCtx.createGain();
       src.buffer = pcmBuffer;
+      // playbackRate:
+      //   playFreq が null/未指定 → 1.0（元WAVと同じピッチ）
+      //   playFreq が数値 → playFreq / pcmSampleRate でピッチシフト
+      const effectiveFreq = playFreq ?? pcmDefaultPlayFreq;
+      src.playbackRate.value = effectiveFreq != null
+        ? Math.max(0.01, effectiveFreq / pcmSampleRate)
+        : 1.0;
       gn.gain.value = v;
       src.connect(gn); gn.connect(masterGainNode);
       src.onended = () => activePcmSources.delete(src);
@@ -1922,15 +2010,23 @@
         if (seq.drums.tomlo[step]) playTomLo(when, dg.tomlo);
         if (seq.drums.openhh[step]) playOpenHH(when, dg.openhh);
         if (seq.drums.closehh[step]) playCloseHH(when, dg.closehh);
-        if (seq.drums.pcm[step]) {
-          // 現在のSTEPからonが連続している数だけ再生
-          const pcmArr = seq.drums.pcm;
-          let pcmSteps = 1;
-          for (let d = 1; d < stepLen; d++) {
-            if (pcmArr[(step + d) % stepLen]) pcmSteps++;
-            else break;
+        // PCMシーケンサー（独立タブ）による再生
+        // 先頭STEP（前のSTEPがOFFか、シーケンス先頭）でのみ再生を開始する
+        if (seq.pcmSeq && seq.pcmSeq.on[step]) {
+          const pcmArr = seq.pcmSeq.on;
+          const prevStep = (step - 1 + stepLen) % stepLen;
+          const isHead = !pcmArr[prevStep]; // 前がOFFなら先頭
+          if (isHead) {
+            // 連続ON数を数えてその分だけ再生
+            let pcmSteps = 1;
+            for (let d = 1; d < stepLen; d++) {
+              if (pcmArr[(step + d) % stepLen]) pcmSteps++;
+              else break;
+            }
+            const pcmVol = seq.pcmSeq.vol[step] != null ? seq.pcmSeq.vol[step] : 100;
+            const pcmFreq = seq.pcmSeq.freq[step] != null ? seq.pcmSeq.freq[step] : pcmDefaultPlayFreq;
+            playPCM(when, pcmVol / 100, pcmSteps, stepTime, pcmFreq);
           }
-          playPCM(when, dg.pcm, pcmSteps, stepTime);
         }
 
         // FXシーケンサー
@@ -2060,6 +2156,14 @@
           if (el) el.classList.toggle('bpm-playing', i === step);
         }
       }
+      // PCMSeqタブが開いている場合はFREQ入力欄もハイライト
+      if (state.currentSeqTab === 'pcmseq') {
+        const len = getStepLen();
+        for (let i = 0; i < len; i++) {
+          const el = document.getElementById(`pcmFreqInp_${i}`);
+          if (el) el.classList.toggle('pcm-freq-playing', i === step);
+        }
+      }
     }
 
     // ---- Song Mode UI ----
@@ -2181,9 +2285,10 @@
             ['sub', 'fm1', 'fm2', 'fm3', 'fm4', 'fm5', 'fm6', 'psg1', 'psg2', 'psg3'].forEach(k => {
               if (d[k]) { d[k].on.fill(false); d[k].tie.fill(false); d[k].pan.fill(0); }
             });
-            ['kick', 'snare', 'hat', 'tomhi', 'tommid', 'tomlo', 'openhh', 'closehh', 'pcm'].forEach(k => {
+            ['kick', 'snare', 'hat', 'tomhi', 'tommid', 'tomlo', 'openhh', 'closehh'].forEach(k => {
               if (d.drums[k]) d.drums[k].fill(false);
             });
+            if (d.pcmSeq) { d.pcmSeq.on.fill(false); d.pcmSeq.freq.fill(null); d.pcmSeq.vol.fill(null); }
             if (d.fxSeq) Object.values(d.fxSeq).forEach(ch => ch.on.fill(false));
             if (d.fmTone) d.fmTone.forEach(ft => { if (ft) { ft.on.fill(false); ft.slot.fill(-1); } });
             if (bankIdx === state.currentBank) renderSeq();
@@ -2832,7 +2937,6 @@
           { key: 'tomlo', label: 'TOM Lo' },
           { key: 'openhh', label: 'Open HH' },
           { key: 'closehh', label: 'Close HH' },
-          { key: 'pcm', label: 'PCM' },
         ];
 
         // GAIN行（各ドラム音ごとのボリューム）
@@ -2879,6 +2983,191 @@
           }
           content.appendChild(row);
         });
+
+      } else if (tab === 'pcmseq') {
+        // ========== PCM SEQUENCER タブ ==========
+        // pcmSeqが未初期化のバンクに対応
+        if (!seq.pcmSeq) {
+          seq.pcmSeq = {
+            on: Array(32).fill(false),
+            freq: Array(32).fill(null),
+            vol: Array(32).fill(null),
+          };
+        }
+        const ps = seq.pcmSeq;
+
+        // ヘッダー情報
+        const desc = document.createElement('div');
+        desc.style.cssText = 'font-size:8px;color:#6a5530;margin-bottom:5px;padding:2px 4px;border-left:2px solid #6a5020';
+        desc.innerHTML = 'PCM再生シーケンサー。SMPL=<span style="color:#d4a060">' + pcmSampleRate + 'Hz</span>（ローファイ音質）　'
+          + 'FREQ空欄=<span style="color:#d4a060">元WAVと同ピッチ</span>　'
+          + '数値指定で <span style="color:#d4a060">FREQ÷SMPL</span> 倍速';
+        content.appendChild(desc);
+
+        // FREQ行（再生周波数）
+        const freqRow = document.createElement('div');
+        freqRow.className = gridClass;
+        const flbl = document.createElement('div');
+        flbl.className = 'seq-label';
+        flbl.style.cssText = 'font-size:7px;color:#a8824a;letter-spacing:1px';
+        flbl.textContent = 'FREQ';
+        freqRow.appendChild(flbl);
+
+        // よく使う周波数プリセット（YM2608近似：2k/4k/8k/12k/16k + 音程系）
+        const freqPresets = [
+          2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500,
+          6000, 7000, 8000, 9000, 10000, 11000, 12000, 13000,
+          14000, 16000, 18000, 20000, 24000, 28000, 32000, 40000, 55500
+        ];
+
+        for (let i = 0; i < len; i++) {
+          const inp = document.createElement('input');
+          inp.type = 'number';
+          inp.className = 'pcm-freq-input' + (ps.freq[i] != null ? ' pcm-freq-active' : '');
+          inp.min = 2000; inp.max = 55500;
+          inp.placeholder = pcmDefaultPlayFreq;
+          inp.value = ps.freq[i] != null ? ps.freq[i] : '';
+          if (i > 0 && i % 8 === 0) inp.style.borderLeftColor = '#6a5020';
+          inp.id = `pcmFreqInp_${i}`;
+          inp.oninput = (e) => {
+            const v = e.target.value.trim();
+            if (v === '' || isNaN(parseFloat(v))) {
+              ps.freq[i] = null;
+              inp.classList.remove('pcm-freq-active');
+            } else {
+              ps.freq[i] = Math.max(2000, Math.min(55500, parseFloat(v)));
+              inp.classList.add('pcm-freq-active');
+            }
+          };
+          freqRow.appendChild(inp);
+        }
+        content.appendChild(freqRow);
+
+        // VOL行
+        const volRow = document.createElement('div');
+        volRow.className = gridClass;
+        const vlbl2 = document.createElement('div');
+        vlbl2.className = 'seq-label';
+        vlbl2.style.cssText = 'font-size:7px;color:#a8824a';
+        vlbl2.textContent = 'VOL';
+        volRow.appendChild(vlbl2);
+        for (let i = 0; i < len; i++) {
+          const sel = document.createElement('select');
+          sel.className = 'note-select';
+          sel.style.cssText = 'background:#120e06;border-color:#4a3818;color:#c4956a';
+          if (i > 0 && i % 8 === 0) sel.style.borderLeftColor = '#6a5020';
+          // null=デフォルト(100)
+          const defOpt = document.createElement('option');
+          defOpt.value = ''; defOpt.textContent = 'DEF';
+          if (ps.vol[i] == null) defOpt.selected = true;
+          sel.appendChild(defOpt);
+          for (let v = 100; v >= 0; v -= 5) {
+            const opt = document.createElement('option');
+            opt.value = v; opt.textContent = v;
+            if (ps.vol[i] === v) opt.selected = true;
+            sel.appendChild(opt);
+          }
+          sel.onchange = (e) => {
+            const v = e.target.value;
+            ps.vol[i] = v === '' ? null : parseInt(v);
+          };
+          volRow.appendChild(sel);
+        }
+        content.appendChild(volRow);
+
+        // ON行
+        const onRow = document.createElement('div');
+        onRow.className = gridClass;
+        const olbl2 = document.createElement('div');
+        olbl2.className = 'seq-label';
+        olbl2.style.cssText = 'font-size:7px;color:#a8824a';
+        olbl2.textContent = 'ON';
+        onRow.appendChild(olbl2);
+        for (let i = 0; i < len; i++) {
+          const btn = document.createElement('div');
+          btn.className = 'step-btn' + (ps.on[i] ? ' on' : '');
+          btn.style.cssText = btn.className.includes(' on')
+            ? 'background:#211608;border-color:#7a5528'
+            : '';
+          if (i > 0 && i % 8 === 0) btn.style.borderLeftColor = '#6a5020';
+          btn.onclick = () => {
+            ps.on[i] = !ps.on[i];
+            btn.classList.toggle('on', ps.on[i]);
+            btn.style.background = ps.on[i] ? '#211608' : '';
+            if (ps.on[i]) btn.style.borderColor = '#7a5528';
+          };
+          onRow.appendChild(btn);
+        }
+        content.appendChild(onRow);
+
+        // ツールボタン行
+        const toolRow = document.createElement('div');
+        toolRow.style.cssText = 'display:flex;gap:4px;align-items:center;margin-top:6px;flex-wrap:wrap';
+
+        const fillFreqBtn = document.createElement('button');
+        fillFreqBtn.className = 'btn';
+        fillFreqBtn.style.cssText = 'font-size:8px;border-color:#6a5020;color:#d4a060';
+        fillFreqBtn.textContent = 'FILL FREQ';
+        fillFreqBtn.title = 'STEP1の周波数を全STEPに書き込む';
+        fillFreqBtn.onclick = () => {
+          const firstVal = ps.freq[0];
+          if (firstVal == null) { alert('STEP1に周波数を入力してください'); return; }
+          for (let i = 0; i < len; i++) ps.freq[i] = firstVal;
+          renderSeq();
+        };
+
+        const rampFreqBtn = document.createElement('button');
+        rampFreqBtn.className = 'btn';
+        rampFreqBtn.style.cssText = 'font-size:8px;border-color:#6a5020;color:#d4a060';
+        rampFreqBtn.textContent = 'RAMP FREQ';
+        rampFreqBtn.title = '先頭→末尾にかけて周波数をリニア補間';
+        rampFreqBtn.onclick = () => {
+          const fromF = parseFloat(prompt('開始周波数(Hz):', ps.freq[0] ?? pcmDefaultPlayFreq));
+          const toF = parseFloat(prompt('終了周波数(Hz):', ps.freq[len - 1] ?? pcmDefaultPlayFreq));
+          if (isNaN(fromF) || isNaN(toF)) return;
+          for (let i = 0; i < len; i++) {
+            ps.freq[i] = Math.round(Math.max(2000, Math.min(55500, fromF + (toF - fromF) * (i / (len - 1)))));
+          }
+          renderSeq();
+        };
+
+        const clrFreqBtn = document.createElement('button');
+        clrFreqBtn.className = 'btn';
+        clrFreqBtn.style.cssText = 'font-size:8px;border-color:#553a1a;color:#a8824a';
+        clrFreqBtn.textContent = 'CLR FREQ';
+        clrFreqBtn.onclick = () => { ps.freq.fill(null); renderSeq(); };
+
+        // 音程プリセット（ノート名→Hz換算してセット）
+        const notePresetSel = document.createElement('select');
+        notePresetSel.style.cssText = 'background:#120e06;border:1px solid #6a5020;color:#d4a060;font-family:monospace;font-size:8px;padding:2px';
+        notePresetSel.title = '音程プリセット（全STEPに設定）';
+        const npDef = document.createElement('option');
+        npDef.value = ''; npDef.textContent = 'NOTE→FREQ';
+        notePresetSel.appendChild(npDef);
+        NOTES.forEach(n => {
+          const hz = Math.round(noteToHz(n));
+          // 2000〜55500の範囲に収まるものだけ
+          if (hz >= 2000 && hz <= 55500) {
+            const o = document.createElement('option');
+            o.value = hz; o.textContent = n + '=' + hz;
+            notePresetSel.appendChild(o);
+          }
+        });
+        notePresetSel.onchange = (e) => {
+          const v = e.target.value;
+          if (!v) return;
+          const hz = parseInt(v);
+          for (let i = 0; i < len; i++) { if (ps.on[i]) ps.freq[i] = hz; }
+          notePresetSel.value = '';
+          renderSeq();
+        };
+
+        toolRow.appendChild(fillFreqBtn);
+        toolRow.appendChild(rampFreqBtn);
+        toolRow.appendChild(clrFreqBtn);
+        toolRow.appendChild(notePresetSel);
+        content.appendChild(toolRow);
+
       } else if (tab === 'fxseq') {
         // FXパラメーターの定義
         const fxDefs = [
@@ -3274,6 +3563,15 @@
         applyPcmBits();
       }
     };
+    document.getElementById('pcmSampleRateSelect').onchange = (e) => {
+      pcmSampleRate = parseInt(e.target.value);
+      if (pcmRawBuffer) {
+        initAudio();
+        applyPcmBits();
+      }
+      // PCMSeqタブを開いていたら説明文を更新
+      if (state.currentSeqTab === 'pcmseq') renderSeq();
+    };
     document.getElementById('clearPcmBtn').onclick = () => {
       activePcmSources.forEach(src => { try { src.stop(); } catch (e) { } });
       activePcmSources.clear();
@@ -3288,9 +3586,15 @@
       const seq = getSeqData();
       const tab = state.currentSeqTab;
       if (tab === 'drums') {
-        ['kick', 'snare', 'hat', 'tomhi', 'tommid', 'tomlo', 'openhh', 'closehh', 'pcm'].forEach(k => {
+        ['kick', 'snare', 'hat', 'tomhi', 'tommid', 'tomlo', 'openhh', 'closehh'].forEach(k => {
           if (seq.drums[k]) seq.drums[k].fill(false);
         });
+      } else if (tab === 'pcmseq') {
+        if (seq.pcmSeq) {
+          seq.pcmSeq.on.fill(false);
+          seq.pcmSeq.freq.fill(null);
+          seq.pcmSeq.vol.fill(null);
+        }
       } else if (tab === 'fxseq') {
         if (seq.fxSeq) Object.values(seq.fxSeq).forEach(ch => ch.on.fill(false));
       } else {
@@ -3798,7 +4102,7 @@
                   case 'tomlo': playTomLo(when, dg.tomlo); break;
                   case 'openhh': playOpenHH(when, dg.openhh); break;
                   case 'closehh': playCloseHH(when, dg.closehh); break;
-                  case 'pcm': playPCM(when, dg.pcm); break;
+                  case 'pcm': playPCM(when, dg.pcm / 100); break;
                 }
                 const pct = Math.round(ev.time / maxEnd * 100);
                 document.getElementById('mmlStatus').textContent = `▶ DRUM:${ev.drum}  ${pct}%`;
@@ -3895,6 +4199,7 @@
         currentBank: state.currentBank,
         currentSeqTab: state.currentSeqTab,
         pcmBits: pcmBits,
+        pcmSampleRate: pcmSampleRate,
         song: {
           steps: state.song.steps.slice(),
           loop: state.song.loop,
@@ -3924,6 +4229,11 @@
               closehh: (b.seqData.drums.closehh ?? Array(32).fill(false)).slice(),
               pcm: (b.seqData.drums.pcm ?? Array(32).fill(false)).slice(),
             },
+            pcmSeq: b.seqData.pcmSeq ? {
+              on: b.seqData.pcmSeq.on.slice(),
+              freq: b.seqData.pcmSeq.freq.slice(),
+              vol: b.seqData.pcmSeq.vol.slice(),
+            } : undefined,
             fxSeq: b.seqData.fxSeq
               ? Object.fromEntries(Object.entries(b.seqData.fxSeq).map(([k, v]) => [k, { on: v.on.slice(), vals: v.vals.slice() }]))
               : undefined,
@@ -3998,6 +4308,15 @@
             sd.drums.openhh = _pad(cs.drums.openhh ?? [], 32, false);
             sd.drums.closehh = _pad(cs.drums.closehh ?? [], 32, false);
             sd.drums.pcm = _pad(cs.drums.pcm ?? [], 32, false);
+          }
+          if (cs.pcmSeq) {
+            sd.pcmSeq = {
+              on: _pad(cs.pcmSeq.on ?? [], 32, false),
+              freq: _pad(cs.pcmSeq.freq ?? [], 32, null),
+              vol: _pad(cs.pcmSeq.vol ?? [], 32, null),
+            };
+          } else {
+            sd.pcmSeq = { on: Array(32).fill(false), freq: Array(32).fill(null), vol: Array(32).fill(null) };
           }
           if (cs.fxSeq) {
             if (!sd.fxSeq) sd.fxSeq = {};
@@ -4153,6 +4472,15 @@
         pcmBits = cfg.pcmBits;
         const bsel = document.getElementById('pcmBitsSelect');
         if (bsel) bsel.value = pcmBits;
+        if (pcmRawBuffer) applyPcmBits();
+      }
+
+      // PCM Sample Rate
+      if (cfg.pcmSampleRate != null) {
+        pcmSampleRate = cfg.pcmSampleRate;
+        pcmDefaultPlayFreq = pcmSampleRate;
+        const ssel = document.getElementById('pcmSampleRateSelect');
+        if (ssel) ssel.value = pcmSampleRate;
         if (pcmRawBuffer) applyPcmBits();
       }
 
