@@ -1777,7 +1777,7 @@
 
     const activePcmSources = new Set();
 
-    function playPCM(when, vol) {
+    function playPCM(when, vol, steps, stepDur) {
       if (!audioCtx || !pcmBuffer) return;
       const v = (vol ?? 100) / 100;
       const src = audioCtx.createBufferSource();
@@ -1788,6 +1788,10 @@
       src.onended = () => activePcmSources.delete(src);
       activePcmSources.add(src);
       src.start(when);
+      // STEPで打ち切り
+      if (steps > 0 && stepDur > 0) {
+        src.stop(when + stepDur * steps);
+      }
     }
 
     function _playHH(open, when, vol) {
@@ -1918,7 +1922,16 @@
         if (seq.drums.tomlo[step]) playTomLo(when, dg.tomlo);
         if (seq.drums.openhh[step]) playOpenHH(when, dg.openhh);
         if (seq.drums.closehh[step]) playCloseHH(when, dg.closehh);
-        if (seq.drums.pcm[step]) playPCM(when, dg.pcm);
+        if (seq.drums.pcm[step]) {
+          // 現在のSTEPからonが連続している数だけ再生
+          const pcmArr = seq.drums.pcm;
+          let pcmSteps = 1;
+          for (let d = 1; d < stepLen; d++) {
+            if (pcmArr[(step + d) % stepLen]) pcmSteps++;
+            else break;
+          }
+          playPCM(when, dg.pcm, pcmSteps, stepTime);
+        }
 
         // FXシーケンサー
         const fx = seq.fxSeq;
