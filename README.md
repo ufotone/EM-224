@@ -28,7 +28,7 @@ It is designed for chiptune creators, sound designers, and anyone exploring retr
 - **DRM** — drum engine 
   - 8 fixed drum sounds
 - **PCM** — PCM loader  
-  - 8 fixed drum sounds + 1 PCM channel  
+  - 1 PCM channel  
   - PCM supports WAV/MP3 loading (6‑bit lo‑fi conversion)
   - Inspired by the ADPCM of the YM2608
   - Sampling rate 2kHz to 16kHz (6kHz is the default value)
