@@ -2731,21 +2731,19 @@ G L16 %K R %S R %K %K %S R</textarea>
       slotInfo.style.cssText = 'font-size:8px;color:#445;margin-left:4px';
 
       bankHeader.appendChild(storeBtn);
-      // N88 PRESETボタン (idx===0のとき1回だけ表示)
-      if (idx === 0) {
-        const presetBtn = document.createElement('button');
-        presetBtn.className = 'btn';
-        presetBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#863;color:#ca8;margin-left:4px';
-        presetBtn.textContent = 'N88 PRESET';
-        presetBtn.title = 'MUCOM88/N88 BASIC内蔵音色をスロット0〜27にロード';
-        presetBtn.onclick = () => {
-          if (!confirm('N88内蔵音色をスロット0〜27にロードします。既存データは上書きされます。よろしいですか？')) return;
-          loadN88Presets();
-          for (let i = 0; i < 6; i++) updateToneBankUI(i);
-          renderMmlToneRef();
-        };
-        bankHeader.appendChild(presetBtn);
-      }
+      // N88 PRESETボタン（全FMチャンネルに表示）
+      const presetBtn = document.createElement('button');
+      presetBtn.className = 'btn';
+      presetBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#863;color:#ca8;margin-left:4px';
+      presetBtn.textContent = 'N88 PRESET';
+      presetBtn.title = 'MUCOM88/N88 BASIC内蔵音色をスロット0〜27にロード';
+      presetBtn.onclick = () => {
+        if (!confirm('N88内蔵音色をスロット0〜27にロードします。既存データは上書きされます。よろしいですか？')) return;
+        loadN88Presets();
+        for (let i = 0; i < 6; i++) updateToneBankUI(i);
+        renderMmlToneRef();
+      };
+      bankHeader.appendChild(presetBtn);
       bankHeader.appendChild(slotInfo);
       bankPanel.appendChild(bankHeader);
 
@@ -5385,20 +5383,18 @@ G L16 %K R %S R %K %K %S R</textarea>
           for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
         };
 
-        // MUCOM88 PRESETボタン (pi===0のとき1回だけ)
-        if (pi === 0) {
-          const ssgPreBtn = document.createElement('button');
-          ssgPreBtn.className = 'btn';
-          ssgPreBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#863;color:#ca8;margin-left:4px';
-          ssgPreBtn.textContent = 'MUCOM88 PRESET';
-          ssgPreBtn.title = 'MUCOM88準拠SSGプリセット(@0〜@15)をスロット0〜15に読込';
-          ssgPreBtn.onclick = () => {
-            if (!confirm('MUCOM88 SSGプリセット(@0〜@15)をスロット0〜15にロードします。\n既存データは上書きされます。よろしいですか？')) return;
-            loadSSGPresets();
-            for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
-          };
-          ssgBankHdr.appendChild(ssgPreBtn);
-        }
+        // MUCOM88 PRESETボタン（全SSGチャンネルに表示）
+        const ssgPreBtn = document.createElement('button');
+        ssgPreBtn.className = 'btn';
+        ssgPreBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#863;color:#ca8;margin-left:4px';
+        ssgPreBtn.textContent = 'MUCOM88 PRESET';
+        ssgPreBtn.title = 'MUCOM88準拠SSGプリセット(@0〜@15)をスロット0〜15に読込';
+        ssgPreBtn.onclick = () => {
+          if (!confirm('MUCOM88 SSGプリセット(@0〜@15)をスロット0〜15にロードします。\n既存データは上書きされます。よろしいですか？')) return;
+          loadSSGPresets();
+          for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
+        };
+        ssgBankHdr.appendChild(ssgPreBtn);
 
         const ssgSlotInfo = document.createElement('span');
         ssgSlotInfo.id = `ssgToneSlotInfo${pi}`;
