@@ -3122,7 +3122,14 @@ D L16 %K R %S R %K %K %S R</textarea>
     });
 
     function renderSeq() {
-      const content = document.getElementById('seqContent');
+      // フォーカス中のselect/inputがシーケンサー内にある場合は再描画をスキップ
+      const focused = document.activeElement;
+      const seqContent = document.getElementById('seqContent');
+      if (focused && seqContent && seqContent.contains(focused) &&
+          (focused.tagName === 'SELECT' || focused.tagName === 'INPUT')) {
+        return;
+      }
+      const content = seqContent;
       const tab = state.currentSeqTab;
       const seq = getSeqData();
       const len = getStepLen();
