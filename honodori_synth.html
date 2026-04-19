@@ -556,12 +556,12 @@
       display: flex;
       flex-wrap: wrap;
       gap: 2px;
-      max-height: 72px;
+      max-height: 100px;
       overflow-y: auto
     }
 
     .tone-slot {
-      width: 28px;
+      width: 52px;
       height: 22px;
       background: #111;
       border: 1px solid #2a2a3a;
@@ -569,11 +569,15 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 8px;
+      font-size: 7px;
       color: #445;
       cursor: pointer;
       flex-shrink: 0;
-      position: relative
+      position: relative;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 0 2px
     }
 
     .tone-slot:hover {
@@ -976,7 +980,14 @@
           <b style="color:#fca">リズム(G):</b> <span style="color:#fca">%K</span>=KICK　<span style="color:#fca">%S</span>=SNARE　<span style="color:#fca">%H</span>=HAT　<span style="color:#fca">%OH</span>=OpenHH　<span style="color:#fca">%P</span>=PCM　例: <span style="color:#fca">%K8</span>
         </div>
       </details>
-      <div id="mmlChannels">
+      <!-- TONE BANK 音色参照表 -->
+      <div id="mmlToneRef" style="margin-bottom:6px">
+        <div style="font-size:8px;color:#446;margin-bottom:3px;display:flex;align-items:center;gap:6px">
+          <span>TONE BANK 参照 (@10〜 = FM1で発音)</span>
+          <button onclick="renderMmlToneRef()" style="font-size:7px;padding:1px 5px;background:#111;border:1px solid #334;color:#669;border-radius:2px;cursor:pointer">更新</button>
+        </div>
+        <div id="mmlToneRefGrid" style="display:flex;flex-wrap:wrap;gap:2px;max-height:60px;overflow-y:auto"></div>
+      </div>
         <textarea id="mmlAll" rows="8"
           style="width:100%;background:#0a0a12;border:1px solid #334;color:#9cf;font-family:monospace;font-size:11px;padding:6px;resize:vertical;border-radius:3px;line-height:1.6"
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
@@ -2715,6 +2726,21 @@ G L16 %K R %S R %K %K %S R</textarea>
       slotInfo.style.cssText = 'font-size:8px;color:#445;margin-left:4px';
 
       bankHeader.appendChild(storeBtn);
+      // N88 PRESETボタン (idx===0のとき1回だけ表示)
+      if (idx === 0) {
+        const presetBtn = document.createElement('button');
+        presetBtn.className = 'btn';
+        presetBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#863;color:#ca8;margin-left:4px';
+        presetBtn.textContent = 'N88 PRESET';
+        presetBtn.title = 'MUCOM88/N88 BASIC内蔵音色をスロット0〜27にロード';
+        presetBtn.onclick = () => {
+          if (!confirm('N88内蔵音色をスロット0〜27にロードします。既存データは上書きされます。よろしいですか？')) return;
+          loadN88Presets();
+          for (let i = 0; i < 6; i++) updateToneBankUI(i);
+          renderMmlToneRef();
+        };
+        bankHeader.appendChild(presetBtn);
+      }
       bankHeader.appendChild(slotInfo);
       bankPanel.appendChild(bankHeader);
 
@@ -2985,7 +3011,7 @@ G L16 %K R %S R %K %K %S R</textarea>
 
       const slotLabel = document.createElement('div');
       slotLabel.style.cssText = 'padding:6px 12px 4px;color:#668;font-size:9px;border-bottom:1px solid #334';
-      slotLabel.textContent = `SLOT ${si}` + (stored ? ' ● STORED' : ' (空)');
+      slotLabel.textContent = `SLOT ${si}${stored && state.fmToneBank[si]._name ? ' ' + state.fmToneBank[si]._name : ''}` + (stored ? ' ● STORED' : ' (空)');
       toneSlotCtxMenu.appendChild(slotLabel);
 
       menuItems.forEach(item => {
@@ -3025,8 +3051,8 @@ G L16 %K R %S R %K %K %S R</textarea>
         const isCopied = toneSlotClipboardIdx === si && toneSlotClipboard !== null;
         slot.className = 'tone-slot' + (stored ? ' stored' : '') + (isActive ? ' active-tone' : '') + (isCopied ? ' copied' : '');
         slot.dataset.si = si;
-        slot.textContent = si;
-        slot.title = stored ? `スロット ${si}: 保存済み (クリック=呼出 / 右クリック=メニュー)` : `スロット ${si}: 空 (右クリック=メニュー)`;
+        slot.textContent = stored && state.fmToneBank[si]._name ? `${si}:${state.fmToneBank[si]._name.slice(0,6)}` : si;
+        slot.title = stored ? `スロット ${si}${stored && state.fmToneBank[si]._name ? ': ' + state.fmToneBank[si]._name : ''}: 保存済み (クリック=呼出 / 右クリック=メニュー)` : `スロット ${si}: 空 (右クリック=メニュー)`;
 
         // 左クリック: 保存済みなら呼出、空なら選択
         slot.onclick = () => {
@@ -3067,6 +3093,194 @@ G L16 %K R %S R %K %K %S R</textarea>
       const info = document.getElementById(`fmToneSlotInfo${fmIdx}`);
       if (grid) renderToneSlotGrid(fmIdx, grid);
       if (info) updateToneSlotInfo(fmIdx, info);
+    }
+
+    // =============================================
+    // N88 BASIC / MUCOM88 内蔵音色プリセット
+    // OPN(YM2203)互換パラメータ
+    // 参考: http://radioc.web.fc2.com/column/pc98bas/n88func/play.htm
+    // =============================================
+    const N88_PRESETS = [
+      { name:'BRASS1',   algo:4, fb:6, ops:[
+        { ar:31, dr:8,  sr:0, rr:5, sl:1, tl:28, ks:1, mul:1,  dt:3 },
+        { ar:20, dr:10, sr:0, rr:4, sl:3, tl:42, ks:1, mul:6,  dt:0 },
+        { ar:31, dr:6,  sr:0, rr:4, sl:1, tl:14, ks:1, mul:1,  dt:0 },
+        { ar:20, dr:8,  sr:0, rr:4, sl:3, tl:0,  ks:1, mul:3,  dt:0 }]
+      },
+      { name:'BRASS2',   algo:4, fb:5, ops:[
+        { ar:28, dr:12, sr:0, rr:5, sl:2, tl:32, ks:1, mul:2,  dt:0 },
+        { ar:20, dr:10, sr:0, rr:4, sl:3, tl:44, ks:1, mul:4,  dt:0 },
+        { ar:25, dr:8,  sr:0, rr:4, sl:2, tl:22, ks:1, mul:2,  dt:3 },
+        { ar:20, dr:8,  sr:0, rr:4, sl:3, tl:0,  ks:1, mul:1,  dt:0 }]
+      },
+      { name:'STRING1',  algo:4, fb:3, ops:[
+        { ar:22, dr:14, sr:8, rr:4, sl:4, tl:26, ks:1, mul:1,  dt:2 },
+        { ar:18, dr:12, sr:6, rr:3, sl:5, tl:40, ks:1, mul:3,  dt:0 },
+        { ar:22, dr:14, sr:8, rr:4, sl:4, tl:18, ks:1, mul:2,  dt:7 },
+        { ar:18, dr:12, sr:6, rr:3, sl:5, tl:0,  ks:1, mul:1,  dt:0 }]
+      },
+      { name:'STRING2',  algo:3, fb:2, ops:[
+        { ar:25, dr:16, sr:8, rr:5, sl:3, tl:20, ks:1, mul:1,  dt:2 },
+        { ar:20, dr:14, sr:6, rr:4, sl:4, tl:36, ks:1, mul:2,  dt:0 },
+        { ar:25, dr:16, sr:8, rr:5, sl:3, tl:14, ks:1, mul:2,  dt:7 },
+        { ar:20, dr:14, sr:6, rr:4, sl:4, tl:0,  ks:1, mul:1,  dt:0 }]
+      },
+      { name:'EPIANO1',  algo:0, fb:0, ops:[
+        { ar:31, dr:18, sr:0, rr:7, sl:1, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:28, dr:22, sr:0, rr:6, sl:2, tl:18, ks:1, mul:14, dt:0 },
+        { ar:31, dr:20, sr:0, rr:7, sl:1, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:28, dr:18, sr:0, rr:6, sl:2, tl:8,  ks:1, mul:2,  dt:0 }]
+      },
+      { name:'EPIANO2',  algo:0, fb:2, ops:[
+        { ar:31, dr:16, sr:0, rr:7, sl:1, tl:0,  ks:1, mul:1,  dt:0 },
+        { ar:26, dr:20, sr:0, rr:6, sl:2, tl:20, ks:1, mul:14, dt:2 },
+        { ar:31, dr:18, sr:0, rr:7, sl:1, tl:0,  ks:1, mul:1,  dt:0 },
+        { ar:26, dr:16, sr:0, rr:6, sl:2, tl:8,  ks:1, mul:2,  dt:0 }]
+      },
+      { name:'EPIANO3',  algo:1, fb:1, ops:[
+        { ar:31, dr:20, sr:0, rr:6, sl:2, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:28, dr:24, sr:0, rr:5, sl:3, tl:8,  ks:0, mul:2,  dt:0 },
+        { ar:31, dr:22, sr:0, rr:6, sl:2, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:25, dr:20, sr:0, rr:5, sl:3, tl:12, ks:0, mul:3,  dt:0 }]
+      },
+      { name:'EBASS1',   algo:0, fb:6, ops:[
+        { ar:31, dr:5,  sr:0, rr:3, sl:0, tl:24, ks:0, mul:14, dt:0 },
+        { ar:22, dr:14, sr:6, rr:5, sl:3, tl:50, ks:0, mul:1,  dt:0 },
+        { ar:31, dr:5,  sr:0, rr:3, sl:0, tl:18, ks:0, mul:14, dt:0 },
+        { ar:22, dr:14, sr:6, rr:5, sl:3, tl:0,  ks:0, mul:1,  dt:0 }]
+      },
+      { name:'EBASS2',   algo:0, fb:4, ops:[
+        { ar:31, dr:8,  sr:4, rr:4, sl:2, tl:20, ks:1, mul:1,  dt:0 },
+        { ar:22, dr:16, sr:8, rr:4, sl:4, tl:44, ks:1, mul:1,  dt:0 },
+        { ar:31, dr:10, sr:4, rr:4, sl:2, tl:16, ks:1, mul:2,  dt:0 },
+        { ar:22, dr:12, sr:6, rr:4, sl:4, tl:0,  ks:1, mul:1,  dt:0 }]
+      },
+      { name:'EORGAN1',  algo:5, fb:0, ops:[
+        { ar:31, dr:0,  sr:0, rr:7, sl:0, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:31, dr:0,  sr:0, rr:7, sl:0, tl:8,  ks:0, mul:2,  dt:0 },
+        { ar:31, dr:0,  sr:0, rr:7, sl:0, tl:16, ks:0, mul:3,  dt:0 },
+        { ar:31, dr:0,  sr:0, rr:7, sl:0, tl:22, ks:0, mul:4,  dt:0 }]
+      },
+      { name:'PORGAN1',  algo:6, fb:0, ops:[
+        { ar:31, dr:0,  sr:0, rr:5, sl:0, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:31, dr:0,  sr:0, rr:5, sl:0, tl:12, ks:0, mul:2,  dt:0 },
+        { ar:31, dr:0,  sr:0, rr:5, sl:0, tl:20, ks:0, mul:3,  dt:0 },
+        { ar:31, dr:0,  sr:0, rr:5, sl:0, tl:28, ks:0, mul:4,  dt:0 }]
+      },
+      { name:'FLUTE',    algo:1, fb:0, ops:[
+        { ar:25, dr:10, sr:4, rr:4, sl:2, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:20, dr:12, sr:6, rr:3, sl:3, tl:8,  ks:0, mul:1,  dt:2 },
+        { ar:25, dr:10, sr:4, rr:4, sl:2, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:18, dr:10, sr:4, rr:3, sl:3, tl:12, ks:0, mul:2,  dt:0 }]
+      },
+      { name:'OBOE',     algo:2, fb:3, ops:[
+        { ar:28, dr:14, sr:6, rr:5, sl:3, tl:0,  ks:1, mul:1,  dt:0 },
+        { ar:22, dr:16, sr:8, rr:4, sl:4, tl:20, ks:1, mul:3,  dt:2 },
+        { ar:28, dr:14, sr:6, rr:5, sl:3, tl:0,  ks:1, mul:1,  dt:0 },
+        { ar:22, dr:16, sr:8, rr:4, sl:4, tl:8,  ks:1, mul:5,  dt:0 }]
+      },
+      { name:'CLARINET', algo:2, fb:2, ops:[
+        { ar:26, dr:12, sr:4, rr:4, sl:2, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:20, dr:14, sr:6, rr:4, sl:3, tl:22, ks:0, mul:3,  dt:0 },
+        { ar:26, dr:12, sr:4, rr:4, sl:2, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:20, dr:14, sr:6, rr:4, sl:3, tl:8,  ks:0, mul:3,  dt:2 }]
+      },
+      { name:'VIBRAPHN', algo:0, fb:0, ops:[
+        { ar:31, dr:22, sr:0, rr:8, sl:1, tl:0,  ks:1, mul:1,  dt:0 },
+        { ar:28, dr:26, sr:0, rr:7, sl:2, tl:16, ks:1, mul:6,  dt:0 },
+        { ar:31, dr:24, sr:0, rr:8, sl:1, tl:0,  ks:1, mul:1,  dt:0 },
+        { ar:28, dr:22, sr:0, rr:7, sl:2, tl:22, ks:1, mul:4,  dt:0 }]
+      },
+      { name:'HARPSIC',  algo:0, fb:1, ops:[
+        { ar:31, dr:28, sr:0, rr:10, sl:0, tl:0,  ks:1, mul:1,  dt:0 },
+        { ar:28, dr:30, sr:0, rr:9,  sl:1, tl:14, ks:1, mul:7,  dt:0 },
+        { ar:31, dr:28, sr:0, rr:10, sl:0, tl:0,  ks:1, mul:1,  dt:0 },
+        { ar:28, dr:28, sr:0, rr:9,  sl:1, tl:18, ks:1, mul:3,  dt:0 }]
+      },
+      { name:'BELL',     algo:6, fb:0, ops:[
+        { ar:31, dr:20, sr:8, rr:6, sl:2, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:28, dr:24, sr:10,rr:5, sl:3, tl:12, ks:0, mul:14, dt:0 },
+        { ar:31, dr:22, sr:8, rr:6, sl:2, tl:4,  ks:0, mul:2,  dt:0 },
+        { ar:28, dr:26, sr:10,rr:5, sl:3, tl:20, ks:0, mul:5,  dt:0 }]
+      },
+      { name:'PIANO',    algo:0, fb:3, ops:[
+        { ar:31, dr:18, sr:0, rr:7, sl:1, tl:0,  ks:2, mul:1,  dt:0 },
+        { ar:28, dr:22, sr:0, rr:7, sl:2, tl:16, ks:2, mul:13, dt:2 },
+        { ar:31, dr:20, sr:0, rr:7, sl:1, tl:0,  ks:2, mul:1,  dt:0 },
+        { ar:28, dr:18, sr:0, rr:7, sl:2, tl:8,  ks:2, mul:2,  dt:0 }]
+      },
+      { name:'KOTO',     algo:0, fb:2, ops:[
+        { ar:31, dr:24, sr:0, rr:8, sl:1, tl:0,  ks:2, mul:1,  dt:0 },
+        { ar:26, dr:28, sr:0, rr:7, sl:2, tl:12, ks:2, mul:4,  dt:0 },
+        { ar:31, dr:26, sr:0, rr:8, sl:1, tl:0,  ks:2, mul:1,  dt:0 },
+        { ar:26, dr:24, sr:0, rr:7, sl:2, tl:18, ks:2, mul:3,  dt:0 }]
+      },
+      { name:'GUITAR',   algo:0, fb:5, ops:[
+        { ar:31, dr:20, sr:0, rr:6, sl:1, tl:0,  ks:2, mul:1,  dt:0 },
+        { ar:24, dr:24, sr:0, rr:6, sl:3, tl:20, ks:2, mul:3,  dt:2 },
+        { ar:31, dr:22, sr:0, rr:6, sl:1, tl:4,  ks:2, mul:1,  dt:0 },
+        { ar:24, dr:20, sr:0, rr:6, sl:3, tl:8,  ks:2, mul:2,  dt:0 }]
+      },
+      { name:'TRUMPET',  algo:3, fb:5, ops:[
+        { ar:28, dr:8,  sr:0, rr:5, sl:1, tl:0,  ks:1, mul:1,  dt:0 },
+        { ar:22, dr:10, sr:0, rr:4, sl:2, tl:8,  ks:1, mul:2,  dt:2 },
+        { ar:28, dr:8,  sr:0, rr:5, sl:1, tl:4,  ks:1, mul:1,  dt:0 },
+        { ar:22, dr:10, sr:0, rr:4, sl:2, tl:12, ks:1, mul:4,  dt:0 }]
+      },
+      { name:'PICCOLO',  algo:1, fb:0, ops:[
+        { ar:28, dr:8,  sr:4, rr:5, sl:2, tl:0,  ks:0, mul:2,  dt:0 },
+        { ar:22, dr:10, sr:4, rr:4, sl:3, tl:8,  ks:0, mul:2,  dt:2 },
+        { ar:28, dr:8,  sr:4, rr:5, sl:2, tl:0,  ks:0, mul:2,  dt:0 },
+        { ar:20, dr:8,  sr:4, rr:4, sl:3, tl:12, ks:0, mul:4,  dt:0 }]
+      },
+      { name:'HARMONIC', algo:2, fb:4, ops:[
+        { ar:25, dr:8,  sr:6, rr:4, sl:2, tl:0,  ks:1, mul:1,  dt:0 },
+        { ar:20, dr:10, sr:6, rr:4, sl:3, tl:20, ks:1, mul:2,  dt:2 },
+        { ar:25, dr:8,  sr:6, rr:4, sl:2, tl:0,  ks:1, mul:1,  dt:0 },
+        { ar:20, dr:10, sr:6, rr:4, sl:3, tl:8,  ks:1, mul:3,  dt:0 }]
+      },
+      { name:'SYN LEAD', algo:1, fb:5, ops:[
+        { ar:31, dr:0,  sr:0, rr:6, sl:0, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:28, dr:12, sr:8, rr:5, sl:2, tl:8,  ks:0, mul:2,  dt:3 },
+        { ar:31, dr:0,  sr:0, rr:6, sl:0, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:28, dr:14, sr:8, rr:5, sl:2, tl:12, ks:0, mul:3,  dt:0 }]
+      },
+      { name:'MUSICBOX', algo:6, fb:0, ops:[
+        { ar:31, dr:28, sr:0, rr:10, sl:1, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:28, dr:30, sr:0, rr:9,  sl:2, tl:10, ks:0, mul:8,  dt:0 },
+        { ar:31, dr:30, sr:0, rr:10, sl:1, tl:4,  ks:0, mul:2,  dt:0 },
+        { ar:28, dr:28, sr:0, rr:9,  sl:2, tl:16, ks:0, mul:5,  dt:0 }]
+      },
+      { name:'HUMAN',    algo:3, fb:1, ops:[
+        { ar:20, dr:10, sr:8, rr:4, sl:4, tl:0,  ks:0, mul:0,  dt:0 },
+        { ar:16, dr:12, sr:8, rr:3, sl:5, tl:8,  ks:0, mul:0,  dt:2 },
+        { ar:20, dr:10, sr:8, rr:4, sl:4, tl:2,  ks:0, mul:0,  dt:0 },
+        { ar:16, dr:12, sr:8, rr:3, sl:5, tl:12, ks:0, mul:1,  dt:0 }]
+      },
+      { name:'SINWAVE',  algo:5, fb:0, ops:[
+        { ar:31, dr:0,  sr:0, rr:7, sl:0, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:31, dr:0,  sr:0, rr:7, sl:0, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:31, dr:0,  sr:0, rr:7, sl:0, tl:0,  ks:0, mul:1,  dt:0 },
+        { ar:31, dr:0,  sr:0, rr:7, sl:0, tl:0,  ks:0, mul:1,  dt:0 }]
+      },
+      { name:'CELLO',    algo:3, fb:2, ops:[
+        { ar:22, dr:14, sr:8, rr:5, sl:4, tl:0,  ks:1, mul:1,  dt:2 },
+        { ar:18, dr:12, sr:6, rr:4, sl:5, tl:8,  ks:1, mul:2,  dt:0 },
+        { ar:22, dr:14, sr:8, rr:5, sl:4, tl:4,  ks:1, mul:1,  dt:7 },
+        { ar:18, dr:12, sr:6, rr:4, sl:5, tl:12, ks:1, mul:3,  dt:0 }]
+      },
+    ];
+
+    function loadN88Presets() {
+      N88_PRESETS.forEach((preset, i) => {
+        if (i >= 100) return;
+        state.fmToneBank[i] = {
+          algo: preset.algo,
+          fb:   preset.fb,
+          ops:  preset.ops.map(op => ({ ...op })),
+          _name: preset.name
+        };
+      });
     }
 
     // PSG panels
@@ -3975,11 +4189,42 @@ G L16 %K R %S R %K %K %S R</textarea>
           return ci >= 0 ? l.slice(0, ci) : l;
         });
 
-        // 2. #タグ行を除去（#mucom88, #title, #voice, #driver 等）
-        //    ただし # *n{...} マクロ定義は保持
-        const macros = {}; // { n: 展開文字列 }
+        // 2. @n{...} 音色定義ブロックを抽出してTONE BANKへ登録
+        //    フォーマット: @n{ algo,fb, ar,dr,sr,rr,sl,tl,ks,mul,dt (×4op) }
+        //    @10→slot0, @11→slot1 ... (@10〜@109 → slot0〜99)
+        const fullText = lines.join('\n');
+        const voiceDefRegex = /@(\d+)\s*\{([^}]+)\}/g;
+        let vmatch;
+        while ((vmatch = voiceDefRegex.exec(fullText)) !== null) {
+          const voiceNum = parseInt(vmatch[1]);
+          if (voiceNum < 10) continue; // @0〜@9は固定音色
+          const slotIdx = voiceNum - 10;
+          if (slotIdx >= 100) continue;
+          const nums = vmatch[2].split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+          if (nums.length < 2) continue;
+          const algo = nums[0], fb = nums[1];
+          const ops = [];
+          for (let op = 0; op < 4; op++) {
+            const base = 2 + op * 9;
+            ops.push({
+              ar:  nums[base]   ?? 31, dr:  nums[base+1] ?? 0,
+              sr:  nums[base+2] ?? 0,  rr:  nums[base+3] ?? 7,
+              sl:  nums[base+4] ?? 0,  tl:  nums[base+5] ?? 0,
+              ks:  nums[base+6] ?? 0,  mul: nums[base+7] ?? 1,
+              dt:  nums[base+8] ?? 0,
+            });
+          }
+          if (ops.length === 4) {
+            state.fmToneBank[slotIdx] = { algo, fb, ops, _name: `@${voiceNum}` };
+            for (let i = 0; i < 6; i++) updateToneBankUI(i);
+          }
+        }
+
+        // 3. @n{...}ブロック除去・#タグ行除去
+        const textNoVoice = fullText.replace(/@\d+\s*\{[^}]+\}/g, '');
+        const macros = {};
         const cleaned = [];
-        for (const line of lines) {
+        for (const line of textNoVoice.split('\n')) {
           const trimmed = line.trim();
           // マクロ定義: # *n{ ... } or #*n{...}
           const macroMatch = trimmed.match(/^#\s*\*(\d+)\s*\{([\s\S]*?)\}/);
@@ -3994,7 +4239,7 @@ G L16 %K R %S R %K %K %S R</textarea>
 
         let result = cleaned.join('\n');
 
-        // 3. マクロ展開（*n → マクロ内容、長い番号から順に）
+        // 4. マクロ展開（*n → マクロ内容、長い番号から順に）
         const macroKeys = Object.keys(macros).sort((a, b) => b.length - a.length);
         for (const k of macroKeys) {
           result = result.split('*' + k).join(macros[k]);
@@ -4089,7 +4334,19 @@ G L16 %K R %S R %K %K %S R</textarea>
           if (ch === '@') {
             pos++;
             const n = readInt();
-            if (n !== null) timbre = Math.min(9, Math.max(0, n));
+            if (n !== null) {
+              if (n <= 9) {
+                timbre = Math.min(9, Math.max(0, n));
+              } else {
+                // @10〜 → TONE BANKスロット(n-10)の音色をFM1に適用してFM1で発音
+                const slotIdx = n - 10;
+                if (slotIdx >= 0 && slotIdx < 100 && state.fmToneBank[slotIdx]) {
+                  state.fmParams[0] = JSON.parse(JSON.stringify(state.fmToneBank[slotIdx]));
+                  buildFMPanel(0);
+                  timbre = 1; // FM1チャンネルで発音
+                }
+              }
+            }
             continue;
           }
           // タイ
@@ -4437,6 +4694,44 @@ G L16 %K R %S R %K %K %S R</textarea>
       document.getElementById('mmlLoopBtn').textContent = MML.loop ? 'LOOP ON' : 'LOOP OFF';
       document.getElementById('mmlLoopBtn').classList.toggle('active', MML.loop);
     };
+
+    // MMLパネルのTONE BANK参照表を描画
+    function renderMmlToneRef() {
+      const grid = document.getElementById('mmlToneRefGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      // @0〜@9は固定
+      ['@0:SUB','@1:FM1','@2:FM2','@3:FM3','@4:FM4','@5:FM5','@6:FM6','@7:PS1','@8:PS2','@9:PS3'].forEach(label => {
+        const el = document.createElement('span');
+        el.style.cssText = 'font-size:7px;background:#0e0e18;border:1px solid #2a2a40;border-radius:2px;padding:1px 4px;color:#446;white-space:nowrap';
+        el.textContent = label;
+        grid.appendChild(el);
+      });
+      // @10〜 = TONE BANKスロット0〜
+      for (let i = 0; i < 100; i++) {
+        if (!state.fmToneBank[i]) continue;
+        const t = state.fmToneBank[i];
+        const el = document.createElement('span');
+        el.style.cssText = 'font-size:7px;background:#0e1820;border:1px solid #2a3a50;border-radius:2px;padding:1px 5px;color:#5a9;white-space:nowrap;cursor:pointer';
+        el.textContent = `@${i+10}:${t._name || i}`;
+        el.title = `スロット${i}${t._name ? ' ' + t._name : ''} — タップで@${i+10}を挿入`;
+        el.onclick = () => {
+          const ta = document.getElementById('mmlAll') ||
+                     ['mmlA','mmlB','mmlC'].map(id => document.getElementById(id))
+                       .find(e => e && e === document.activeElement) ||
+                     document.getElementById('mmlA');
+          if (!ta) return;
+          const s = ta.selectionStart, e2 = ta.selectionEnd;
+          ta.value = ta.value.slice(0, s) + `@${i+10}` + ta.value.slice(e2);
+          ta.selectionStart = ta.selectionEnd = s + String(`@${i+10}`).length;
+          ta.focus();
+        };
+        grid.appendChild(el);
+      }
+    }
+
+    // MMLモードボタンクリック時に参照表を更新
+    document.getElementById('modeMML').addEventListener('click', () => setTimeout(renderMmlToneRef, 50));
 
     // =============================================
     // Config Save / Load
