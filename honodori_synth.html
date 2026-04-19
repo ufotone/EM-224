@@ -976,7 +976,8 @@
           <span style="color:#fca">G</span>=リズム(ドラム) &nbsp;<span style="color:#fca">K</span>=ADPCM/PCM &nbsp;&nbsp;SUBは <span style="color:#9cf">@0</span> で使用可<br>
           <b style="color:#668">音符:</b> <span style="color:#9cf">C D E F G A B R</span>　<b style="color:#668">音長:</b> <span style="color:#9cf">4 8 16 .</span>　<b style="color:#668">オクターブ:</b> <span style="color:#9cf">O4 &lt; &gt;</span><br>
           <b style="color:#668">テンポ:</b> <span style="color:#9cf">T120</span>　<b style="color:#668">音量:</b> <span style="color:#9cf">V8</span>　<b style="color:#668">音色:</b> <span style="color:#9cf">@0〜@9</span> (0=SUB/1-6=FM/7-9=PSG)　<b style="color:#668">タイ:</b> <span style="color:#9cf">&amp;</span><br>
-          <b style="color:#668">ゲート:</b> <span style="color:#9cf">C80</span>　<b style="color:#668">デチューン:</b> <span style="color:#9cf">D-5</span>　<b style="color:#668">パン:</b> <span style="color:#9cf">p3</span> (1=L/3=C/5=R)　<b style="color:#668">コメント:</b> <span style="color:#9cf">; ...</span><br>
+          <b style="color:#668">ゲート:</b> <span style="color:#9cf">C80</span>　<b style="color:#668">デチューン:</b> <span style="color:#9cf">D-5</span>　<b style="color:#668">パン:</b> <span style="color:#9cf">p3</span> (0=消音/1=右/2=左/3=中央)　<b style="color:#668">コメント:</b> <span style="color:#9cf">; ...</span><br>
+          <b style="color:#668">SSG音色:</b> <span style="color:#adf">@0〜@15</span>=プリセット　<b style="color:#668">SSGエンベロープ:</b> <span style="color:#adf">E AL,AR,DR,SL,SR,RR</span>　<b style="color:#668">SSGミキサー:</b> <span style="color:#adf">P1</span>=tone <span style="color:#adf">P2</span>=noise <span style="color:#adf">P3</span>=mix<br>
           <b style="color:#fca">リズム(G):</b> <span style="color:#fca">%K</span>=KICK　<span style="color:#fca">%S</span>=SNARE　<span style="color:#fca">%H</span>=HAT　<span style="color:#fca">%OH</span>=OpenHH　<span style="color:#fca">%P</span>=PCM　例: <span style="color:#fca">%K8</span>
         </div>
       </details>
@@ -1455,6 +1456,10 @@ G L16 %K R %S R %K %K %S R</textarea>
       fmToneBank: Array(100).fill(null),
       // 現在各FMチャンネルで選択中のトーンバンクスロット (-1=バンク未使用)
       fmActiveTone: [-1, -1, -1, -1, -1, -1],
+      // SSG音色バンク (50スロット): null=未使用
+      ssgToneBank: Array(50).fill(null),
+      // 現在各SSGチャンネルで選択中のSSGスロット (-1=未使用)
+      ssgActiveTone: [-1, -1, -1],
     };
 
     // Default patterns for bank 0 (JSONコンフィグより)
@@ -3283,8 +3288,226 @@ G L16 %K R %S R %K %K %S R</textarea>
       });
     }
 
-    // PSG panels
+    // =============================================
+    // MUCOM88準拠 SSG音色プリセット (@0〜@15)
+    // E: AL(初期音量0-127), AR(0-255), DR(0-255), SL(0-255), SR(0-255), RR(0-255)
+    // P: 1=tone 2=noise 3=tone+noise
+    // M: lfoDelay, lfoClk, lfoAmp, lfoAmount
+    // =============================================
+    const SSG_PRESETS = [
+      // @0: 通常サスティン（ピアノ系）
+      { name:'@0 sustain',  al:127, ar:255, dr:255, sl:255, sr:0,   rr:255, noiseMode:1, lfo:null },
+      // @1: ショートディケイ
+      { name:'@1 short',    al:127, ar:255, dr:255, sl:200, sr:0,   rr:10,  noiseMode:1, lfo:null },
+      // @2: ディケイ+サスティン
+      { name:'@2 decay',    al:127, ar:255, dr:255, sl:200, sr:1,   rr:10,  noiseMode:1, lfo:null },
+      // @3: バイブラート付きショート
+      { name:'@3 vibr-s',   al:127, ar:255, dr:255, sl:190, sr:0,   rr:10,  noiseMode:1, lfo:{delay:16, clk:1, amp:25,  amt:4}  },
+      // @4: バイブラート付きサスティン
+      { name:'@4 vibr-l',   al:127, ar:255, dr:255, sl:190, sr:1,   rr:10,  noiseMode:1, lfo:{delay:16, clk:1, amp:25,  amt:4}  },
+      // @5: ミディアムディケイ
+      { name:'@5 mid-dec',  al:127, ar:255, dr:255, sl:170, sr:0,   rr:10,  noiseMode:1, lfo:null },
+      // @6: アタックビブラート（ブラス系）
+      { name:'@6 brass',    al:100, ar:40,  dr:70,  sl:190, sr:0,   rr:15,  noiseMode:1, lfo:{delay:16, clk:1, amp:24,  amt:5}  },
+      // @7: ストリングス系
+      { name:'@7 strings',  al:127, ar:120, dr:30,  sl:255, sr:0,   rr:10,  noiseMode:1, lfo:{delay:16, clk:1, amp:25,  amt:4}  },
+      // @8: ロングサスティン
+      { name:'@8 long-sus', al:127, ar:255, dr:255, sl:225, sr:8,   rr:15,  noiseMode:1, lfo:null },
+      // @9: ノイズパーカッション
+      { name:'@9 noise-p',  al:127, ar:255, dr:255, sl:1,   sr:255, rr:255, noiseMode:2, lfo:null },
+      // @10: ノイズサスティン
+      { name:'@10 noise-s', al:127, ar:255, dr:255, sl:200, sr:8,   rr:255, noiseMode:2, lfo:null },
+      // @11: スローアタックビブラート
+      { name:'@11 slow-v',  al:127, ar:255, dr:255, sl:220, sr:20,  rr:8,   noiseMode:1, lfo:{delay:1,  clk:1, amp:300, amt:-1} },
+      // @12: 下降ポルタメント
+      { name:'@12 porta-d', al:127, ar:255, dr:255, sl:255, sr:0,   rr:10,  noiseMode:1, lfo:{delay:1,  clk:1, amp:-400,amt:4}  },
+      // @13: トレモロ
+      { name:'@13 tremolo', al:127, ar:255, dr:255, sl:255, sr:0,   rr:10,  noiseMode:1, lfo:{delay:1,  clk:1, amp:80,  amt:-1} },
+      // @14: スライドアップ
+      { name:'@14 slide-u', al:100, ar:120, dr:80,  sl:255, sr:0,   rr:255, noiseMode:1, lfo:{delay:1,  clk:1, amp:-250,amt:1}  },
+      // @15: ディープポルタメント
+      { name:'@15 deep-p',  al:127, ar:255, dr:255, sl:220, sr:0,   rr:255, noiseMode:1, lfo:{delay:1,  clk:1, amp:3000,amt:-1} },
+    ];
+
+    // SSGプリセットをpsgParamsに変換して適用する関数
+    function ssgPresetToParams(preset) {
+      // ENVパラメータ→PSGエンベロープ形状マッピング
+      // MUCOM88 E: AL=初期音量, AR=アタックレート, DR=ディケイレート,
+      //            SL=サスティンレベル, SR=サスティンレート, RR=リリースレート
+      const ar = preset.ar;
+      const dr = preset.dr;
+      const sl = preset.sl;  // 0-255: 高いほど長くサスティン
+      const sr = preset.sr;
+      const rr = preset.rr;
+      const lfoP = preset.lfo;
+
+      // エンベロープタイプ決定
+      let envType = 'none';
+      if (ar < 200 && dr > 100) {
+        envType = 'attack';  // スローアタック
+      } else if (sl < 50 && sr > 100) {
+        envType = 'decay';   // 鋭いディケイ
+      } else if (lfoP && lfoP.amt < 0 && Math.abs(lfoP.amp) > 200) {
+        envType = 'saw-down'; // LFOポルタメント系
+      } else if (sl < 128 && rr < 50) {
+        envType = 'decay';
+      }
+
+      // ENV TIME: DR/SR/RRから推定（ms）
+      const rrMs = rr < 50 ? Math.round(2000 * (1 - rr / 255)) : 300;
+
+      // Pモード → noiseMode
+      const noiseMode = preset.noiseMode;  // 1=tone, 2=noise, 3=tone+noise
+      const noiseMix = noiseMode === 2 ? 100 : (noiseMode === 3 ? 50 : 0);
+
+      // LFO
+      let lfo = { type: 'none', rate: 4, depth: 0, dest: 'pitch' };
+      if (lfoP) {
+        const rate = lfoP.clk > 0 ? Math.min(20, Math.max(0.1, 8 / lfoP.clk)) : 4;
+        const depth = Math.min(100, Math.abs(lfoP.amp) / 40);
+        const dest = (lfoP.amt > 0 && Math.abs(lfoP.amp) < 100) ? 'volume' : 'pitch';
+        lfo = { type: 'sine', rate: parseFloat(rate.toFixed(1)), depth: Math.round(depth), dest };
+      }
+
+      return {
+        wave: noiseMode === 2 ? 'square' : 'square',
+        detune: 0,
+        noise: noiseMode >= 2,
+        noiseMix,
+        noisePeriod: 16,
+        envType,
+        envTime: rrMs,
+        lfo,
+        _presetName: preset.name,
+      };
+    }
+
+    function loadSSGPresets() {
+      SSG_PRESETS.forEach((preset, i) => {
+        state.ssgToneBank[i] = {
+          ...ssgPresetToParams(preset),
+          _name: preset.name,
+        };
+      });
+    }
+
+    // SSGバンクUI更新
+    function updateSSGToneBankUI(psgIdx) {
+      const grid = document.getElementById(`ssgToneSlotGrid${psgIdx}`);
+      const info = document.getElementById(`ssgToneSlotInfo${psgIdx}`);
+      if (grid) renderSSGSlotGrid(psgIdx, grid);
+      if (info) updateSSGSlotInfo(psgIdx, info);
+    }
+
+    function renderSSGSlotGrid(psgIdx, container) {
+      container.innerHTML = '';
+      for (let si = 0; si < 50; si++) {
+        const slot = document.createElement('div');
+        const stored = state.ssgToneBank[si] !== null;
+        const isActive = state.ssgActiveTone[psgIdx] === si;
+        slot.className = 'tone-slot' + (stored ? ' stored' : '') + (isActive ? ' active-tone' : '');
+        slot.dataset.si = si;
+        slot.textContent = stored && state.ssgToneBank[si]._name
+          ? `${si}:${state.ssgToneBank[si]._name.replace(/^@\d+\s*/,'').slice(0,5)}`
+          : si;
+        slot.title = stored
+          ? `スロット ${si}${state.ssgToneBank[si]._name ? ': ' + state.ssgToneBank[si]._name : ''}: 保存済み (クリック=呼出)`
+          : `スロット ${si}: 空`;
+        slot.onclick = () => {
+          if (stored) {
+            const params = JSON.parse(JSON.stringify(state.ssgToneBank[si]));
+            delete params._name;
+            Object.assign(state.psgParams[psgIdx], params);
+            state.ssgActiveTone[psgIdx] = si;
+            buildPSGPanels();
+          } else {
+            state.ssgActiveTone[psgIdx] = si;
+            for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
+          }
+        };
+        slot.oncontextmenu = (e) => {
+          e.preventDefault();
+          showSSGSlotCtxMenu(e, psgIdx, si);
+        };
+        container.appendChild(slot);
+      }
+    }
+
+    function updateSSGSlotInfo(psgIdx, infoEl) {
+      const active = state.ssgActiveTone[psgIdx];
+      if (active < 0) {
+        infoEl.textContent = '(未選択)';
+        infoEl.style.color = '#333';
+      } else if (state.ssgToneBank[active]) {
+        infoEl.textContent = `SLOT ${active} ● STORED`;
+        infoEl.style.color = '#47a';
+      } else {
+        infoEl.textContent = `SLOT ${active} (空)`;
+        infoEl.style.color = '#336';
+      }
+    }
+
+    // SSGスロットコンテキストメニュー
+    let ssgSlotCtxMenu = null;
+    let ssgSlotClipboard = null;
+    function showSSGSlotCtxMenu(e, psgIdx, si) {
+      if (ssgSlotCtxMenu) { ssgSlotCtxMenu.remove(); ssgSlotCtxMenu = null; }
+      const stored = state.ssgToneBank[si] !== null;
+      const menu = document.createElement('div');
+      menu.style.cssText = 'position:fixed;background:#1a1a2a;border:1px solid #446;border-radius:4px;z-index:9999;min-width:140px;box-shadow:0 4px 12px rgba(0,0,0,0.6);font-family:monospace;font-size:9px';
+      ssgSlotCtxMenu = menu;
+      document.body.appendChild(menu);
+      const hide = () => { menu.remove(); ssgSlotCtxMenu = null; };
+      document.addEventListener('click', hide, { once: true });
+
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'padding:5px 10px 3px;color:#669;font-size:8px;border-bottom:1px solid #334';
+      lbl.textContent = `SSG SLOT ${si}${stored && state.ssgToneBank[si]._name ? ' ' + state.ssgToneBank[si]._name : ''}`;
+      menu.appendChild(lbl);
+
+      const items = [
+        { label:'💾 Store current', action:() => {
+          state.ssgToneBank[si] = { ...JSON.parse(JSON.stringify(state.psgParams[psgIdx])), _name: `slot${si}` };
+          state.ssgActiveTone[psgIdx] = si;
+          for (let i=0;i<3;i++) updateSSGToneBankUI(i);
+        }},
+        stored ? { label:'📋 Copy', action:() => { ssgSlotClipboard = JSON.parse(JSON.stringify(state.ssgToneBank[si])); } } : null,
+        ssgSlotClipboard ? { label:'📌 Paste', action:() => {
+          state.ssgToneBank[si] = JSON.parse(JSON.stringify(ssgSlotClipboard));
+          for (let i=0;i<3;i++) updateSSGToneBankUI(i);
+        }} : null,
+        stored ? { label:'🗑 Clear', action:() => {
+          state.ssgToneBank[si] = null;
+          for (let i=0;i<3;i++) {
+            if (state.ssgActiveTone[i]===si) state.ssgActiveTone[i]=-1;
+          }
+          for (let i=0;i<3;i++) updateSSGToneBankUI(i);
+        }} : null,
+      ].filter(Boolean);
+
+      items.forEach(item => {
+        const el = document.createElement('div');
+        el.style.cssText = 'padding:5px 12px;cursor:pointer;color:#cde;white-space:nowrap';
+        el.textContent = item.label;
+        el.onmouseenter = () => { el.style.background = '#2a2a4a'; };
+        el.onmouseleave = () => { el.style.background = ''; };
+        el.onclick = (ev) => { ev.stopPropagation(); item.action(); hide(); };
+        menu.appendChild(el);
+      });
+
+      menu.style.display = 'block';
+      const rect = menu.getBoundingClientRect();
+      let x = e.clientX, y = e.clientY;
+      if (x + rect.width > window.innerWidth) x = window.innerWidth - rect.width - 4;
+      if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 4;
+      menu.style.left = x + 'px';
+      menu.style.top = y + 'px';
+    }
+
+    // SSGプリセット初期ロード（@0〜@15をスロット0〜15に）
+    loadSSGPresets();
     buildPSGPanels();
+    for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
 
     // Tabs
     // 音源エディットタブをアクティブにするヘルパー
@@ -4192,6 +4415,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         // 2. @n{...} 音色定義ブロックを抽出してTONE BANKへ登録
         //    フォーマット: @n{ algo,fb, ar,dr,sr,rr,sl,tl,ks,mul,dt (×4op) }
         //    @10→slot0, @11→slot1 ... (@10〜@109 → slot0〜99)
+        //    SSG向け: @0〜@9 はSSGバンクとしても解釈（E/Pパラメータ形式は別途）
         const fullText = lines.join('\n');
         const voiceDefRegex = /@(\d+)\s*\{([^}]+)\}/g;
         let vmatch;
@@ -4248,7 +4472,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         return result;
       },
 
-      parse(text, tempo, defaultTimbre = 0) {
+      parse(text, tempo, defaultTimbre = 0, isSSGCh = false, ssgPsgIdx = 0) {
         const events = [];
         let pos = 0;
         let oct = 4, defLen = 4, vel = 10, bpm = tempo || state.bpm;
@@ -4337,8 +4561,16 @@ G L16 %K R %S R %K %K %S R</textarea>
             if (n !== null) {
               if (n <= 9) {
                 timbre = Math.min(9, Math.max(0, n));
-              } else {
-                // @10〜 → TONE BANKスロット(n-10)の音色をFM1に適用してFM1で発音
+                // SSGチャンネル(@7〜@9)でかつ@0〜@15指定→SSGバンクから音色適用
+                if (isSSGCh && n <= 15 && state.ssgToneBank[n]) {
+                  const params = JSON.parse(JSON.stringify(state.ssgToneBank[n]));
+                  delete params._name;
+                  Object.assign(state.psgParams[ssgPsgIdx], params);
+                  state.ssgActiveTone[ssgPsgIdx] = n;
+                  setTimeout(() => buildPSGPanels(), 0);
+                }
+              } else if (n <= 109) {
+                // @10〜@109 → TONE BANKスロット(n-10)の音色をFM1に適用してFM1で発音
                 const slotIdx = n - 10;
                 if (slotIdx >= 0 && slotIdx < 100 && state.fmToneBank[slotIdx]) {
                   state.fmParams[0] = JSON.parse(JSON.stringify(state.fmToneBank[slotIdx]));
@@ -4352,14 +4584,14 @@ G L16 %K R %S R %K %K %S R</textarea>
           // タイ
           if (ch === '&') { tieNext = true; pos++; continue; }
 
-          // パン p1〜5（MUCOM88: 1=L,--, 2=L, 3=C, 4=R, 5=R,-- 近似）
+          // パン p（MUCOM88準拠: 0=発音なし 1=右 2=左 3=中央）
           if (ch === 'P') {
             pos++;
             const n = readInt();
             if (n !== null) {
-              // 1〜5 → -100〜100
-              const panMap = { 1: -100, 2: -50, 3: 0, 4: 50, 5: 100 };
-              panVal = panMap[n] ?? 0;
+              // MUCOM88: 0=発音なし, 1=右, 2=左, 3=中央
+              const panMap = { 0: null, 1: 100, 2: -100, 3: 0 };
+              panVal = (n in panMap) ? panMap[n] : 0;
             }
             continue;
           }
@@ -4388,6 +4620,43 @@ G L16 %K R %S R %K %K %S R</textarea>
           if (ch === 'M') {
             pos++;
             readInts(4);
+            continue;
+          }
+          // [SSG] Eコマンド: E AL,AR,DR,SL,SR,RR → SSGエンベロープをリアルタイム適用
+          if (ch === 'E' && isSSGCh) {
+            pos++;
+            const vals = readInts(6);
+            // AL,AR,DR,SL,SR,RR → psgParamsのenvType/envTimeに近似変換
+            const [al, ar, dr, sl, sr, rr] = vals;
+            const p = state.psgParams[ssgPsgIdx];
+            if (sl < 10 && sr > 100) {
+              p.envType = 'decay';
+              p.envTime = Math.round(1500 * (1 - Math.min(rr, 255) / 255));
+            } else if (ar < 200) {
+              p.envType = 'attack';
+              p.envTime = Math.round(2000 * (1 - ar / 255));
+            } else {
+              p.envType = 'none';
+            }
+            continue;
+          }
+          // [SSG] Pコマンド: Pn 1=tone 2=noise 3=tone+noise
+          if (ch === 'P' && isSSGCh && s[pos+1] >= '1' && s[pos+1] <= '3') {
+            pos++;
+            const n = readInt();
+            if (n !== null) {
+              const p = state.psgParams[ssgPsgIdx];
+              if (n === 1) { p.noiseMix = 0; }
+              else if (n === 2) { p.noiseMix = 100; }
+              else if (n === 3) { p.noiseMix = 50; }
+            }
+            continue;
+          }
+          // [SSG] Wコマンド: Wn ノイズ周波数(0〜31)
+          if (ch === 'W' && isSSGCh) {
+            pos++;
+            const n = readInt();
+            if (n !== null) state.psgParams[ssgPsgIdx].noisePeriod = Math.max(1, Math.min(31, n));
             continue;
           }
           // ゲートタイム2 Q（Cの別名として上で処理済み）
@@ -4540,6 +4809,8 @@ G L16 %K R %S R %K %K %S R</textarea>
           const chMml = {};
           [...TONE_CHANNELS, ...DRUM_CHANNELS, ...PCM_CHANNELS].forEach(ch => chMml[ch] = '');
           const CH_TIMBRE = { A:1, B:2, C:3, D:7, E:8, F:9, H:4, I:5, J:6 };
+          // SSGチャンネル→psgIdx対応
+          const SSG_PSG_IDX = { D:0, E:1, F:2 };
           const ALL_CHANNELS = [...TONE_CHANNELS, ...DRUM_CHANNELS, ...PCM_CHANNELS];
           let currentCh = null;
           lines.forEach(line => {
@@ -4558,7 +4829,9 @@ G L16 %K R %S R %K %K %S R</textarea>
             const mmlStr = chMml[chName].trim();
             if (!mmlStr) return;
             const defaultTimbre = CH_TIMBRE[chName];
-            const { events } = this.parse(mmlStr, state.bpm, defaultTimbre);
+            const isSSG = chName in SSG_PSG_IDX;
+            const ssgIdx = SSG_PSG_IDX[chName] ?? 0;
+            const { events } = this.parse(mmlStr, state.bpm, defaultTimbre, isSSG, ssgIdx);
             events.forEach(ev => allEvents.push({ ...ev, mmlCh: chName }));
           });
           // G: リズム（ドラム）チャンネル
@@ -4700,14 +4973,32 @@ G L16 %K R %S R %K %K %S R</textarea>
       const grid = document.getElementById('mmlToneRefGrid');
       if (!grid) return;
       grid.innerHTML = '';
-      // @0〜@9は固定
+      // @0〜@9は固定（SSGチャンネルでは@0〜@15がSSGプリセット）
       ['@0:SUB','@1:FM1','@2:FM2','@3:FM3','@4:FM4','@5:FM5','@6:FM6','@7:PS1','@8:PS2','@9:PS3'].forEach(label => {
         const el = document.createElement('span');
         el.style.cssText = 'font-size:7px;background:#0e0e18;border:1px solid #2a2a40;border-radius:2px;padding:1px 4px;color:#446;white-space:nowrap';
         el.textContent = label;
         grid.appendChild(el);
       });
-      // @10〜 = TONE BANKスロット0〜
+      // SSGプリセット @0〜@15（D/E/Fチャンネル専用）
+      const ssgSep = document.createElement('div');
+      ssgSep.style.cssText = 'width:100%;font-size:7px;color:#464;margin:3px 0 2px;letter-spacing:1px';
+      ssgSep.textContent = 'SSG PRESET (D/E/Fチャンネル: @0〜@15)';
+      grid.appendChild(ssgSep);
+      for (let i = 0; i < 16; i++) {
+        const t = state.ssgToneBank[i];
+        if (!t) continue;
+        const el = document.createElement('span');
+        el.style.cssText = 'font-size:7px;background:#061206;border:1px solid #2a402a;border-radius:2px;padding:1px 5px;color:#4a9;white-space:nowrap;cursor:pointer';
+        el.textContent = `@${i}:${(t._name||'').replace(/^@\d+\s*/,'').slice(0,7)}`;
+        el.title = `SSGプリセット @${i}: ${t._name||''}`;
+        grid.appendChild(el);
+      }
+      // @10〜 = FM TONE BANKスロット0〜
+      const fmSep = document.createElement('div');
+      fmSep.style.cssText = 'width:100%;font-size:7px;color:#446;margin:3px 0 2px;letter-spacing:1px';
+      fmSep.textContent = 'FM TONE BANK (@10〜)';
+      grid.appendChild(fmSep);
       for (let i = 0; i < 100; i++) {
         if (!state.fmToneBank[i]) continue;
         const t = state.fmToneBank[i];
@@ -4792,6 +5083,8 @@ G L16 %K R %S R %K %K %S R</textarea>
         })),
         fmToneBank: state.fmToneBank.map(t => t ? JSON.parse(JSON.stringify(t)) : null),
         fmActiveTone: state.fmActiveTone.slice(),
+        ssgToneBank: state.ssgToneBank.map(t => t ? JSON.parse(JSON.stringify(t)) : null),
+        ssgActiveTone: state.ssgActiveTone.slice(),
         fmParams: JSON.parse(JSON.stringify(state.fmParams)),
         psgParams: JSON.parse(JSON.stringify(state.psgParams)),
         subParams: { ...state.subParams },
@@ -4885,6 +5178,13 @@ G L16 %K R %S R %K %K %S R</textarea>
       if (cfg.fmActiveTone) {
         cfg.fmActiveTone.forEach((v, i) => { state.fmActiveTone[i] = v ?? -1; });
       }
+      // SSG Tone Bank
+      if (cfg.ssgToneBank) {
+        cfg.ssgToneBank.forEach((t, i) => { state.ssgToneBank[i] = t ? JSON.parse(JSON.stringify(t)) : null; });
+      }
+      if (cfg.ssgActiveTone) {
+        cfg.ssgActiveTone.forEach((v, i) => { state.ssgActiveTone[i] = v ?? -1; });
+      }
       // Banks内のfmToneシーケンスを復元
       if (cfg.banks) {
         cfg.banks.forEach((b, i) => {
@@ -4906,8 +5206,8 @@ G L16 %K R %S R %K %K %S R</textarea>
       // PSG params
       if (cfg.psgParams) {
         cfg.psgParams.forEach((p, i) => { if (state.psgParams[i]) Object.assign(state.psgParams[i], p); });
-        // PSGパネル再構築（buildPSGPanels内で各コンテナをクリアする）
         buildPSGPanels();
+        for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
       }
 
       // Sub params
@@ -5060,6 +5360,63 @@ G L16 %K R %S R %K %K %S R</textarea>
         const p = state.psgParams[pi];
         const ch = document.createElement('div');
         ch.className = 'psg-ch';
+
+        // ===== SSG TONE BANK パネル =====
+        const ssgBankDiv = document.createElement('div');
+        ssgBankDiv.className = 'tone-bank-panel';
+        ssgBankDiv.style.cssText = 'margin-bottom:6px';
+
+        const ssgBankHdr = document.createElement('div');
+        ssgBankHdr.className = 'tone-bank-header';
+        ssgBankHdr.innerHTML = `<span class="tone-bank-title">SSG TONE BANK</span>`;
+
+        // STOREボタン
+        const ssgStoreBtn = document.createElement('button');
+        ssgStoreBtn.className = 'btn';
+        ssgStoreBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#446;color:#68a';
+        ssgStoreBtn.textContent = 'STORE';
+        ssgStoreBtn.title = '現在のSSGパラメータを選択中スロットに保存';
+        ssgStoreBtn.onclick = () => {
+          const active = state.ssgActiveTone[pi];
+          const targetSlot = active >= 0 ? active : state.ssgToneBank.findIndex(s => s === null);
+          if (targetSlot < 0) { alert('SSGバンクが満杯です (最大50)'); return; }
+          state.ssgToneBank[targetSlot] = { ...JSON.parse(JSON.stringify(state.psgParams[pi])), _name: `slot${targetSlot}` };
+          state.ssgActiveTone[pi] = targetSlot;
+          for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
+        };
+
+        // MUCOM88 PRESETボタン (pi===0のとき1回だけ)
+        if (pi === 0) {
+          const ssgPreBtn = document.createElement('button');
+          ssgPreBtn.className = 'btn';
+          ssgPreBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#863;color:#ca8;margin-left:4px';
+          ssgPreBtn.textContent = 'MUCOM88 PRESET';
+          ssgPreBtn.title = 'MUCOM88準拠SSGプリセット(@0〜@15)をスロット0〜15に読込';
+          ssgPreBtn.onclick = () => {
+            if (!confirm('MUCOM88 SSGプリセット(@0〜@15)をスロット0〜15にロードします。\n既存データは上書きされます。よろしいですか？')) return;
+            loadSSGPresets();
+            for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
+          };
+          ssgBankHdr.appendChild(ssgPreBtn);
+        }
+
+        const ssgSlotInfo = document.createElement('span');
+        ssgSlotInfo.id = `ssgToneSlotInfo${pi}`;
+        ssgSlotInfo.style.cssText = 'font-size:8px;color:#445;margin-left:4px';
+
+        ssgBankHdr.insertBefore(ssgStoreBtn, ssgBankHdr.firstChild);
+        ssgBankHdr.appendChild(ssgSlotInfo);
+        ssgBankDiv.appendChild(ssgBankHdr);
+
+        const ssgSlotGrid = document.createElement('div');
+        ssgSlotGrid.className = 'tone-slot-grid';
+        ssgSlotGrid.id = `ssgToneSlotGrid${pi}`;
+        ssgBankDiv.appendChild(ssgSlotGrid);
+
+        psgContainer.appendChild(ssgBankDiv);
+        renderSSGSlotGrid(pi, ssgSlotGrid);
+        updateSSGSlotInfo(pi, ssgSlotInfo);
+
         ch.innerHTML = `<div class="psg-title">${name}</div>
       <div class="small-title" style="margin-bottom:2px">WAVE</div>
       <div class="btn-group waveform-btns" id="psgWave${pi}">
