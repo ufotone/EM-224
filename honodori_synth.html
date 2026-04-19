@@ -3328,55 +3328,91 @@ G L16 %K R %S R %K %K %S R</textarea>
     ];
 
     // SSGプリセットをpsgParamsに変換して適用する関数
+    // MUCOM88 Eコマンド: AL=初期音量(0-127), AR=アタックレート(0-255),
+    //   DR=1stディケイレート(0-255), SL=サスティンレベル(0-255→高いほど持続),
+    //   SR=2ndディケイレート(0-255), RR=リリースレート(0-255→高いほど速い)
+    // rate→秒: rate=255≒即時, rate=0≒無限大。rate→sec = (256-rate)*0.015
+    function mucom88RateToSec(rate) {
+      if (rate >= 255) return 0.005;
+      if (rate <= 0)   return 99;
+      return (256 - rate) * 0.012;
+    }
     function ssgPresetToParams(preset) {
-      // ENVパラメータ→PSGエンベロープ形状マッピング
-      // MUCOM88 E: AL=初期音量, AR=アタックレート, DR=ディケイレート,
-      //            SL=サスティンレベル, SR=サスティンレート, RR=リリースレート
-      const ar = preset.ar;
-      const dr = preset.dr;
-      const sl = preset.sl;  // 0-255: 高いほど長くサスティン
-      const sr = preset.sr;
-      const rr = preset.rr;
-      const lfoP = preset.lfo;
+      const { ar, dr, sl, sr, rr, noiseMode, lfo: lfoP } = preset;
 
-      // エンベロープタイプ決定
-      let envType = 'none';
-      if (ar < 200 && dr > 100) {
-        envType = 'attack';  // スローアタック
-      } else if (sl < 50 && sr > 100) {
-        envType = 'decay';   // 鋭いディケイ
-      } else if (lfoP && lfoP.amt < 0 && Math.abs(lfoP.amp) > 200) {
-        envType = 'saw-down'; // LFOポルタメント系
-      } else if (sl < 128 && rr < 50) {
+      // --- envType / envTime の決定 ---
+      // SL(0-255): サスティンレベル。255=フルサスティン、低いほど早く消える
+      // SR: 2ndディケイ(サスティン中の減衰)。0=サスティン維持、>0=徐々に減衰
+      const arSec  = mucom88RateToSec(ar);
+      const drSec  = mucom88RateToSec(dr);
+      const rrSec  = mucom88RateToSec(rr);
+      const slNorm = sl / 255; // 0.0〜1.0
+
+      let envType, envTime;
+
+      if (ar < 200) {
+        // スローアタック系（AR値が小さい＝アタックが遅い）
+        envType = 'attack';
+        envTime = Math.round(arSec * 1000);
+      } else if (sl < 30 && sr >= 200) {
+        // ノイズ打楽器系：鋭い短打
         envType = 'decay';
+        envTime = Math.round(drSec * 1000);
+      } else if (sr > 0 && rr < 30) {
+        // SR>0 かつ RR<30: サスティン中に徐々に減衰しキーオフ後も速く消える
+        // SLで長さを調整: SL200→450ms, SL190→430ms, SL170→380ms
+        envType = 'decay';
+        envTime = Math.round(100 + slNorm * 500 + mucom88RateToSec(sr) * 200);
+      } else if (rr < 30) {
+        // RR小（速いリリース）のみ: SL値で持続時間を差別化
+        // SL255→700ms, SL225→640ms, SL200→570ms, SL190→547ms, SL170→500ms
+        envType = 'decay';
+        envTime = Math.round(100 + slNorm * 600);
+      } else if (sr > 0 && slNorm < 0.9) {
+        // SR有効でSLが低め: ゆっくり減衰
+        envType = 'decay';
+        envTime = Math.round(mucom88RateToSec(sr) * 800 * (0.3 + slNorm * 0.7));
+      } else {
+        // 通常サスティン（キーオフまで維持）
+        envType = 'none';
+        envTime = 500;
       }
+      envTime = Math.max(30, Math.min(2000, envTime));
 
-      // ENV TIME: DR/SR/RRから推定（ms）
-      const rrMs = rr < 50 ? Math.round(2000 * (1 - rr / 255)) : 300;
-
-      // Pモード → noiseMode
-      const noiseMode = preset.noiseMode;  // 1=tone, 2=noise, 3=tone+noise
+      // --- noise ---
       const noiseMix = noiseMode === 2 ? 100 : (noiseMode === 3 ? 50 : 0);
+      const noisePeriod = 16;
 
-      // LFO
+      // --- LFO ---
       let lfo = { type: 'none', rate: 4, depth: 0, dest: 'pitch' };
       if (lfoP) {
-        const rate = lfoP.clk > 0 ? Math.min(20, Math.max(0.1, 8 / lfoP.clk)) : 4;
-        const depth = Math.min(100, Math.abs(lfoP.amp) / 40);
-        const dest = (lfoP.amt > 0 && Math.abs(lfoP.amp) < 100) ? 'volume' : 'pitch';
-        lfo = { type: 'sine', rate: parseFloat(rate.toFixed(1)), depth: Math.round(depth), dest };
+        // clk: LFOクロック単位。1クロック≒1/60s想定
+        // amp: ピッチ変化量（セント相当の独自単位）。負=下降、正=上昇
+        // amt: LFO形状補助。-1=のこぎり波下降,1=のこぎり波上昇,4=サイン
+        const rateSec = lfoP.clk > 0 ? lfoP.clk / 60 : 1/15;
+        const rateHz  = Math.min(20, Math.max(0.3, 1 / rateSec));
+        const absAmp  = Math.abs(lfoP.amp);
+        // depth: amp量に比例（大振幅ほど深く、最大100）
+        const depth = Math.min(100, Math.round(absAmp / 35));
+        // LFO波形: amt=4→サイン、amt=-1/1→のこぎり、delay>10→サイン（ビブラート）
+        let wave = 'sine';
+        if (lfoP.amt === -1) wave = 'saw';
+        else if (lfoP.amt === 1) wave = 'saw';
+        // dest: 音量変調(volume)かピッチ変調(pitch)か
+        // amp が負で大きい＝ピッチ下降ポルタメント系
+        const dest = (lfoP.amt > 0 && absAmp < 100) ? 'volume' : 'pitch';
+        lfo = { type: wave, rate: parseFloat(rateHz.toFixed(1)), depth, dest };
       }
 
       return {
-        wave: noiseMode === 2 ? 'square' : 'square',
+        wave: 'square',
         detune: 0,
         noise: noiseMode >= 2,
         noiseMix,
-        noisePeriod: 16,
+        noisePeriod,
         envType,
-        envTime: rrMs,
+        envTime,
         lfo,
-        _presetName: preset.name,
       };
     }
 
@@ -3502,8 +3538,6 @@ G L16 %K R %S R %K %K %S R</textarea>
       menu.style.top = y + 'px';
     }
 
-    // SSGプリセット初期ロード（@0〜@15をスロット0〜15に）
-    loadSSGPresets();
     buildPSGPanels();
     for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
 
@@ -5390,17 +5424,17 @@ G L16 %K R %S R %K %K %S R</textarea>
         ssgPreBtn.textContent = 'MUCOM88 PRESET';
         ssgPreBtn.title = 'MUCOM88準拠SSGプリセット(@0〜@15)をスロット0〜15に読込';
         ssgPreBtn.onclick = () => {
-          if (!confirm('MUCOM88 SSGプリセット(@0〜@15)をスロット0〜15にロードします。\n既存データは上書きされます。よろしいですか？')) return;
           loadSSGPresets();
           for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
         };
-        ssgBankHdr.appendChild(ssgPreBtn);
 
         const ssgSlotInfo = document.createElement('span');
         ssgSlotInfo.id = `ssgToneSlotInfo${pi}`;
         ssgSlotInfo.style.cssText = 'font-size:8px;color:#445;margin-left:4px';
 
-        ssgBankHdr.insertBefore(ssgStoreBtn, ssgBankHdr.firstChild);
+        // ヘッダーに順序通り追加: タイトル → STORE → PRESET → スロット情報
+        ssgBankHdr.appendChild(ssgStoreBtn);
+        ssgBankHdr.appendChild(ssgPreBtn);
         ssgBankHdr.appendChild(ssgSlotInfo);
         ssgBankDiv.appendChild(ssgBankHdr);
 
