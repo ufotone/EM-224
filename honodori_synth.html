@@ -681,6 +681,128 @@
       box-shadow: 0 0 4px #9a6830;
     }
 
+    /* ===== PCM TONE BANK ===== */
+    .pcm-bank-panel {
+      background: #120d06;
+      border: 1px solid #5a3a10;
+      border-radius: 4px;
+      padding: 5px 7px;
+      margin-bottom: 5px;
+    }
+    .pcm-bank-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 5px;
+    }
+    .pcm-bank-title {
+      font-size: 8px;
+      color: #c4803a;
+      letter-spacing: 2px;
+    }
+    .pcm-slot-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+    }
+    .pcm-slot {
+      position: relative;
+      width: 72px;
+      min-height: 42px;
+      background: #0e0a04;
+      border: 1px solid #3a2a10;
+      border-radius: 3px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 7px;
+      color: #5a4020;
+      cursor: pointer;
+      padding: 3px 3px 2px;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    .pcm-slot:hover { border-color: #6a4820; color: #9a7040; }
+    .pcm-slot.loaded {
+      background: #1a1006;
+      border-color: #7a5020;
+      color: #c49060;
+    }
+    .pcm-slot.active-pcm {
+      background: #241508;
+      border-color: #e0901a;
+      color: #f0b050;
+      box-shadow: 0 0 5px #a05010a0;
+    }
+    .pcm-slot-num {
+      font-size: 8px;
+      color: #4a3018;
+      font-weight: bold;
+      line-height: 1;
+      margin-bottom: 1px;
+    }
+    .pcm-slot.loaded .pcm-slot-num { color: #8a6030; }
+    .pcm-slot.active-pcm .pcm-slot-num { color: #e0a040; }
+    .pcm-slot-name {
+      font-size: 7px;
+      text-align: center;
+      max-width: 66px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+    .pcm-slot-info {
+      font-size: 6px;
+      color: #5a4020;
+      text-align: center;
+      line-height: 1.1;
+      margin-top: 1px;
+    }
+    .pcm-slot.loaded .pcm-slot-info { color: #7a5828; }
+    .pcm-slot.active-pcm .pcm-slot-info { color: #c08838; }
+    .pcm-slot-load-btn {
+      position: absolute;
+      bottom: 1px;
+      right: 2px;
+      font-size: 6px;
+      color: #4a3018;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 3px 4px;
+      line-height: 1;
+      display: block;
+      font-family: monospace;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    .pcm-slot.loaded .pcm-slot-load-btn { color: #8a6030; }
+    .pcm-slot.active-pcm .pcm-slot-load-btn { color: #e0a040; }
+
+    /* PCMシーケンサーのSLOT行 */
+    .pcm-slot-sel {
+      background: #120e06;
+      border: 1px solid #4a3818;
+      color: #c4956a;
+      font-family: monospace;
+      font-size: 8px;
+      width: 100%;
+      padding: 1px 0;
+      border-radius: 2px;
+      text-align: center;
+    }
+    .pcm-slot-sel.has-slot {
+      background: #1a1006;
+      border-color: #8a5820;
+      color: #e0a040;
+    }
+
     /* ===== スマートフォン対応 ===== */
     /* タッチ操作の最適化 */
     * {
@@ -865,6 +987,19 @@
         max-height: 100px;
         gap: 3px;
       }
+
+      /* PCM TONE BANK */
+      .pcm-slot {
+        width: 80px;
+        min-height: 50px;
+        font-size: 8px;
+        border-radius: 5px;
+      }
+      .pcm-slot-grid {
+        gap: 4px;
+      }
+      .pcm-slot-name { font-size: 8px; }
+      .pcm-slot-info { font-size: 7px; }
 
       /* スモールタイトル */
       .small-title {
@@ -1258,6 +1393,8 @@ G L16 %K R %S R %K %K %S R</textarea>
 
     <!-- Step Sequencer -->
     <div class="panel" id="seqPanel">
+      <!-- hidden legacy file input (kept for compat) -->
+      <input type="file" id="loadPcmInput" accept=".wav,.wave,audio/*" style="display:none">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
         <div class="small-title" style="margin-bottom:0">STEP SEQUENCER</div>
         <div style="display:flex;gap:2px">
@@ -1266,26 +1403,6 @@ G L16 %K R %S R %K %K %S R</textarea>
         </div>
         <button class="btn" id="clearPartBtn" title="現在のパートをすべてクリア"
           style="margin-left:6px;border-color:#733;color:#d55">CLR PART</button>
-        <div style="display:flex;align-items:center;gap:4px;margin-left:6px">
-          <button class="btn" id="loadPcmBtn" style="border-color:#733;color:#d55">PCM:LOAD</button>
-          <input type="file" id="loadPcmInput" accept=".wav,.wave,audio/*" style="display:none">
-          <button class="btn" id="clearPcmBtn" title="PCMを解放" style="border-color:#733;color:#d55">✕</button>
-          <span style="font-size:8px;color:#666">BITS</span>
-          <select id="pcmBitsSelect" style="width:48px;font-size:9px">
-            <option value="8">8</option>
-            <option value="6" selected>6</option>
-            <option value="4">4</option>
-          </select>
-          <span style="font-size:8px;color:#666">SMPL</span>
-          <select id="pcmSampleRateSelect" style="width:54px;font-size:9px" title="サンプリングレート (YM2608 ADPCM: 2k〜16kHz)">
-            <option value="2000">2kHz</option>
-            <option value="4000">4kHz</option>
-            <option value="6000" selected>6kHz</option>
-            <option value="8000">8kHz</option>
-            <option value="11025">11kHz</option>
-            <option value="16000">16kHz</option>
-          </select>
-        </div>
       </div>
       <div id="seqTabBar" style="margin-top:4px;margin-bottom:0">
         <div class="tab-bar" style="margin-bottom:0;flex-wrap:nowrap">
@@ -1362,6 +1479,8 @@ G L16 %K R %S R %K %K %S R</textarea>
             freq: Array(32).fill(null),
             // 各STEPの音量(0〜100): nullでデフォルト
             vol: Array(32).fill(null),
+            // 各STEPのPCM TONEBANKスロット(0〜7): nullでアクティブスロット使用
+            slot: Array(32).fill(null),
           },
           // FM音色切替シーケンス: {on[32], slot[32]} slot=-1でtoneチェンジなし
           fmTone: [
@@ -1460,6 +1579,10 @@ G L16 %K R %S R %K %K %S R</textarea>
       ssgToneBank: Array(50).fill(null),
       // 現在各SSGチャンネルで選択中のSSGスロット (-1=未使用)
       ssgActiveTone: [-1, -1, -1],
+      // PCM TONE BANK (8スロット): null=未使用, {rawBuffer, buffer, bits, sampleRate, name, gain}
+      pcmToneBank: Array(16).fill(null),
+      // 現在アクティブなPCMスロット (0〜7, -1=スロット未選択→レガシーモード)
+      pcmActiveToneSlot: -1,
     };
 
     // Default patterns for bank 0 (JSONコンフィグより)
@@ -2082,19 +2205,34 @@ G L16 %K R %S R %K %K %S R</textarea>
     // playFreq: 再生周波数Hz (2000〜55500)。pcmSampleRateと同じなら等速再生。
     //   playFreq/pcmSampleRate = playbackRate
     //   例: pcmSampleRate=6000, playFreq=12000 → 2倍速 (1オクターブ上)
-    function playPCM(when, vol, steps, stepDur, playFreq) {
-      if (!audioCtx || !pcmBuffer) return;
+    // slotIdx: PCM TONE BANKスロット番号(0〜7)。省略/-1の場合はレガシーpcmBufferを使用
+    function playPCM(when, vol, steps, stepDur, playFreq, slotIdx) {
+      if (!audioCtx) return;
+
+      // バッファとサンプルレートの解決
+      let useBuf = null, useSR = pcmSampleRate, useGain = 1;
+      if (slotIdx != null && slotIdx >= 0 && slotIdx < 16 && state.pcmToneBank[slotIdx]) {
+        const slot = state.pcmToneBank[slotIdx];
+        useBuf = slot.buffer;
+        useSR = slot.sampleRate;
+        useGain = (slot.gain ?? 100) / 100;
+      } else {
+        useBuf = pcmBuffer;
+        useSR = pcmSampleRate;
+      }
+      if (!useBuf) return;
+
       // vol は 0〜1 の正規化済み値。drumsGain.pcm(0〜100) を掛けてミキサーに通す
-      const v = (vol ?? 1) * ((state.drumsGain.pcm ?? 100) / 100);
+      const v = (vol ?? 1) * ((state.drumsGain.pcm ?? 100) / 100) * useGain;
       const src = audioCtx.createBufferSource();
       const gn = audioCtx.createGain();
-      src.buffer = pcmBuffer;
+      src.buffer = useBuf;
       // playbackRate:
       //   playFreq が null/未指定 → 1.0（元WAVと同じピッチ）
-      //   playFreq が数値 → playFreq / pcmSampleRate でピッチシフト
+      //   playFreq が数値 → playFreq / useSR でピッチシフト
       const effectiveFreq = playFreq ?? pcmDefaultPlayFreq;
       src.playbackRate.value = effectiveFreq != null
-        ? Math.max(0.01, effectiveFreq / pcmSampleRate)
+        ? Math.max(0.01, effectiveFreq / useSR)
         : 1.0;
       gn.gain.value = v;
       src.connect(gn); gn.connect(masterGainNode);
@@ -2236,21 +2374,36 @@ G L16 %K R %S R %K %K %S R</textarea>
         if (seq.drums.openhh[step]) playOpenHH(when, dg.openhh);
         if (seq.drums.closehh[step]) playCloseHH(when, dg.closehh);
         // PCMシーケンサー（独立タブ）による再生
-        // 先頭STEP（前のSTEPがOFFか、シーケンス先頭）でのみ再生を開始する
+        // スロット別に独立して再生判定する（同一STEPで複数スロットを同時発音可能）
         if (seq.pcmSeq && seq.pcmSeq.on[step]) {
           const pcmArr = seq.pcmSeq.on;
+          const slotArr = seq.pcmSeq.slot;  // null=アクティブスロット
           const prevStep = (step - 1 + stepLen) % stepLen;
-          const isHead = !pcmArr[prevStep]; // 前がOFFなら先頭
+
+          // スロットグループ: 同一スロットの連続ON区間を検出して再生
+          // まず今STEPのスロット番号を解決
+          const resolveSlot = (s) => {
+            const sv = slotArr ? slotArr[s] : null;
+            if (sv != null && sv >= 0) return sv;
+            // nullはアクティブスロット、なければレガシー(-1)
+            return state.pcmActiveToneSlot >= 0 ? state.pcmActiveToneSlot : -1;
+          };
+
+          const curSlot = resolveSlot(step);
+          const prevSlot = resolveSlot(prevStep);
+          // 先頭判定: 前のSTEPがOFF、または前のSTEPと異なるスロット
+          const isHead = !pcmArr[prevStep] || prevSlot !== curSlot;
+
           if (isHead) {
-            // 連続ON数を数えてその分だけ再生
             let pcmSteps = 1;
             for (let d = 1; d < stepLen; d++) {
-              if (pcmArr[(step + d) % stepLen]) pcmSteps++;
+              const ns = (step + d) % stepLen;
+              if (pcmArr[ns] && resolveSlot(ns) === curSlot) pcmSteps++;
               else break;
             }
             const pcmVol = seq.pcmSeq.vol[step] != null ? seq.pcmSeq.vol[step] : 100;
             const pcmFreq = seq.pcmSeq.freq[step] != null ? seq.pcmSeq.freq[step] : pcmDefaultPlayFreq;
-            playPCM(when, pcmVol / 100, pcmSteps, stepTime, pcmFreq);
+            playPCM(when, pcmVol / 100, pcmSteps, stepTime, pcmFreq, curSlot);
           }
         }
 
@@ -3677,17 +3830,72 @@ G L16 %K R %S R %K %K %S R</textarea>
             on: Array(32).fill(false),
             freq: Array(32).fill(null),
             vol: Array(32).fill(null),
+            slot: Array(32).fill(null),
           };
         }
+        // slotが未定義の旧データにも対応
+        if (!seq.pcmSeq.slot) seq.pcmSeq.slot = Array(32).fill(null);
         const ps = seq.pcmSeq;
+
+        // ---- PCM TONE BANK パネル（タブ内に格納） ----
+        const bankPanel = document.createElement('div');
+        bankPanel.className = 'pcm-bank-panel';
+        bankPanel.innerHTML = `
+          <div class="pcm-bank-header">
+            <span class="pcm-bank-title">PCM TONE BANK</span>
+            <span style="font-size:7px;color:#6a4820">タップ=選択（橙枠）　長押し=設定メニュー</span>
+          </div>
+          <div class="pcm-slot-grid" id="pcmSlotGrid"></div>`;
+        content.appendChild(bankPanel);
+        // スロットUIを描画（DOM挿入後に実行）
+        renderPcmToneBank();
 
         // ヘッダー情報
         const desc = document.createElement('div');
-        desc.style.cssText = 'font-size:8px;color:#6a5530;margin-bottom:5px;padding:2px 4px;border-left:2px solid #6a5020';
-        desc.innerHTML = 'PCM再生シーケンサー。SMPL=<span style="color:#d4a060">' + pcmSampleRate + 'Hz</span>（ローファイ音質）　'
-          + 'FREQ空欄=<span style="color:#d4a060">元WAVと同ピッチ</span>　'
-          + '数値指定で <span style="color:#d4a060">FREQ÷SMPL</span> 倍速';
+        desc.style.cssText = 'font-size:8px;color:#6a5530;margin-bottom:5px;margin-top:6px;padding:2px 4px;border-left:2px solid #6a5020';
+        const actSlotLabel = state.pcmActiveToneSlot >= 0
+          ? `スロット${state.pcmActiveToneSlot + 1}`
+          : (pcmBuffer ? 'レガシーPCM' : '未読込');
+        desc.innerHTML = 'PCM再生シーケンサー。'
+          + 'SLOT=<span style="color:#d4a060">TONEBANKスロット（空欄=アクティブ: ' + actSlotLabel + '）</span>　'
+          + 'FREQ空欄=<span style="color:#d4a060">元WAVと同ピッチ</span>';
         content.appendChild(desc);
+
+        // ---- SLOT行（PCM TONE BANKスロット選択） ----
+        const slotRow = document.createElement('div');
+        slotRow.className = gridClass;
+        const slbl = document.createElement('div');
+        slbl.className = 'seq-label';
+        slbl.style.cssText = 'font-size:7px;color:#c4803a;letter-spacing:1px';
+        slbl.textContent = 'SLOT';
+        slotRow.appendChild(slbl);
+        for (let i = 0; i < len; i++) {
+          const sel = document.createElement('select');
+          sel.className = 'pcm-slot-sel' + (ps.slot[i] != null ? ' has-slot' : '');
+          if (i > 0 && i % 8 === 0) sel.style.borderLeftColor = '#6a5020';
+          // "ACT"=アクティブスロット使用
+          const defOpt = document.createElement('option');
+          defOpt.value = ''; defOpt.textContent = 'ACT';
+          if (ps.slot[i] == null) defOpt.selected = true;
+          sel.appendChild(defOpt);
+          // スロット1〜8（ロード済みのみ表示、未ロードもグレーで表示）
+          for (let s = 0; s < 16; s++) {
+            const opt = document.createElement('option');
+            opt.value = s;
+            const slotData = state.pcmToneBank[s];
+            opt.textContent = slotData ? `S${s + 1}:${slotData.name.slice(0, 5)}` : `S${s + 1}:---`;
+            if (!slotData) opt.style.color = '#443322';
+            if (ps.slot[i] === s) opt.selected = true;
+            sel.appendChild(opt);
+          }
+          sel.onchange = (e) => {
+            const v = e.target.value;
+            ps.slot[i] = v === '' ? null : parseInt(v);
+            sel.className = 'pcm-slot-sel' + (ps.slot[i] != null ? ' has-slot' : '');
+          };
+          slotRow.appendChild(sel);
+        }
+        content.appendChild(slotRow);
 
         // FREQ行（再生周波数）
         const freqRow = document.createElement('div');
@@ -3824,6 +4032,13 @@ G L16 %K R %S R %K %K %S R</textarea>
         clrFreqBtn.textContent = 'CLR FREQ';
         clrFreqBtn.onclick = () => { ps.freq.fill(null); renderSeq(); };
 
+        const clrSlotBtn = document.createElement('button');
+        clrSlotBtn.className = 'btn';
+        clrSlotBtn.style.cssText = 'font-size:8px;border-color:#7a4a10;color:#e0901a';
+        clrSlotBtn.textContent = 'CLR SLOT';
+        clrSlotBtn.title = 'SLOT行をすべてACT（アクティブ）に戻す';
+        clrSlotBtn.onclick = () => { if (ps.slot) ps.slot.fill(null); renderSeq(); };
+
         // 音程プリセット（ノート名→Hz換算してセット）
         const notePresetSel = document.createElement('select');
         notePresetSel.style.cssText = 'background:#120e06;border:1px solid #6a5020;color:#d4a060;font-family:monospace;font-size:8px;padding:2px';
@@ -3852,6 +4067,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         toolRow.appendChild(fillFreqBtn);
         toolRow.appendChild(rampFreqBtn);
         toolRow.appendChild(clrFreqBtn);
+        toolRow.appendChild(clrSlotBtn);
         toolRow.appendChild(notePresetSel);
         content.appendChild(toolRow);
 
@@ -4218,57 +4434,326 @@ G L16 %K R %S R %K %K %S R</textarea>
       updateStepIndicatorCount();
     };
 
-    // PCMファイル読み込み
-    document.getElementById('loadPcmBtn').onclick = () => {
-      document.getElementById('loadPcmInput').value = '';
-      document.getElementById('loadPcmInput').click();
-    };
-    document.getElementById('loadPcmInput').onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        initAudio();
-        audioCtx.decodeAudioData(ev.target.result.slice(0)).then(buf => {
-          pcmRawBuffer = buf;
-          pcmBits = parseInt(document.getElementById('pcmBitsSelect').value) || 16;
-          applyPcmBits();
-          const btn = document.getElementById('loadPcmBtn');
-          btn.textContent = 'PCM: ' + file.name.replace(/\.[^.]+$/, '').slice(0, 12);
-          btn.style.borderColor = '#3a6';
-          btn.style.color = '#5d5';
-        }).catch(err => {
-          alert('PCM読み込みエラー: ' + err.message);
-        });
-      };
-      reader.readAsArrayBuffer(file);
-    };
-    document.getElementById('pcmBitsSelect').onchange = (e) => {
-      pcmBits = parseInt(e.target.value);
-      if (pcmRawBuffer) {
-        initAudio();
-        applyPcmBits();
-      }
-    };
-    document.getElementById('pcmSampleRateSelect').onchange = (e) => {
-      pcmSampleRate = parseInt(e.target.value);
-      if (pcmRawBuffer) {
-        initAudio();
-        applyPcmBits();
-      }
-      // PCMSeqタブを開いていたら説明文を更新
-      if (state.currentSeqTab === 'pcmseq') renderSeq();
-    };
-    document.getElementById('clearPcmBtn').onclick = () => {
-      activePcmSources.forEach(src => { try { src.stop(); } catch (e) { } });
+    // =============================================
+    // PCM TONE BANK
+    // =============================================
+
+    // スロットごとの hidden file input を8個生成（ラベルと紐付けで確実に開く）
+    const _pcmSlotInputs = [];
+    for (let _si = 0; _si < 16; _si++) {
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = '.wav,.wave,audio/*';
+      inp.id = `pcmSlotInput_${_si}`;
+      // display:none はlabel経由でも動作する（pointer-events:none はNG）
+      inp.style.cssText = 'display:none';
+      inp.setAttribute('aria-hidden', 'true');
+      // クロージャで si を固定
+      (function(si) {
+        inp.onchange = function(e) {
+          const file = e.target.files[0];
+          if (!file) return;
+          inp.value = ''; // 同じファイルを再選択できるようリセット
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            initAudio();
+            audioCtx.decodeAudioData(ev.target.result.slice(0)).then(buf => {
+              const shortName = file.name.replace(/\.[^.]+$/, '').slice(0, 10);
+              const prev = state.pcmToneBank[si];
+              const prevBits = prev ? prev.bits : 6;
+              const prevSR   = prev ? prev.sampleRate : 6000;
+              const prevGain = prev ? prev.gain : 100;
+              if (prev) releasePcmSlot(si);
+              state.pcmToneBank[si] = {
+                rawBuffer: buf,
+                buffer: null,
+                bits: prevBits,
+                sampleRate: prevSR,
+                name: shortName,
+                gain: prevGain,
+              };
+              state.pcmActiveToneSlot = si;
+              applyPcmSlotBits(si);
+              renderPcmToneBank();
+              if (state.currentSeqTab === 'pcmseq') renderSeq();
+            }).catch(err => { alert('PCM読み込みエラー: ' + err.message); });
+          };
+          reader.readAsArrayBuffer(file);
+        };
+      })(_si);
+      document.body.appendChild(inp);
+      _pcmSlotInputs.push(inp);
+    }
+
+    // PCM TONEBANKスロットのメモリを安全に解放する共通関数
+    // 1. そのスロットのバッファを再生中のBufferSourceをすべて停止
+    // 2. rawBuffer / buffer への参照を null にしてGCを促す
+    // 3. スロットエントリ自体を null にする
+    function releasePcmSlot(slotIdx) {
+      const slot = state.pcmToneBank[slotIdx];
+      if (!slot) return;
+      // 再生中ソースのうちこのスロットのバッファを使っているものを停止
+      // （BufferSource.buffer プロパティで照合）
+      activePcmSources.forEach(src => {
+        if (src.buffer === slot.buffer || src.buffer === slot.rawBuffer) {
+          try { src.stop(); } catch (e) {}
+          activePcmSources.delete(src);
+        }
+      });
+      // バッファ参照を切ってGCを促す
+      slot.rawBuffer = null;
+      slot.buffer = null;
+      state.pcmToneBank[slotIdx] = null;
+      if (state.pcmActiveToneSlot === slotIdx) state.pcmActiveToneSlot = -1;
+    }
+
+    // 全PCMスロットを一括解放（applyConfig / 全初期化時に使用）
+    function releaseAllPcmSlots() {
+      for (let i = 0; i < 16; i++) releasePcmSlot(i);
+      // レガシーバッファも解放
+      activePcmSources.forEach(src => { try { src.stop(); } catch (e) {} });
       activePcmSources.clear();
       pcmBuffer = null;
       pcmRawBuffer = null;
-      const btn = document.getElementById('loadPcmBtn');
-      btn.textContent = 'PCM: 未読込';
-      btn.style.borderColor = '#733';
-      btn.style.color = '#d55';
-    };
+    }
+
+    // PCM TONE BANKスロットにバッファを適用（ビット削減+ダウンサンプル）
+    // 旧加工バッファを参照している再生中ソースを停止してからbufferを差し替える
+    function applyPcmSlotBits(slotIdx) {
+      const slot = state.pcmToneBank[slotIdx];
+      if (!slot || !slot.rawBuffer || !audioCtx) return;
+      // 旧bufferを再生中のソースがあれば停止（差し替えるので参照が宙に浮く）
+      if (slot.buffer) {
+        activePcmSources.forEach(src => {
+          if (src.buffer === slot.buffer) {
+            try { src.stop(); } catch (e) {}
+            activePcmSources.delete(src);
+          }
+        });
+      }
+      const bitReduced = reduceBitDepth(slot.rawBuffer, slot.bits);
+      slot.buffer = downsampleBuffer(bitReduced, slot.sampleRate);
+    }
+
+    // PCM TONE BANKスロットUI描画
+    function renderPcmToneBank() {
+      const grid = document.getElementById('pcmSlotGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      for (let s = 0; s < 16; s++) {
+        const slot = state.pcmToneBank[s];
+        const isActive = state.pcmActiveToneSlot === s;
+        const isLoaded = slot != null;
+
+        const div = document.createElement('div');
+        div.className = 'pcm-slot' + (isLoaded ? ' loaded' : '') + (isActive ? ' active-pcm' : '');
+        div.title = isLoaded ? `スロット${s + 1}: ${slot.name}` : `スロット${s + 1}: 未読込`;
+
+        // スロット番号
+        const numEl = document.createElement('div');
+        numEl.className = 'pcm-slot-num';
+        numEl.textContent = `S${s + 1}`;
+        div.appendChild(numEl);
+
+        // 音色名 or 空き
+        const nameEl = document.createElement('div');
+        nameEl.className = 'pcm-slot-name';
+        nameEl.textContent = isLoaded ? slot.name : '─ empty ─';
+        div.appendChild(nameEl);
+
+        // 設定情報（ビット/サンプルレート）
+        if (isLoaded) {
+          const infoEl = document.createElement('div');
+          infoEl.className = 'pcm-slot-info';
+          infoEl.textContent = `${slot.bits}bit / ${slot.sampleRate >= 1000 ? (slot.sampleRate / 1000).toFixed(0) + 'k' : slot.sampleRate}Hz`;
+          div.appendChild(infoEl);
+          // ゲイン表示
+          const gainEl = document.createElement('div');
+          gainEl.className = 'pcm-slot-info';
+          gainEl.textContent = `gain:${slot.gain ?? 100}%`;
+          div.appendChild(gainEl);
+        }
+
+        // タップでアクティブ選択 & コンテキストメニューを開く
+        div.onclick = (e) => {
+          // アクティブ選択トグル
+          state.pcmActiveToneSlot = isActive ? -1 : s;
+          renderPcmToneBank();
+          if (state.currentSeqTab === 'pcmseq') renderSeq();
+        };
+
+        // デスクトップ: 右クリックでメニュー
+        div.addEventListener('contextmenu', (e) => { e.preventDefault(); showPcmSlotMenu(e, s); });
+        // スマホ: 長押しでメニュー
+        let _pt = null;
+        div.addEventListener('touchstart', (e) => {
+          _pt = setTimeout(() => { _pt = null; showPcmSlotMenu(e.touches[0] || e, s); }, 600);
+        }, { passive: true });
+        div.addEventListener('touchend', () => { if (_pt) { clearTimeout(_pt); _pt = null; } });
+        div.addEventListener('touchmove', () => { if (_pt) { clearTimeout(_pt); _pt = null; } });
+
+        grid.appendChild(div);
+      }
+    }
+
+    // PCM スロットコンテキストメニュー
+    const pcmSlotCtxMenu = document.createElement('div');
+    pcmSlotCtxMenu.style.cssText = 'position:fixed;display:none;background:#1a1006;border:1px solid #7a5020;border-radius:5px;z-index:9999;min-width:160px;font-size:11px;box-shadow:0 4px 16px #0009;padding:4px 0';
+    document.body.appendChild(pcmSlotCtxMenu);
+    document.addEventListener('click', () => { pcmSlotCtxMenu.style.display = 'none'; });
+
+    function showPcmSlotMenu(e, slotIdx) {
+      e.preventDefault && e.preventDefault();
+      const slot = state.pcmToneBank[slotIdx];
+      pcmSlotCtxMenu.innerHTML = '';
+
+      // タイトル行 + LOADボタン
+      const titleRow = document.createElement('div');
+      titleRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:5px 10px 5px;border-bottom:1px solid #4a2a10;gap:8px';
+
+      const title = document.createElement('div');
+      title.style.cssText = 'font-size:9px;color:#8a6030;letter-spacing:1px;flex:1';
+      title.textContent = `S${slotIdx + 1}: ${slot ? slot.name : '未読込'}`;
+      titleRow.appendChild(title);
+
+      // LOADボタン（ここからの.click()はユーザー操作起点で確実に動く）
+      const loadMenuBtn = document.createElement('button');
+      loadMenuBtn.textContent = slot ? '↺ 読込' : '▶ LOAD';
+      loadMenuBtn.style.cssText = 'background:#1a1006;border:1px solid #e0901a;color:#f0b050;font-size:9px;padding:3px 8px;cursor:pointer;border-radius:3px;font-family:monospace;white-space:nowrap';
+      loadMenuBtn.onclick = () => {
+        pcmSlotCtxMenu.style.display = 'none';
+        state.pcmActiveToneSlot = slotIdx;
+        _pcmSlotInputs[slotIdx].click();
+      };
+      titleRow.appendChild(loadMenuBtn);
+      pcmSlotCtxMenu.appendChild(titleRow);
+
+      // BITS選択
+      const bitsRow = document.createElement('div');
+      bitsRow.style.cssText = 'display:flex;align-items:center;gap:6px;padding:5px 10px;font-size:10px;color:#c49060';
+      bitsRow.innerHTML = '<span style="width:40px;color:#8a6030">BITS</span>';
+      [4, 6, 8, 16].forEach(b => {
+        const btn = document.createElement('button');
+        btn.style.cssText = `background:${slot && slot.bits === b ? '#3a1a06' : '#111'};border:1px solid ${slot && slot.bits === b ? '#e0901a' : '#4a3010'};color:${slot && slot.bits === b ? '#f0b050' : '#8a6030'};font-size:9px;padding:2px 5px;cursor:pointer;border-radius:2px;font-family:monospace`;
+        btn.textContent = b;
+        btn.onclick = () => {
+          if (!slot) { pcmSlotCtxMenu.style.display = 'none'; return; }
+          slot.bits = b;
+          initAudio();
+          applyPcmSlotBits(slotIdx);
+          pcmSlotCtxMenu.style.display = 'none';
+          renderPcmToneBank();
+        };
+        bitsRow.appendChild(btn);
+      });
+      pcmSlotCtxMenu.appendChild(bitsRow);
+
+      // SMPL選択
+      const smplRow = document.createElement('div');
+      smplRow.style.cssText = 'display:flex;align-items:center;gap:4px;padding:5px 10px;font-size:10px;color:#c49060;flex-wrap:wrap';
+      smplRow.innerHTML = '<span style="width:40px;color:#8a6030">SMPL</span>';
+      [2000, 4000, 6000, 8000, 11025, 16000].forEach(sr => {
+        const btn = document.createElement('button');
+        const lbl = sr >= 1000 ? (sr / 1000).toFixed(0) + 'k' : sr;
+        btn.style.cssText = `background:${slot && slot.sampleRate === sr ? '#3a1a06' : '#111'};border:1px solid ${slot && slot.sampleRate === sr ? '#e0901a' : '#4a3010'};color:${slot && slot.sampleRate === sr ? '#f0b050' : '#8a6030'};font-size:9px;padding:2px 4px;cursor:pointer;border-radius:2px;font-family:monospace`;
+        btn.textContent = lbl;
+        btn.onclick = () => {
+          if (!slot) { pcmSlotCtxMenu.style.display = 'none'; return; }
+          slot.sampleRate = sr;
+          initAudio();
+          applyPcmSlotBits(slotIdx);
+          pcmSlotCtxMenu.style.display = 'none';
+          renderPcmToneBank();
+        };
+        smplRow.appendChild(btn);
+      });
+      pcmSlotCtxMenu.appendChild(smplRow);
+
+      // GAIN
+      const gainRow = document.createElement('div');
+      gainRow.style.cssText = 'display:flex;align-items:center;gap:6px;padding:5px 10px;font-size:10px;color:#c49060';
+      gainRow.innerHTML = `<span style="width:40px;color:#8a6030">GAIN</span>`;
+      const gainSel = document.createElement('select');
+      gainSel.style.cssText = 'background:#111;border:1px solid #4a3010;color:#c49060;font-family:monospace;font-size:9px;padding:2px 4px';
+      [200, 150, 120, 100, 80, 60, 50, 40, 25].forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g; opt.textContent = g + '%';
+        if (slot && (slot.gain ?? 100) === g) opt.selected = true;
+        gainSel.appendChild(opt);
+      });
+      gainSel.onchange = () => {
+        if (!slot) return;
+        slot.gain = parseInt(gainSel.value);
+        renderPcmToneBank();
+      };
+      gainRow.appendChild(gainSel);
+      pcmSlotCtxMenu.appendChild(gainRow);
+
+      // 区切り
+      const sep = document.createElement('div');
+      sep.style.cssText = 'border-top:1px solid #4a2a10;margin:3px 0';
+      pcmSlotCtxMenu.appendChild(sep);
+
+      // クリア
+      if (slot) {
+        const clrBtn = document.createElement('div');
+        clrBtn.style.cssText = 'padding:6px 10px;color:#d55;cursor:pointer;font-size:10px';
+        clrBtn.textContent = `✕ スロット${slotIdx + 1}をクリア`;
+        clrBtn.onclick = () => {
+          releasePcmSlot(slotIdx);
+          pcmSlotCtxMenu.style.display = 'none';
+          renderPcmToneBank();
+          if (state.currentSeqTab === 'pcmseq') renderSeq();
+        };
+        pcmSlotCtxMenu.appendChild(clrBtn);
+      }
+
+      // テスト再生 / 停止
+      if (slot && slot.buffer) {
+        const testRow = document.createElement('div');
+        testRow.style.cssText = 'display:flex;gap:4px;padding:4px 10px 6px';
+
+        const testBtn = document.createElement('div');
+        testBtn.style.cssText = 'flex:1;padding:6px 8px;color:#5d5;cursor:pointer;font-size:10px;background:#0a1a0a;border:1px solid #2a5a2a;border-radius:3px;text-align:center';
+        testBtn.textContent = '▶ テスト再生';
+        testBtn.onclick = () => {
+          initAudio();
+          playPCM(audioCtx.currentTime + 0.01, 1, 0, 0, null, slotIdx);
+          pcmSlotCtxMenu.style.display = 'none';
+        };
+
+        const stopBtn = document.createElement('div');
+        stopBtn.style.cssText = 'flex:1;padding:6px 8px;color:#d55;cursor:pointer;font-size:10px;background:#1a0a0a;border:1px solid #5a2a2a;border-radius:3px;text-align:center';
+        stopBtn.textContent = '■ 停止';
+        stopBtn.onclick = () => {
+          // このスロットのバッファを再生中のソースをすべて停止
+          const sl = state.pcmToneBank[slotIdx];
+          if (sl) {
+            activePcmSources.forEach(src => {
+              if (src.buffer === sl.buffer) {
+                try { src.stop(); } catch (ex) {}
+                activePcmSources.delete(src);
+              }
+            });
+          }
+          pcmSlotCtxMenu.style.display = 'none';
+        };
+
+        testRow.appendChild(testBtn);
+        testRow.appendChild(stopBtn);
+        pcmSlotCtxMenu.appendChild(testRow);
+      }
+
+      // 位置決め
+      const x = (e.touches ? e.touches[0].clientX : e.clientX) || 100;
+      const y = (e.touches ? e.touches[0].clientY : e.clientY) || 100;
+      pcmSlotCtxMenu.style.left = Math.min(x, window.innerWidth - 180) + 'px';
+      pcmSlotCtxMenu.style.top = Math.min(y, window.innerHeight - 260) + 'px';
+      pcmSlotCtxMenu.style.display = 'block';
+    }
+
+    // レガシーLOADボタンのラベル更新（ボタン削除済みのため何もしない）
+    function updateLegacyPcmBtn() { /* noop */ }
     document.getElementById('clearPartBtn').onclick = () => {
       const seq = getSeqData();
       const tab = state.currentSeqTab;
@@ -4281,6 +4766,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           seq.pcmSeq.on.fill(false);
           seq.pcmSeq.freq.fill(null);
           seq.pcmSeq.vol.fill(null);
+          if (seq.pcmSeq.slot) seq.pcmSeq.slot.fill(null);
         }
       } else if (tab === 'fxseq') {
         if (seq.fxSeq) Object.values(seq.fxSeq).forEach(ch => ch.on.fill(false));
@@ -4741,6 +5227,107 @@ G L16 %K R %S R %K %K %S R</textarea>
         return { events, totalTime: t };
       },
 
+      // Kチャンネル(ADPCM/PCM)用パーサー
+      // MUCOM88 ADPCMトラック準拠
+      //   @n  … スロット番号 (1〜16 → slot 0〜15、0 or 省略=アクティブスロット)
+      //   o   … オクターブ (o1=原音ピッチ, 数字大=音程下がる MUCOM88逆仕様)
+      //   v   … ボリューム (0〜255)
+      //   l   … デフォルト音長
+      //   t   … テンポ
+      //   cdefgab … 発音 (音長・付点対応)
+      //   r   … 休符
+      //   [ ] n … ループ
+      parseK(text, tempo) {
+        const events = [];
+        let pos = 0;
+        let defLen = 8, bpm = tempo || state.bpm;
+        let t = 0;
+        let oct = 1;   // o1 = 原音ピッチ
+        let vol = 128; // 0〜255
+        let slot = -1; // -1=アクティブスロット使用
+        const loopStack = [];
+        const noteMap = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+        const beatSec = () => 60 / bpm;
+        const lenSec = (n, dot) => {
+          const base = beatSec() * 4 / n;
+          return dot ? base * 1.5 : base;
+        };
+        // MUCOM88: o1=原音(A4=440基準)、数字大でピッチ下がる
+        const noteToFreq = (semi) => {
+          const baseOct = 5 - oct; // o1→oct4, o2→oct3, ...
+          const midiNote = (baseOct + 1) * 12 + semi;
+          return 440 * Math.pow(2, (midiNote - 69) / 12);
+        };
+        const s = this.preprocess(text).replace(/\|/g, ' ').replace(/\s+/g, '').toUpperCase();
+        while (pos < s.length) {
+          const ch = s[pos];
+          if (ch === 'T') {
+            pos++; let n = '';
+            while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+            bpm = parseInt(n) || bpm; continue;
+          }
+          if (ch === 'L') {
+            pos++; let n = '';
+            while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+            defLen = parseInt(n) || defLen; continue;
+          }
+          if (ch === 'O') {
+            pos++; let n = '';
+            while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+            oct = parseInt(n) || oct; continue;
+          }
+          if (ch === '>') { oct++; pos++; continue; }
+          if (ch === '<') { oct = Math.max(1, oct - 1); pos++; continue; }
+          if (ch === 'V') {
+            pos++; let n = '';
+            while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+            vol = Math.min(255, parseInt(n) || vol); continue;
+          }
+          if (ch === '@') {
+            pos++; let n = '';
+            while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+            const num = parseInt(n);
+            slot = (num >= 1 && num <= 16) ? num - 1 : -1; continue;
+          }
+          if (ch === '[') { pos++; loopStack.push({ start: pos, count: null, elapsed: 0 }); continue; }
+          if (ch === ']') {
+            pos++; let n = '';
+            while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+            const cnt = parseInt(n) || 2;
+            if (loopStack.length > 0) {
+              const lp = loopStack[loopStack.length - 1];
+              if (lp.count === null) lp.count = cnt;
+              lp.elapsed++;
+              if (lp.elapsed < lp.count) { pos = lp.start; }
+              else { loopStack.pop(); }
+            }
+            continue;
+          }
+          if (ch === 'R') {
+            pos++; let n = '';
+            while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+            const dot = s[pos] === '.' ? (pos++, true) : false;
+            t += lenSec(parseInt(n) || defLen, dot); continue;
+          }
+          if (noteMap[ch] !== undefined) {
+            pos++;
+            let semi = noteMap[ch];
+            if (s[pos] === '+' || s[pos] === '#') { semi++; pos++; }
+            else if (s[pos] === '-') { semi--; pos++; }
+            let n = '';
+            while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+            const dot = s[pos] === '.' ? (pos++, true) : false;
+            const len = parseInt(n) || defLen;
+            const dur = lenSec(len, dot);
+            const freq = noteToFreq(semi);
+            events.push({ time: t, pcmNote: true, slot, freq, vol: vol / 255, dur });
+            t += dur; continue;
+          }
+          pos++;
+        }
+        return { events, totalTime: t };
+      },
+
       // ドラムチャンネル用パーサー
       // %K %S %H %TH %TM %TL %OH %CH %P + 音長数字（省略時defLen）
       parseD(text, tempo) {
@@ -4875,7 +5462,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           // K: ADPCM/PCMチャンネル（ドラムパーサで処理、%Pのみ有効）
           const kStr = chMml['K'].trim();
           if (kStr) {
-            const { events } = this.parseD(kStr, state.bpm);
+            const { events } = this.parseK(kStr, state.bpm);
             events.forEach(ev => allEvents.push({ ...ev, mmlCh: 'K' }));
           }
         }
@@ -4905,7 +5492,13 @@ G L16 %K R %S R %K %K %S R</textarea>
               if (!this.running) return;
               const when = audioCtx.currentTime + 0.02;
 
-              if (ev.drum) {
+              if (ev.pcmNote) {
+                // K チャンネル (ADPCM/PCM) — スロット指定＋ピッチ制御
+                const resolvedSlot = ev.slot >= 0 ? ev.slot : state.pcmActiveToneSlot;
+                playPCM(when, ev.vol, null, null, ev.freq, resolvedSlot >= 0 ? resolvedSlot : undefined);
+                const pct = Math.round(ev.time / maxEnd * 100);
+                document.getElementById('mmlStatus').textContent = `▶ PCM:S${resolvedSlot + 1}  ${pct}%`;
+              } else if (ev.drum) {
                 // ドラムチャンネルD
                 const dg = state.drumsGain;
                 switch (ev.drum) {
@@ -5104,6 +5697,7 @@ G L16 %K R %S R %K %K %S R</textarea>
               on: b.seqData.pcmSeq.on.slice(),
               freq: b.seqData.pcmSeq.freq.slice(),
               vol: b.seqData.pcmSeq.vol.slice(),
+              slot: (b.seqData.pcmSeq.slot ?? Array(32).fill(null)).slice(),
             } : undefined,
             fxSeq: b.seqData.fxSeq
               ? Object.fromEntries(Object.entries(b.seqData.fxSeq).map(([k, v]) => [k, { on: v.on.slice(), vals: v.vals.slice() }]))
@@ -5136,6 +5730,8 @@ G L16 %K R %S R %K %K %S R</textarea>
     function applyConfig(cfg) {
       if (!cfg || cfg._version !== 1) { alert('非対応のコンフィグファイルです'); return; }
       stopPlay();
+      // PCMバッファを全スロット解放してからコンフィグ適用（メモリリーク防止）
+      releaseAllPcmSlots();
       initAudio(); // AudioNodeを確実に初期化してからパラメータを反映
 
       // BPM
@@ -5184,9 +5780,10 @@ G L16 %K R %S R %K %K %S R</textarea>
               on: _pad(cs.pcmSeq.on ?? [], 32, false),
               freq: _pad(cs.pcmSeq.freq ?? [], 32, null),
               vol: _pad(cs.pcmSeq.vol ?? [], 32, null),
+              slot: _pad(cs.pcmSeq.slot ?? [], 32, null),
             };
           } else {
-            sd.pcmSeq = { on: Array(32).fill(false), freq: Array(32).fill(null), vol: Array(32).fill(null) };
+            sd.pcmSeq = { on: Array(32).fill(false), freq: Array(32).fill(null), vol: Array(32).fill(null), slot: Array(32).fill(null) };
           }
           if (cs.fxSeq) {
             if (!sd.fxSeq) sd.fxSeq = {};
@@ -5217,6 +5814,9 @@ G L16 %K R %S R %K %K %S R</textarea>
       if (cfg.ssgActiveTone) {
         cfg.ssgActiveTone.forEach((v, i) => { state.ssgActiveTone[i] = v ?? -1; });
       }
+      // PCM Tone Bank (AudioBufferはJSONに含められないのでスロットメタのみ復元)
+      // renderPcmToneBank は UI を初期状態（空スロット）で表示
+      if (typeof renderPcmToneBank === 'function') renderPcmToneBank();
       // Banks内のfmToneシーケンスを復元
       if (cfg.banks) {
         cfg.banks.forEach((b, i) => {
