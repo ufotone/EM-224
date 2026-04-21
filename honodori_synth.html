@@ -1099,6 +1099,10 @@
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
         <div class="small-title" style="margin-bottom:0">MML</div>
         <button class="song-loop-btn" id="mmlLoopBtn">LOOP OFF</button>
+        <!-- .muc読み込みボタン -->
+        <span style="font-family:monospace;font-size:9px;background:#1a1a2a;border:1px solid #446;color:#88c;padding:3px 8px;border-radius:2px;letter-spacing:1px;cursor:pointer" id="mucLoadLabel" onclick="document.getElementById('mucFileInput').click()">📂 .MUC</span>
+        <input type="file" id="mucFileInput" accept=".muc,.txt" style="display:none">
+        <span id="mucFileName" style="font-size:8px;color:#446;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
         <span id="mmlStatus" style="font-size:8px;color:#555;margin-left:4px"></span>
       </div>
       <!-- MMLヘルプ（折りたたみ式） -->
@@ -1113,6 +1117,7 @@
           <b style="color:#668">テンポ:</b> <span style="color:#9cf">T120</span>　<b style="color:#668">音量:</b> <span style="color:#9cf">V8</span>　<b style="color:#668">音色:</b> <span style="color:#9cf">@0〜@9</span> (0=SUB/1-6=FM/7-9=PSG)　<b style="color:#668">タイ:</b> <span style="color:#9cf">&amp;</span><br>
           <b style="color:#668">ゲート:</b> <span style="color:#9cf">C80</span>　<b style="color:#668">デチューン:</b> <span style="color:#9cf">D-5</span>　<b style="color:#668">パン:</b> <span style="color:#9cf">p3</span> (0=消音/1=右/2=左/3=中央)　<b style="color:#668">コメント:</b> <span style="color:#9cf">; ...</span><br>
           <b style="color:#668">SSG音色:</b> <span style="color:#adf">@0〜@15</span>=プリセット　<b style="color:#668">SSGエンベロープ:</b> <span style="color:#adf">E AL,AR,DR,SL,SR,RR</span>　<b style="color:#668">SSGミキサー:</b> <span style="color:#adf">P1</span>=tone <span style="color:#adf">P2</span>=noise <span style="color:#adf">P3</span>=mix<br>
+          <b style="color:#668">ループ:</b> <span style="color:#9cf">[...]2</span>=2回繰り返し　<span style="color:#9cf">/</span>=最終ループスキップ区切り　<b style="color:#668">ベロシティ増減:</b> <span style="color:#9cf">(</span>=+1 <span style="color:#9cf">)</span>=-1<br>
           <b style="color:#fca">リズム(G):</b> <span style="color:#fca">%K</span>=KICK　<span style="color:#fca">%S</span>=SNARE　<span style="color:#fca">%H</span>=HAT　<span style="color:#fca">%OH</span>=OpenHH　<span style="color:#fca">%P</span>=PCM　例: <span style="color:#fca">%K8</span>
         </div>
       </details>
@@ -4600,10 +4605,7 @@ G L16 %K R %S R %K %K %S R</textarea>
     const pcmSlotCtxMenu = document.createElement('div');
     pcmSlotCtxMenu.style.cssText = 'position:fixed;display:none;background:#1a1006;border:1px solid #7a5020;border-radius:5px;z-index:9999;min-width:160px;font-size:11px;box-shadow:0 4px 16px #0009;padding:4px 0';
     document.body.appendChild(pcmSlotCtxMenu);
-    document.addEventListener('mousedown', (e) => {
-      if (!pcmSlotCtxMenu.contains(e.target)) pcmSlotCtxMenu.style.display = 'none';
-    });
-    pcmSlotCtxMenu.addEventListener('mousedown', (e) => e.stopPropagation());
+    document.addEventListener('click', () => { pcmSlotCtxMenu.style.display = 'none'; });
 
     function showPcmSlotMenu(e, slotIdx) {
       e.preventDefault && e.preventDefault();
@@ -5004,6 +5006,9 @@ G L16 %K R %S R %K %K %S R</textarea>
         let keyTrans = 0;  // Kn: 半音単位トランスポーズ
         let gate = 1.0;    // Cn/Qn: ゲートタイム比（0〜100% → 0〜1.0）
         let panVal = 0;    // pn: -100〜100
+        // ループスタック: { start, count, elapsed, skipPos }
+        // skipPos: '/'が現れた位置（最終ループ時にここへジャンプしてループ内を抜ける）
+        const loopStack = [];
 
         const beatSec = () => 60 / bpm;
         const lenSec = (n, dot) => {
@@ -5080,16 +5085,19 @@ G L16 %K R %S R %K %K %S R</textarea>
             pos++;
             const n = readInt();
             if (n !== null) {
-              if (n <= 9) {
-                timbre = Math.min(9, Math.max(0, n));
-                // SSGチャンネル(@7〜@9)でかつ@0〜@15指定→SSGバンクから音色適用
-                if (isSSGCh && n <= 15 && state.ssgToneBank[n]) {
+              if (isSSGCh) {
+                // SSGチャンネル: @0〜@15 はSSGプリセット番号。timbreは変更しない
+                if (n <= 15 && state.ssgToneBank[n]) {
                   const params = JSON.parse(JSON.stringify(state.ssgToneBank[n]));
                   delete params._name;
                   Object.assign(state.psgParams[ssgPsgIdx], params);
                   state.ssgActiveTone[ssgPsgIdx] = n;
                   setTimeout(() => buildPSGPanels(), 0);
                 }
+                // @16以上はSSGチャンネルでは無視
+              } else if (n <= 9) {
+                // 非SSGチャンネル: @0〜@9 → 音源切替
+                timbre = Math.min(9, Math.max(0, n));
               } else if (n <= 109) {
                 // @10〜@109 → TONE BANKスロット(n-10)の音色をFM1に適用してFM1で発音
                 const slotIdx = n - 10;
@@ -5137,28 +5145,31 @@ G L16 %K R %S R %K %K %S R</textarea>
             if (n !== null) gate = Math.max(0.01, Math.min(1.0, n / 100));
             continue;
           }
-          // ポルタメント M,n1,n2,n3,n4 → スキップ（4引数消費）
+          // ポルタメント M,n1,n2,n3,n4,n5 → スキップ（MUCOM88: 5引数）
           if (ch === 'M') {
             pos++;
-            readInts(4);
+            readInts(5);
             continue;
           }
           // [SSG] Eコマンド: E AL,AR,DR,SL,SR,RR → SSGエンベロープをリアルタイム適用
-          if (ch === 'E' && isSSGCh) {
+          if (ch === 'E') {
             pos++;
             const vals = readInts(6);
-            // AL,AR,DR,SL,SR,RR → psgParamsのenvType/envTimeに近似変換
-            const [al, ar, dr, sl, sr, rr] = vals;
-            const p = state.psgParams[ssgPsgIdx];
-            if (sl < 10 && sr > 100) {
-              p.envType = 'decay';
-              p.envTime = Math.round(1500 * (1 - Math.min(rr, 255) / 255));
-            } else if (ar < 200) {
-              p.envType = 'attack';
-              p.envTime = Math.round(2000 * (1 - ar / 255));
-            } else {
-              p.envType = 'none';
+            if (isSSGCh) {
+              // AL,AR,DR,SL,SR,RR → psgParamsのenvType/envTimeに近似変換
+              const [al, ar, dr, sl, sr, rr] = vals;
+              const p = state.psgParams[ssgPsgIdx];
+              if (sl < 10 && sr > 100) {
+                p.envType = 'decay';
+                p.envTime = Math.round(1500 * (1 - Math.min(rr, 255) / 255));
+              } else if (ar < 200) {
+                p.envType = 'attack';
+                p.envTime = Math.round(2000 * (1 - ar / 255));
+              } else {
+                p.envType = 'none';
+              }
             }
+            // 非SSGチャンネルでは引数を消費してスキップ
             continue;
           }
           // [SSG] Pコマンド: Pn 1=tone 2=noise 3=tone+noise
@@ -5181,17 +5192,69 @@ G L16 %K R %S R %K %K %S R</textarea>
             continue;
           }
           // ゲートタイム2 Q（Cの別名として上で処理済み）
+          // ループ開始 [
+          if (ch === '[') {
+            pos++;
+            loopStack.push({ start: pos, count: null, elapsed: 0, skipPos: -1 });
+            continue;
+          }
+          // ループ内スキップ区切り / （最終ループ時にここ以降をスキップ）
+          if (ch === '/') {
+            pos++;
+            if (loopStack.length > 0) {
+              const lp = loopStack[loopStack.length - 1];
+              // count確定後、最終ループ時はスキップ位置を記録してループ終端へ
+              if (lp.count !== null && lp.elapsed === lp.count - 1) {
+                // 最終周: ]まで読み飛ばす
+                let depth = 0;
+                while (pos < s.length) {
+                  if (s[pos] === '[') depth++;
+                  else if (s[pos] === ']') {
+                    if (depth === 0) break;
+                    depth--;
+                  }
+                  pos++;
+                }
+              }
+            }
+            continue;
+          }
+          // ループ終端 ]n
+          if (ch === ']') {
+            pos++;
+            let n = '';
+            while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+            const cnt = parseInt(n) || 2;
+            if (loopStack.length > 0) {
+              const lp = loopStack[loopStack.length - 1];
+              if (lp.count === null) lp.count = cnt;
+              lp.elapsed++;
+              if (lp.elapsed < lp.count) {
+                pos = lp.start; // ループ先頭へ
+              } else {
+                loopStack.pop(); // ループ終了
+              }
+            }
+            continue;
+          }
           // ループ { } → スキップ（|は前処理済み）
           if (ch === '{' || ch === '}') { pos++; continue; }
+
+          // ベロシティ増減 ( = +1, ) = -1
+          if (ch === '(') { vel = Math.min(15, vel + 1); pos++; continue; }
+          if (ch === ')') { vel = Math.max(0, vel - 1); pos++; continue; }
 
           // 休符 R
           if (ch === 'R') {
             pos++;
             let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
-            const dot = s[pos] === '.' ? (pos++, true) : false;
+            let dots = 0;
+            while (pos < s.length && s[pos] === '.') { dots++; pos++; }
             const len = parseInt(n) || defLen;
-            t += lenSec(len, dot);
+            let dur = lenSec(len, dots > 0);
+            if (dots >= 2) dur = lenSec(len, false) * (2 - Math.pow(0.5, dots));
+            t += dur;
             tieNext = false;
             continue;
           }
@@ -5206,9 +5269,11 @@ G L16 %K R %S R %K %K %S R</textarea>
             // 音長
             let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
-            const dot = s[pos] === '.' ? (pos++, true) : false;
+            let dots = 0;
+            while (pos < s.length && s[pos] === '.') { dots++; pos++; }
             const len = parseInt(n) || defLen;
-            const fullDur = lenSec(len, dot);
+            let fullDur = lenSec(len, dots > 0);
+            if (dots >= 2) fullDur = lenSec(len, false) * (2 - Math.pow(0.5, dots));
             const dur = fullDur * gate; // ゲートタイム適用
 
             // キートランスポーズ・デチューン適用
@@ -5255,12 +5320,11 @@ G L16 %K R %S R %K %K %S R</textarea>
           const base = beatSec() * 4 / n;
           return dot ? base * 1.5 : base;
         };
-        // MUCOM88: o1c=原音(playbackRate=1.0)、音程指定でピッチシフト
-        // C4(midi60)を基準(rate=1.0)とし、半音ごとに2^(1/12)倍
-        // o1→midi=60, o2→midi=48(-1oct), o3→midi=36(-2oct) ...
-        const noteToRate = (semi) => {
-          const midiNote = (5 - oct) * 12 + semi; // o1c=60, o2c=48, ...
-          return Math.pow(2, (midiNote - 60) / 12);
+        // MUCOM88: o1=原音(A4=440基準)、数字大でピッチ下がる
+        const noteToFreq = (semi) => {
+          const baseOct = 5 - oct; // o1→oct4, o2→oct3, ...
+          const midiNote = (baseOct + 1) * 12 + semi;
+          return 440 * Math.pow(2, (midiNote - 69) / 12);
         };
         const s = this.preprocess(text).replace(/\|/g, ' ').replace(/\s+/g, '').toUpperCase();
         while (pos < s.length) {
@@ -5323,8 +5387,8 @@ G L16 %K R %S R %K %K %S R</textarea>
             const dot = s[pos] === '.' ? (pos++, true) : false;
             const len = parseInt(n) || defLen;
             const dur = lenSec(len, dot);
-            const rate = noteToRate(semi);
-            events.push({ time: t, pcmNote: true, slot, pitchRate: rate, vol: vol / 255, dur });
+            const freq = noteToFreq(semi);
+            events.push({ time: t, pcmNote: true, slot, freq, vol: vol / 255, dur });
             t += dur; continue;
           }
           pos++;
@@ -5497,13 +5561,9 @@ G L16 %K R %S R %K %K %S R</textarea>
               const when = audioCtx.currentTime + 0.02;
 
               if (ev.pcmNote) {
-                // K チャンネル: pitchRate=1.0 が原音(o1c)
-                // playFreq = useSR * pitchRate → playbackRate = pitchRate
+                // K チャンネル (ADPCM/PCM) — スロット指定＋ピッチ制御
                 const resolvedSlot = ev.slot >= 0 ? ev.slot : state.pcmActiveToneSlot;
-                const slotData = (resolvedSlot >= 0 && resolvedSlot < 16) ? state.pcmToneBank[resolvedSlot] : null;
-                const useSR = slotData ? slotData.sampleRate : pcmSampleRate;
-                const playFreq = useSR * (ev.pitchRate ?? 1.0);
-                playPCM(when, ev.vol, null, null, playFreq, resolvedSlot >= 0 ? resolvedSlot : undefined);
+                playPCM(when, ev.vol, null, null, ev.freq, resolvedSlot >= 0 ? resolvedSlot : undefined);
                 const pct = Math.round(ev.time / maxEnd * 100);
                 document.getElementById('mmlStatus').textContent = `▶ PCM:S${resolvedSlot + 1}  ${pct}%`;
               } else if (ev.drum) {
@@ -5600,6 +5660,75 @@ G L16 %K R %S R %K %K %S R</textarea>
       document.getElementById('mmlLoopBtn').textContent = MML.loop ? 'LOOP ON' : 'LOOP OFF';
       document.getElementById('mmlLoopBtn').classList.toggle('active', MML.loop);
     };
+
+    // =============================================
+    // .MUCファイル読み込み & 未対応コマンドコメントアウト
+    // =============================================
+    function processMucText(raw) {
+      // CRLF → LF 正規化
+      const text = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      const lines = text.split('\n');
+
+      // honodori_synth が対応しているコマンド集合
+      // 音符 C D E F G A B R、< > O L T V @ & K Q C M D P W [ ] / ( ) は対応済み
+      // 未対応: #voice（外部音色ファイル参照）、#pcm_table 等の外部参照ヘッダー
+      // MML中の未対応コマンド: なし（主要コマンドは全実装）
+      // ただし意味的に無視される（honodoriでは音色定義なし）: @{...}音色定義ブロック（FM音色、sampl3.mucには登場しない）
+      // → #voice, #pcm_table 行はコメントアウト対象
+
+      // 未対応として扱う #ヘッダーキーワード（外部ファイル参照系）
+      const UNSUPPORTED_HEADERS = ['#voice', '#pcm_table', '#pcm', '#include'];
+
+      const result = lines.map(line => {
+        const trimmed = line.trim();
+
+        // 空行はそのまま
+        if (!trimmed) return line;
+
+        // #ヘッダー行の処理
+        if (trimmed.startsWith('#')) {
+          const lower = trimmed.toLowerCase();
+          // 未対応ヘッダー（外部ファイル参照等）→ コメントアウト
+          if (UNSUPPORTED_HEADERS.some(kw => lower.startsWith(kw))) {
+            return '; [未対応] ' + line.trimStart();
+          }
+          // 対応ヘッダー (#mucom88, #title, #composer, #author, #date, #comment) → そのまま
+          return line;
+        }
+
+        // MMLチャンネル行・継続行の処理
+        // 行頭がチャンネル識別子 (A〜K) またはスペースの場合
+        // → コマンドレベルでは全対応済みのためそのまま通す
+        return line;
+      });
+
+      return result.join('\n');
+    }
+
+    document.getElementById('mucFileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const processed = processMucText(ev.target.result);
+        document.getElementById('mmlAll').value = processed;
+        // ファイル名表示
+        document.getElementById('mucFileName').textContent = file.name;
+        document.getElementById('mucFileName').title = file.name;
+        // ステータス更新
+        document.getElementById('mmlStatus').textContent = '✓ ' + file.name + ' 読込完了';
+        setTimeout(() => {
+          if (document.getElementById('mmlStatus').textContent.startsWith('✓'))
+            document.getElementById('mmlStatus').textContent = '';
+        }, 3000);
+        // ファイル入力リセット（同じファイルを再読み込み可能にする）
+        e.target.value = '';
+      };
+      reader.onerror = () => {
+        document.getElementById('mmlStatus').textContent = '⚠ 読込失敗';
+      };
+      reader.readAsText(file, 'UTF-8');
+    });
 
     // MMLパネルのTONE BANK参照表を描画
     function renderMmlToneRef() {
