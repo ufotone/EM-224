@@ -702,13 +702,19 @@
       letter-spacing: 2px;
     }
     .pcm-slot-grid {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
       gap: 3px;
+    }
+    .pcm-slot-grid .pcm-row-sep {
+      grid-column: 1 / -1;
+      height: 1px;
+      background: #3a2a10;
+      margin: 1px 0;
     }
     .pcm-slot {
       position: relative;
-      width: 72px;
+      width: 100%;
       min-height: 42px;
       background: #0e0a04;
       border: 1px solid #3a2a10;
@@ -750,7 +756,7 @@
     .pcm-slot-name {
       font-size: 7px;
       text-align: center;
-      max-width: 66px;
+      width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -996,6 +1002,7 @@
         border-radius: 5px;
       }
       .pcm-slot-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 4px;
       }
       .pcm-slot-name { font-size: 8px; }
@@ -1584,9 +1591,9 @@ G L16 %K R %S R %K %K %S R</textarea>
       ssgToneBank: Array(50).fill(null),
       // 現在各SSGチャンネルで選択中のSSGスロット (-1=未使用)
       ssgActiveTone: [-1, -1, -1],
-      // PCM TONE BANK (8スロット): null=未使用, {rawBuffer, buffer, bits, sampleRate, name, gain}
-      pcmToneBank: Array(16).fill(null),
-      // 現在アクティブなPCMスロット (0〜7, -1=スロット未選択→レガシーモード)
+      // PCM TONE BANK (32スロット): null=未使用, {rawBuffer, buffer, bits, sampleRate, name, gain}
+      pcmToneBank: Array(32).fill(null),
+      // 現在アクティブなPCMスロット (0〜31, -1=スロット未選択→レガシーモード)
       pcmActiveToneSlot: -1,
     };
 
@@ -2216,7 +2223,7 @@ G L16 %K R %S R %K %K %S R</textarea>
 
       // バッファとサンプルレートの解決
       let useBuf = null, useSR = pcmSampleRate, useGain = 1;
-      if (slotIdx != null && slotIdx >= 0 && slotIdx < 16 && state.pcmToneBank[slotIdx]) {
+      if (slotIdx != null && slotIdx >= 0 && slotIdx < 32 && state.pcmToneBank[slotIdx]) {
         const slot = state.pcmToneBank[slotIdx];
         useBuf = slot.buffer;
         useSR = slot.sampleRate;
@@ -3883,8 +3890,8 @@ G L16 %K R %S R %K %K %S R</textarea>
           defOpt.value = ''; defOpt.textContent = 'ACT';
           if (ps.slot[i] == null) defOpt.selected = true;
           sel.appendChild(defOpt);
-          // スロット1〜8（ロード済みのみ表示、未ロードもグレーで表示）
-          for (let s = 0; s < 16; s++) {
+          // スロット1〜32（ロード済みのみ表示、未ロードもグレーで表示）
+          for (let s = 0; s < 32; s++) {
             const opt = document.createElement('option');
             opt.value = s;
             const slotData = state.pcmToneBank[s];
@@ -3995,6 +4002,25 @@ G L16 %K R %S R %K %K %S R</textarea>
             btn.style.borderColor = ps.on[i] ? '#7a5528' : '';
             // 8区切りの左ボーダーを復元
             if (i > 0 && i % 8 === 0) btn.style.borderLeftColor = '#6a5020';
+            // SLOT表示をON/OFFに連動して更新
+            const slotSelRow = slotRow.querySelectorAll('select.pcm-slot-sel');
+            if (ps.on[i]) {
+              // ONにした時：現在のアクティブTONEBANKスロットをSLOTプルダウンに反映
+              if (state.pcmActiveToneSlot >= 0) {
+                ps.slot[i] = state.pcmActiveToneSlot;
+                if (slotSelRow[i]) {
+                  slotSelRow[i].value = String(state.pcmActiveToneSlot);
+                  slotSelRow[i].className = 'pcm-slot-sel has-slot';
+                }
+              }
+            } else {
+              // OFFにした時：SLOTをACT（null）に戻す
+              ps.slot[i] = null;
+              if (slotSelRow[i]) {
+                slotSelRow[i].value = '';
+                slotSelRow[i].className = 'pcm-slot-sel';
+              }
+            }
           };
           onRow.appendChild(btn);
         }
@@ -4443,9 +4469,9 @@ G L16 %K R %S R %K %K %S R</textarea>
     // PCM TONE BANK
     // =============================================
 
-    // スロットごとの hidden file input を8個生成（ラベルと紐付けで確実に開く）
+    // スロットごとの hidden file input を32個生成（ラベルと紐付けで確実に開く）
     const _pcmSlotInputs = [];
-    for (let _si = 0; _si < 16; _si++) {
+    for (let _si = 0; _si < 32; _si++) {
       const inp = document.createElement('input');
       inp.type = 'file';
       inp.accept = '.wav,.wave,audio/*';
@@ -4514,7 +4540,7 @@ G L16 %K R %S R %K %K %S R</textarea>
 
     // 全PCMスロットを一括解放（applyConfig / 全初期化時に使用）
     function releaseAllPcmSlots() {
-      for (let i = 0; i < 16; i++) releasePcmSlot(i);
+      for (let i = 0; i < 32; i++) releasePcmSlot(i);
       // レガシーバッファも解放
       activePcmSources.forEach(src => { try { src.stop(); } catch (e) {} });
       activePcmSources.clear();
@@ -4545,7 +4571,13 @@ G L16 %K R %S R %K %K %S R</textarea>
       const grid = document.getElementById('pcmSlotGrid');
       if (!grid) return;
       grid.innerHTML = '';
-      for (let s = 0; s < 16; s++) {
+      for (let s = 0; s < 32; s++) {
+        // 8スロット毎に区切り線（S9, S17, S25の手前）
+        if (s > 0 && s % 8 === 0) {
+          const sep = document.createElement('div');
+          sep.className = 'pcm-row-sep';
+          grid.appendChild(sep);
+        }
         const slot = state.pcmToneBank[s];
         const isActive = state.pcmActiveToneSlot === s;
         const isLoaded = slot != null;
@@ -5297,7 +5329,7 @@ G L16 %K R %S R %K %K %S R</textarea>
 
       // Kチャンネル(ADPCM/PCM)用パーサー
       // MUCOM88 ADPCMトラック準拠
-      //   @n  … スロット番号 (1〜16 → slot 0〜15、0 or 省略=アクティブスロット)
+      //   @n  … スロット番号 (1〜32 → slot 0〜31、0 or 省略=アクティブスロット)
       //   o   … オクターブ (o1=原音ピッチ, 数字大=音程下がる MUCOM88逆仕様)
       //   v   … ボリューム (0〜255)
       //   l   … デフォルト音長
@@ -5355,7 +5387,7 @@ G L16 %K R %S R %K %K %S R</textarea>
             pos++; let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
             const num = parseInt(n);
-            slot = (num >= 1 && num <= 16) ? num - 1 : -1; continue;
+            slot = (num >= 1 && num <= 32) ? num - 1 : -1; continue;
           }
           if (ch === '[') { pos++; loopStack.push({ start: pos, count: null, elapsed: 0 }); continue; }
           if (ch === ']') {
