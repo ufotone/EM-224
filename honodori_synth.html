@@ -4600,7 +4600,10 @@ G L16 %K R %S R %K %K %S R</textarea>
     const pcmSlotCtxMenu = document.createElement('div');
     pcmSlotCtxMenu.style.cssText = 'position:fixed;display:none;background:#1a1006;border:1px solid #7a5020;border-radius:5px;z-index:9999;min-width:160px;font-size:11px;box-shadow:0 4px 16px #0009;padding:4px 0';
     document.body.appendChild(pcmSlotCtxMenu);
-    document.addEventListener('click', () => { pcmSlotCtxMenu.style.display = 'none'; });
+    document.addEventListener('mousedown', (e) => {
+      if (!pcmSlotCtxMenu.contains(e.target)) pcmSlotCtxMenu.style.display = 'none';
+    });
+    pcmSlotCtxMenu.addEventListener('mousedown', (e) => e.stopPropagation());
 
     function showPcmSlotMenu(e, slotIdx) {
       e.preventDefault && e.preventDefault();
@@ -5252,11 +5255,12 @@ G L16 %K R %S R %K %K %S R</textarea>
           const base = beatSec() * 4 / n;
           return dot ? base * 1.5 : base;
         };
-        // MUCOM88: o1=原音(A4=440基準)、数字大でピッチ下がる
-        const noteToFreq = (semi) => {
-          const baseOct = 5 - oct; // o1→oct4, o2→oct3, ...
-          const midiNote = (baseOct + 1) * 12 + semi;
-          return 440 * Math.pow(2, (midiNote - 69) / 12);
+        // MUCOM88: o1c=原音(playbackRate=1.0)、音程指定でピッチシフト
+        // C4(midi60)を基準(rate=1.0)とし、半音ごとに2^(1/12)倍
+        // o1→midi=60, o2→midi=48(-1oct), o3→midi=36(-2oct) ...
+        const noteToRate = (semi) => {
+          const midiNote = (5 - oct) * 12 + semi; // o1c=60, o2c=48, ...
+          return Math.pow(2, (midiNote - 60) / 12);
         };
         const s = this.preprocess(text).replace(/\|/g, ' ').replace(/\s+/g, '').toUpperCase();
         while (pos < s.length) {
@@ -5319,8 +5323,8 @@ G L16 %K R %S R %K %K %S R</textarea>
             const dot = s[pos] === '.' ? (pos++, true) : false;
             const len = parseInt(n) || defLen;
             const dur = lenSec(len, dot);
-            const freq = noteToFreq(semi);
-            events.push({ time: t, pcmNote: true, slot, freq, vol: vol / 255, dur });
+            const rate = noteToRate(semi);
+            events.push({ time: t, pcmNote: true, slot, pitchRate: rate, vol: vol / 255, dur });
             t += dur; continue;
           }
           pos++;
@@ -5493,9 +5497,13 @@ G L16 %K R %S R %K %K %S R</textarea>
               const when = audioCtx.currentTime + 0.02;
 
               if (ev.pcmNote) {
-                // K チャンネル (ADPCM/PCM) — スロット指定＋ピッチ制御
+                // K チャンネル: pitchRate=1.0 が原音(o1c)
+                // playFreq = useSR * pitchRate → playbackRate = pitchRate
                 const resolvedSlot = ev.slot >= 0 ? ev.slot : state.pcmActiveToneSlot;
-                playPCM(when, ev.vol, null, null, ev.freq, resolvedSlot >= 0 ? resolvedSlot : undefined);
+                const slotData = (resolvedSlot >= 0 && resolvedSlot < 16) ? state.pcmToneBank[resolvedSlot] : null;
+                const useSR = slotData ? slotData.sampleRate : pcmSampleRate;
+                const playFreq = useSR * (ev.pitchRate ?? 1.0);
+                playPCM(when, ev.vol, null, null, playFreq, resolvedSlot >= 0 ? resolvedSlot : undefined);
                 const pct = Math.round(ev.time / maxEnd * 100);
                 document.getElementById('mmlStatus').textContent = `▶ PCM:S${resolvedSlot + 1}  ${pct}%`;
               } else if (ev.drum) {
