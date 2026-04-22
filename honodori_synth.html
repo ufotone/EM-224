@@ -1128,14 +1128,7 @@
           <b style="color:#fca">リズム(G):</b> <span style="color:#fca">%K</span>=KICK　<span style="color:#fca">%S</span>=SNARE　<span style="color:#fca">%H</span>=HAT　<span style="color:#fca">%OH</span>=OpenHH　<span style="color:#fca">%P</span>=PCM　例: <span style="color:#fca">%K8</span>
         </div>
       </details>
-      <!-- TONE BANK 音色参照表 -->
-      <div id="mmlToneRef" style="margin-bottom:6px">
-        <div style="font-size:8px;color:#446;margin-bottom:3px;display:flex;align-items:center;gap:6px">
-          <span>TONE BANK 参照 (@10〜 = FM1で発音)</span>
-          <button onclick="renderMmlToneRef()" style="font-size:7px;padding:1px 5px;background:#111;border:1px solid #334;color:#669;border-radius:2px;cursor:pointer">更新</button>
-        </div>
-        <div id="mmlToneRefGrid" style="display:flex;flex-wrap:wrap;gap:2px;max-height:60px;overflow-y:auto"></div>
-      </div>
+      <!-- MMLエディタ -->
         <textarea id="mmlAll" rows="8"
           style="width:100%;background:#0a0a12;border:1px solid #334;color:#9cf;font-family:monospace;font-size:11px;padding:6px;resize:vertical;border-radius:3px;line-height:1.6"
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
@@ -2906,7 +2899,6 @@ G L16 %K R %S R %K %K %S R</textarea>
         if (!confirm('N88内蔵音色をスロット0〜27にロードします。既存データは上書きされます。よろしいですか？')) return;
         loadN88Presets();
         for (let i = 0; i < 6; i++) updateToneBankUI(i);
-        renderMmlToneRef();
       };
       bankHeader.appendChild(presetBtn);
       // SAVE/LOADボタン（全FMチャンネルに表示）
@@ -3326,7 +3318,6 @@ G L16 %K R %S R %K %K %S R</textarea>
                 if (src[i] !== null) fmLoaded++;
               }
               for (let i = 0; i < 6; i++) updateToneBankUI(i);
-              renderMmlToneRef();
             }
             if (Array.isArray(data.ssgToneBank)) {
               const src = data.ssgToneBank;
@@ -6082,61 +6073,6 @@ G L16 %K R %S R %K %K %S R</textarea>
     });
 
     // MMLパネルのTONE BANK参照表を描画
-    function renderMmlToneRef() {
-      const grid = document.getElementById('mmlToneRefGrid');
-      if (!grid) return;
-      grid.innerHTML = '';
-      // @0〜@9は固定（SSGチャンネルでは@0〜@15がSSGプリセット）
-      ['@0:SUB','@1:FM1','@2:FM2','@3:FM3','@4:FM4','@5:FM5','@6:FM6','@7:PS1','@8:PS2','@9:PS3'].forEach(label => {
-        const el = document.createElement('span');
-        el.style.cssText = 'font-size:7px;background:#0e0e18;border:1px solid #2a2a40;border-radius:2px;padding:1px 4px;color:#446;white-space:nowrap';
-        el.textContent = label;
-        grid.appendChild(el);
-      });
-      // SSGプリセット @0〜@15（D/E/Fチャンネル専用）
-      const ssgSep = document.createElement('div');
-      ssgSep.style.cssText = 'width:100%;font-size:7px;color:#464;margin:3px 0 2px;letter-spacing:1px';
-      ssgSep.textContent = 'SSG PRESET (D/E/Fチャンネル: @0〜@15)';
-      grid.appendChild(ssgSep);
-      for (let i = 0; i < 16; i++) {
-        const t = state.ssgToneBank[i];
-        if (!t) continue;
-        const el = document.createElement('span');
-        el.style.cssText = 'font-size:7px;background:#061206;border:1px solid #2a402a;border-radius:2px;padding:1px 5px;color:#4a9;white-space:nowrap;cursor:pointer';
-        el.textContent = `@${i}:${(t._name||'').replace(/^@\d+\s*/,'').slice(0,7)}`;
-        el.title = `SSGプリセット @${i}: ${t._name||''}`;
-        grid.appendChild(el);
-      }
-      // @10〜 = FM TONE BANKスロット0〜
-      const fmSep = document.createElement('div');
-      fmSep.style.cssText = 'width:100%;font-size:7px;color:#446;margin:3px 0 2px;letter-spacing:1px';
-      fmSep.textContent = 'FM TONE BANK (@10〜)';
-      grid.appendChild(fmSep);
-      for (let i = 0; i < 100; i++) {
-        if (!state.fmToneBank[i]) continue;
-        const t = state.fmToneBank[i];
-        const el = document.createElement('span');
-        el.style.cssText = 'font-size:7px;background:#0e1820;border:1px solid #2a3a50;border-radius:2px;padding:1px 5px;color:#5a9;white-space:nowrap;cursor:pointer';
-        el.textContent = `@${i+10}:${t._name || i}`;
-        el.title = `スロット${i}${t._name ? ' ' + t._name : ''} — タップで@${i+10}を挿入`;
-        el.onclick = () => {
-          const ta = document.getElementById('mmlAll') ||
-                     ['mmlA','mmlB','mmlC'].map(id => document.getElementById(id))
-                       .find(e => e && e === document.activeElement) ||
-                     document.getElementById('mmlA');
-          if (!ta) return;
-          const s = ta.selectionStart, e2 = ta.selectionEnd;
-          ta.value = ta.value.slice(0, s) + `@${i+10}` + ta.value.slice(e2);
-          ta.selectionStart = ta.selectionEnd = s + String(`@${i+10}`).length;
-          ta.focus();
-        };
-        grid.appendChild(el);
-      }
-    }
-
-    // MMLモードボタンクリック時に参照表を更新
-    document.getElementById('modeMML').addEventListener('click', () => setTimeout(renderMmlToneRef, 50));
-
     // =============================================
     // Config Save / Load
     // =============================================
