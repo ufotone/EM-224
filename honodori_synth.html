@@ -4623,10 +4623,20 @@ G L16 %K R %S R %K %K %S R</textarea>
         div.addEventListener('contextmenu', (e) => { e.preventDefault(); showPcmSlotMenu(e, s); });
         // スマホ: 長押しでメニュー
         let _pt = null;
+        let _longPressed = false;
         div.addEventListener('touchstart', (e) => {
-          _pt = setTimeout(() => { _pt = null; showPcmSlotMenu(e.touches[0] || e, s); }, 600);
+          _longPressed = false;
+          _pt = setTimeout(() => {
+            _pt = null;
+            _longPressed = true;
+            showPcmSlotMenu(e.touches[0] || e, s);
+          }, 600);
         }, { passive: true });
-        div.addEventListener('touchend', () => { if (_pt) { clearTimeout(_pt); _pt = null; } });
+        div.addEventListener('touchend', (e) => {
+          if (_pt) { clearTimeout(_pt); _pt = null; }
+          // 長押し確定後のtouchendはdocumentへ伝播させない（メニューが即閉じするのを防ぐ）
+          if (_longPressed) { _longPressed = false; e.stopPropagation(); }
+        });
         div.addEventListener('touchmove', () => { if (_pt) { clearTimeout(_pt); _pt = null; } });
 
         grid.appendChild(div);
@@ -4637,7 +4647,14 @@ G L16 %K R %S R %K %K %S R</textarea>
     const pcmSlotCtxMenu = document.createElement('div');
     pcmSlotCtxMenu.style.cssText = 'position:fixed;display:none;background:#1a1006;border:1px solid #7a5020;border-radius:5px;z-index:9999;min-width:160px;font-size:11px;box-shadow:0 4px 16px #0009;padding:4px 0';
     document.body.appendChild(pcmSlotCtxMenu);
+    // メニュー内のクリック・タッチはバブリングを止めて外部クリック判定に巻き込まれないようにする
+    pcmSlotCtxMenu.addEventListener('click', (e) => { e.stopPropagation(); });
+    pcmSlotCtxMenu.addEventListener('touchend', (e) => { e.stopPropagation(); });
+    // メニュー外をクリック/タッチしたときだけ閉じる
     document.addEventListener('click', () => { pcmSlotCtxMenu.style.display = 'none'; });
+    document.addEventListener('touchend', (e) => {
+      if (!pcmSlotCtxMenu.contains(e.target)) pcmSlotCtxMenu.style.display = 'none';
+    });
 
     function showPcmSlotMenu(e, slotIdx) {
       e.preventDefault && e.preventDefault();
