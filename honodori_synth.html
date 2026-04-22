@@ -3938,12 +3938,33 @@ G L16 %K R %S R %K %K %S R</textarea>
         const bankPanel = document.createElement('div');
         bankPanel.className = 'pcm-bank-panel';
         bankPanel.innerHTML = `
-          <div class="pcm-bank-header">
+          <div class="pcm-bank-header" id="pcmBankHeader">
             <span class="pcm-bank-title">PCM TONE BANK</span>
             <span style="font-size:7px;color:#6a4820">タップ=選択（橙枠）　長押し=設定メニュー</span>
           </div>
           <div class="pcm-slot-grid" id="pcmSlotGrid"></div>`;
         content.appendChild(bankPanel);
+
+        // PCM TONE BANK SAVE/LOADボタン（ヘッダーに追加）
+        const pcmBankHdr = document.getElementById('pcmBankHeader');
+        if (pcmBankHdr) {
+          const pcmSaveBtn = document.createElement('button');
+          pcmSaveBtn.className = 'btn';
+          pcmSaveBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#6a4010;color:#c08040;margin-left:4px';
+          pcmSaveBtn.textContent = 'SAVE';
+          pcmSaveBtn.title = 'PCM TONEBANKをgzip圧縮+Base64形式の.hpcmbファイルに保存';
+          pcmSaveBtn.onclick = () => savePcmToneBank();
+          pcmBankHdr.appendChild(pcmSaveBtn);
+
+          const pcmLoadBtn = document.createElement('button');
+          pcmLoadBtn.className = 'btn';
+          pcmLoadBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#6a4010;color:#c08040;margin-left:2px';
+          pcmLoadBtn.textContent = 'LOAD';
+          pcmLoadBtn.title = 'PCM TONEBANKを.hpcmbファイルから完全復元';
+          pcmLoadBtn.onclick = () => loadPcmToneBank();
+          pcmBankHdr.appendChild(pcmLoadBtn);
+        }
+
         // スロットUIを描画（DOM挿入後に実行）
         renderPcmToneBank();
 
@@ -4601,6 +4622,204 @@ G L16 %K R %S R %K %K %S R</textarea>
       _pcmSlotInputs.push(inp);
     }
 
+    // =============================================
+    // =============================================
+    // PCM TONE BANK SAVE / LOAD (.hpcmb 形式)
+    // AudioBuffer → 16bit mono WAV(ArrayBuffer)
+    //   → gzip圧縮(CompressionStream) → Base64
+    //   → JSON → .hpcmb (gzip済みWAVをBase64埋込)
+    // LOAD はその逆順で完全復元。ファイル1個で自己完結。
+    // =============================================
+
+    // AudioBuffer → 16bit mono PCM WAV の ArrayBuffer
+    function audioBufToWavAB(audioBuf) {
+      const numCh = audioBuf.numberOfChannels;
+      const len   = audioBuf.length;
+      const sr    = audioBuf.sampleRate;
+      const mono  = new Float32Array(len);
+      for (let c = 0; c < numCh; c++) {
+        const ch = audioBuf.getChannelData(c);
+        for (let i = 0; i < len; i++) mono[i] += ch[i] / numCh;
+      }
+      const dataBytes = len * 2;
+      const ab   = new ArrayBuffer(44 + dataBytes);
+      const view = new DataView(ab);
+      const w  = (o, v, s) => s === 4 ? view.setUint32(o, v, true) : view.setUint16(o, v, true);
+      const ws = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+      ws(0,  'RIFF'); w(4,  36 + dataBytes, 4); ws(8,  'WAVE');
+      ws(12, 'fmt '); w(16, 16, 4); w(20, 1, 2); w(22, 1, 2);
+      w(24, sr, 4); w(28, sr * 2, 4); w(32, 2, 2); w(34, 16, 2);
+      ws(36, 'data'); w(40, dataBytes, 4);
+      let off = 44;
+      for (let i = 0; i < len; i++) {
+        const s = Math.max(-1, Math.min(1, mono[i]));
+        view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        off += 2;
+      }
+      return ab;
+    }
+
+    // ArrayBuffer → gzip圧縮済み ArrayBuffer (CompressionStream)
+    async function gzipAb(ab) {
+      const cs     = new CompressionStream('gzip');
+      const writer = cs.writable.getWriter();
+      writer.write(new Uint8Array(ab));
+      writer.close();
+      const chunks = [];
+      const reader = cs.readable.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+      const total = chunks.reduce((n, c) => n + c.length, 0);
+      const out   = new Uint8Array(total);
+      let pos = 0;
+      for (const c of chunks) { out.set(c, pos); pos += c.length; }
+      return out.buffer;
+    }
+
+    // gzip済み ArrayBuffer → 展開済み ArrayBuffer (DecompressionStream)
+    async function gunzipAb(ab) {
+      const ds     = new DecompressionStream('gzip');
+      const writer = ds.writable.getWriter();
+      writer.write(new Uint8Array(ab));
+      writer.close();
+      const chunks = [];
+      const reader = ds.readable.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+      const total = chunks.reduce((n, c) => n + c.length, 0);
+      const out   = new Uint8Array(total);
+      let pos = 0;
+      for (const c of chunks) { out.set(c, pos); pos += c.length; }
+      return out.buffer;
+    }
+
+    // ArrayBuffer → Base64
+    function abToB64(ab) {
+      const u8  = new Uint8Array(ab);
+      const CHUNK = 0x8000;
+      let bin = '';
+      for (let i = 0; i < u8.length; i += CHUNK)
+        bin += String.fromCharCode(...u8.subarray(i, i + CHUNK));
+      return btoa(bin);
+    }
+
+    // Base64 → ArrayBuffer
+    function b64ToAb(b64) {
+      const bin = atob(b64);
+      const u8  = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      return u8.buffer;
+    }
+
+    async function savePcmToneBank() {
+      const usedSlots = state.pcmToneBank
+        .map((slot, i) => slot && slot.rawBuffer ? { i, slot } : null)
+        .filter(Boolean);
+      if (usedSlots.length === 0) { alert('保存できるPCMスロットがありません。'); return; }
+
+      const slots = new Array(32).fill(null);
+      let done = 0, failed = 0;
+      for (const { i, slot } of usedSlots) {
+        try {
+          const wavAb  = audioBufToWavAB(slot.rawBuffer);   // WAV生成
+          const gzAb   = await gzipAb(wavAb);               // gzip圧縮
+          const b64    = abToB64(gzAb);                     // Base64化
+          slots[i] = {
+            slot: i,
+            name: slot.name,
+            bits: slot.bits,
+            sampleRate: slot.sampleRate,
+            gain: slot.gain ?? 100,
+            wav: b64,                                        // gzip済みWAV
+          };
+          done++;
+        } catch (e) {
+          console.warn(`S${i+1} 変換失敗:`, e);
+          failed++;
+        }
+      }
+
+      const data = {
+        _version: 2,
+        _app: 'honodori',
+        _type: 'pcmToneBank',
+        _saved: new Date().toISOString(),
+        slots,
+      };
+      const json = JSON.stringify(data);
+      const blob = new Blob([json], { type: 'application/octet-stream' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      const ts   = new Date().toISOString().slice(0,16).replace(/[-:T]/g,'').replace(/(\d{8})(\d{4})/,'$1_$2');
+      a.href     = url;
+      a.download = `honodori_pcmbank_${ts}.hpcmb`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alert(`PCM BANK SAVE完了: ${done}スロット保存${failed ? ' / ' + failed + '件失敗' : ''}`);
+    }
+
+    async function loadPcmToneBank() {
+      const input  = document.createElement('input');
+      input.type   = 'file';
+      input.accept = '.hpcmb';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+          if (!data || data._app !== 'honodori' || data._type !== 'pcmToneBank') {
+            alert('このファイルはhonodori用のPCM TONEBANKファイルではありません。');
+            return;
+          }
+          const validSlots = (data.slots || []).filter(s => s && s.slot != null && s.wav);
+          if (validSlots.length === 0) { alert('有効なPCMスロットデータが見つかりません。'); return; }
+
+          initAudio();
+          let loaded = 0, failed = 0;
+
+          for (const s of validSlots) {
+            const si = s.slot;
+            if (si < 0 || si >= 32) { failed++; continue; }
+            try {
+              const ab  = await gunzipAb(b64ToAb(s.wav));
+              const buf = await audioCtx.decodeAudioData(ab);
+              if (state.pcmToneBank[si]) releasePcmSlot(si);
+              state.pcmToneBank[si] = {
+                rawBuffer: buf,
+                buffer: null,
+                bits: s.bits || 6,
+                sampleRate: s.sampleRate || 6000,
+                name: s.name || `S${si+1}`,
+                gain: s.gain || 100,
+              };
+              applyPcmSlotBits(si);
+              loaded++;
+              renderPcmToneBank();
+              if (state.currentSeqTab === 'pcmseq') renderSeq();
+            } catch (err) {
+              console.warn(`S${si+1} 復元失敗:`, err);
+              failed++;
+            }
+          }
+          alert(`PCM BANK LOAD完了: ${loaded}スロット復元${failed ? ' / ' + failed + '件失敗' : ''}`);
+        } catch (err) {
+          alert('ファイルの読み込みに失敗しました: ' + err.message);
+        }
+      };
+      document.body.appendChild(input);
+      input.click();
+      document.body.removeChild(input);
+    }
+
     // PCM TONEBANKスロットのメモリを安全に解放する共通関数
     // 1. そのスロットのバッファを再生中のBufferSourceをすべて停止
     // 2. rawBuffer / buffer への参照を null にしてGCを促す
@@ -4689,16 +4908,14 @@ G L16 %K R %S R %K %K %S R</textarea>
           infoEl.className = 'pcm-slot-info';
           infoEl.textContent = `${slot.bits}bit / ${slot.sampleRate >= 1000 ? (slot.sampleRate / 1000).toFixed(0) + 'k' : slot.sampleRate}Hz`;
           div.appendChild(infoEl);
-          // ゲイン表示
           const gainEl = document.createElement('div');
           gainEl.className = 'pcm-slot-info';
           gainEl.textContent = `gain:${slot.gain ?? 100}%`;
           div.appendChild(gainEl);
         }
 
-        // タップでアクティブ選択 & コンテキストメニューを開く
+        // タップでアクティブ選択
         div.onclick = (e) => {
-          // アクティブ選択トグル
           state.pcmActiveToneSlot = isActive ? -1 : s;
           renderPcmToneBank();
           if (state.currentSeqTab === 'pcmseq') renderSeq();
