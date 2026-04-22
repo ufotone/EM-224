@@ -2909,6 +2909,22 @@ G L16 %K R %S R %K %K %S R</textarea>
         renderMmlToneRef();
       };
       bankHeader.appendChild(presetBtn);
+      // SAVE/LOADボタン（全FMチャンネルに表示）
+      const fmSaveBtn = document.createElement('button');
+      fmSaveBtn.className = 'btn';
+      fmSaveBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#464;color:#6a8;margin-left:4px';
+      fmSaveBtn.textContent = 'SAVE';
+      fmSaveBtn.title = 'FM+SSG TONEBANKをJSONファイルに保存';
+      fmSaveBtn.onclick = () => saveToneBanks();
+      bankHeader.appendChild(fmSaveBtn);
+
+      const fmLoadBtn = document.createElement('button');
+      fmLoadBtn.className = 'btn';
+      fmLoadBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#464;color:#6a8;margin-left:2px';
+      fmLoadBtn.textContent = 'LOAD';
+      fmLoadBtn.title = 'FM+SSG TONEBANKをJSONファイルから読込';
+      fmLoadBtn.onclick = () => loadToneBanks();
+      bankHeader.appendChild(fmLoadBtn);
       bankHeader.appendChild(slotInfo);
       bankPanel.appendChild(bankHeader);
 
@@ -3261,6 +3277,75 @@ G L16 %K R %S R %K %K %S R</textarea>
       const info = document.getElementById(`fmToneSlotInfo${fmIdx}`);
       if (grid) renderToneSlotGrid(fmIdx, grid);
       if (info) updateToneSlotInfo(fmIdx, info);
+    }
+
+    // =============================================
+    // TONE BANK SAVE / LOAD (FM + SSG 両方)
+    // =============================================
+    function saveToneBanks() {
+      const data = {
+        _version: 1,
+        _app: 'honodori',
+        _saved: new Date().toISOString(),
+        fmToneBank: state.fmToneBank,
+        ssgToneBank: state.ssgToneBank,
+      };
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().slice(0,16).replace(/[-:T]/g, '').replace(/(\d{8})(\d{4})/, '$1_$2');
+      a.href = url;
+      a.download = `honodori_tonebank_${ts}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function loadToneBanks() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const data = JSON.parse(ev.target.result);
+            if (!data || data._app !== 'honodori') {
+              alert('このファイルはhonodori用のTONE BANKファイルではありません。');
+              return;
+            }
+            let fmLoaded = 0, ssgLoaded = 0;
+            if (Array.isArray(data.fmToneBank)) {
+              const src = data.fmToneBank;
+              for (let i = 0; i < Math.min(src.length, state.fmToneBank.length); i++) {
+                state.fmToneBank[i] = src[i];
+                if (src[i] !== null) fmLoaded++;
+              }
+              for (let i = 0; i < 6; i++) updateToneBankUI(i);
+              renderMmlToneRef();
+            }
+            if (Array.isArray(data.ssgToneBank)) {
+              const src = data.ssgToneBank;
+              for (let i = 0; i < Math.min(src.length, state.ssgToneBank.length); i++) {
+                state.ssgToneBank[i] = src[i];
+                if (src[i] !== null) ssgLoaded++;
+              }
+              for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
+            }
+            alert(`LOAD完了: FM ${fmLoaded}音色 / SSG ${ssgLoaded}音色`);
+          } catch (err) {
+            alert('ファイルの読み込みに失敗しました: ' + err.message);
+          }
+        };
+        reader.readAsText(file);
+      };
+      document.body.appendChild(input);
+      input.click();
+      document.body.removeChild(input);
     }
 
     // =============================================
@@ -6207,7 +6292,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         const ssgPreBtn = document.createElement('button');
         ssgPreBtn.className = 'btn';
         ssgPreBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#863;color:#ca8;margin-left:4px';
-        ssgPreBtn.textContent = 'MUCOM88 PRESET';
+        ssgPreBtn.textContent = 'INTNAL PRESET';
         ssgPreBtn.title = 'MUCOM88準拠SSGプリセット(@0〜@15)をスロット0〜15に読込';
         ssgPreBtn.onclick = () => {
           loadSSGPresets();
@@ -6218,9 +6303,25 @@ G L16 %K R %S R %K %K %S R</textarea>
         ssgSlotInfo.id = `ssgToneSlotInfo${pi}`;
         ssgSlotInfo.style.cssText = 'font-size:8px;color:#445;margin-left:4px';
 
-        // ヘッダーに順序通り追加: タイトル → STORE → PRESET → スロット情報
+        // ヘッダーに順序通り追加: タイトル → STORE → PRESET → SAVE/LOAD → スロット情報
         ssgBankHdr.appendChild(ssgStoreBtn);
         ssgBankHdr.appendChild(ssgPreBtn);
+        // SAVE/LOADボタン（全SSGチャンネルに表示）
+        const ssgSaveBtn = document.createElement('button');
+        ssgSaveBtn.className = 'btn';
+        ssgSaveBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#464;color:#6a8;margin-left:4px';
+        ssgSaveBtn.textContent = 'SAVE';
+        ssgSaveBtn.title = 'FM+SSG TONEBANKをJSONファイルに保存';
+        ssgSaveBtn.onclick = () => saveToneBanks();
+        ssgBankHdr.appendChild(ssgSaveBtn);
+
+        const ssgLoadBtn = document.createElement('button');
+        ssgLoadBtn.className = 'btn';
+        ssgLoadBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#464;color:#6a8;margin-left:2px';
+        ssgLoadBtn.textContent = 'LOAD';
+        ssgLoadBtn.title = 'FM+SSG TONEBANKをJSONファイルから読込';
+        ssgLoadBtn.onclick = () => loadToneBanks();
+        ssgBankHdr.appendChild(ssgLoadBtn);
         ssgBankHdr.appendChild(ssgSlotInfo);
         ssgBankDiv.appendChild(ssgBankHdr);
 
