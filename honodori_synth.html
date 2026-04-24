@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>honodori — FM+PSG Extended Synth</title>
+  <title>honodori — FM+PSG Extended Synth v15</title>
   <style>
     * {
       box-sizing: border-box;
@@ -1106,9 +1106,9 @@
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
         <div class="small-title" style="margin-bottom:0">MML</div>
         <button class="song-loop-btn" id="mmlLoopBtn">LOOP OFF</button>
-        <!-- .muc読み込みボタン -->
-        <span style="font-family:monospace;font-size:9px;background:#1a1a2a;border:1px solid #446;color:#88c;padding:3px 8px;border-radius:2px;letter-spacing:1px;cursor:pointer" id="mucLoadLabel" onclick="document.getElementById('mucFileInput').click()">📂 .MUC</span>
-        <input type="file" id="mucFileInput" accept=".muc,.txt" style="display:none">
+        <!-- .muc/.fmp読み込みボタン -->
+        <span style="font-family:monospace;font-size:9px;background:#1a1a2a;border:1px solid #446;color:#88c;padding:3px 8px;border-radius:2px;letter-spacing:1px;cursor:pointer" id="mucLoadLabel" onclick="document.getElementById('mucFileInput').click()">📂 .MUC/.FMP</span>
+        <input type="file" id="mucFileInput" accept=".muc,.fmp,.txt,.mml" style="display:none">
         <span id="mucFileName" style="font-size:8px;color:#446;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
         <span id="mmlStatus" style="font-size:8px;color:#555;margin-left:4px"></span>
       </div>
@@ -1116,7 +1116,8 @@
       <details style="margin-bottom:6px">
         <summary style="font-size:10px;color:#446;cursor:pointer;user-select:none;padding:4px 0;letter-spacing:1px">▶ MML記法ガイド</summary>
         <div style="margin-top:6px;font-size:9px;color:#446;line-height:1.8;padding:6px;background:#0d0d18;border-radius:3px;border:1px solid #223">
-          <b style="color:#668">チャンネル（MUCOM88準拠）:</b><br>
+          <b style="color:#88a">【MUCOM88形式】</b><br>
+          <b style="color:#668">チャンネル:</b><br>
           <span style="color:#9cf">A</span>=FM1 &nbsp;<span style="color:#9cf">B</span>=FM2 &nbsp;<span style="color:#9cf">C</span>=FM3 &nbsp;<span style="color:#9cf">H</span>=FM4 &nbsp;<span style="color:#9cf">I</span>=FM5 &nbsp;<span style="color:#9cf">J</span>=FM6<br>
           <span style="color:#9cf">D</span>=SSG/PSG1 &nbsp;<span style="color:#9cf">E</span>=SSG/PSG2 &nbsp;<span style="color:#9cf">F</span>=SSG/PSG3<br>
           <span style="color:#fca">G</span>=リズム(ドラム) &nbsp;<span style="color:#fca">K</span>=ADPCM/PCM &nbsp;&nbsp;SUBは <span style="color:#9cf">@0</span> で使用可<br>
@@ -1125,14 +1126,27 @@
           <b style="color:#668">ゲート:</b> <span style="color:#9cf">C80</span>　<b style="color:#668">デチューン:</b> <span style="color:#9cf">D-5</span>　<b style="color:#668">パン:</b> <span style="color:#9cf">p3</span> (0=消音/1=右/2=左/3=中央)　<b style="color:#668">コメント:</b> <span style="color:#9cf">; ...</span><br>
           <b style="color:#668">SSG音色:</b> <span style="color:#adf">@0〜@15</span>=プリセット　<b style="color:#668">SSGエンベロープ:</b> <span style="color:#adf">E AL,AR,DR,SL,SR,RR</span>　<b style="color:#668">SSGミキサー:</b> <span style="color:#adf">P1</span>=tone <span style="color:#adf">P2</span>=noise <span style="color:#adf">P3</span>=mix<br>
           <b style="color:#668">ループ:</b> <span style="color:#9cf">[...]2</span>=2回繰り返し　<span style="color:#9cf">/</span>=最終ループスキップ区切り　<b style="color:#668">ベロシティ増減:</b> <span style="color:#9cf">(</span>=+1 <span style="color:#9cf">)</span>=-1<br>
-          <b style="color:#fca">リズム(G):</b> <span style="color:#fca">%K</span>=KICK　<span style="color:#fca">%S</span>=SNARE　<span style="color:#fca">%H</span>=HAT　<span style="color:#fca">%OH</span>=OpenHH　<span style="color:#fca">%P</span>=PCM　例: <span style="color:#fca">%K8</span>
+          <b style="color:#fca">リズム(G):</b> <span style="color:#fca">%K</span>=KICK　<span style="color:#fca">%S</span>=SNARE　<span style="color:#fca">%H</span>=HAT　<span style="color:#fca">%OH</span>=OpenHH　<span style="color:#fca">%P</span>=PCM　例: <span style="color:#fca">%K8</span><br>
+          <b style="color:#8cf">LFO(OPNA):</b> <span style="color:#8cf">M{ch}H delay,freq,pms,ams[,sync]</span>　ch=A〜C/H〜J　delay=遅延音長　freq=周波数(0〜7)　pms=ビブラート(0〜7)　ams=トレモロ(0〜3)　例: <span style="color:#8cf">MAH8,3,6,0</span><br>
+          <br>
+          <b style="color:#aa8">【FMP7形式】</b>（自動判別 — <code style="color:#adf">'A0</code>で始まるチャンネル行があればFMP7モード）<br>
+          <b style="color:#668">チャンネル宣言:</b> <span style="color:#adf">'A0 cdefg</span>　<span style="color:#adf">'B0 ...</span>　（A0=FM1 B0=FM2 C0=FM3 H0=FM4 I0=FM5 J0=FM6 D0=SSG1 E0=SSG2 F0=SSG3 G0=リズム）<br>
+          <b style="color:#668">複数チャンネル:</b> <span style="color:#adf">'A0B0C0 cdefg</span>（同じデータを複数チャンネルに一括指定）<br>
+          <b style="color:#668">コメント:</b> <span style="color:#adf">// ...</span> または <span style="color:#adf">; ...</span><br>
+          <b style="color:#668">音色定義(OPNA):</b><br>
+          &nbsp;&nbsp;<span style="color:#adf">'@ FA No</span>　→ 音色番号Noを宣言<br>
+          &nbsp;&nbsp;<span style="color:#adf">'@ AR,DR,SR,RR,SL,TL,KS,ML,DT,AM</span>　× 4op<br>
+          &nbsp;&nbsp;<span style="color:#adf">'@ AL,FB</span>　→ アルゴリズム・フィードバック<br>
+          <b style="color:#668">音色定義(互換):</b> <span style="color:#adf">'@ F No</span> → AR,DR,SR,RR,SL,TL,KS,ML,DT × 4op + AL,FB<br>
+          <b style="color:#668">LFO(OPNA):</b> <span style="color:#8cf">MPH delay,freq,pms,ams[,sync]</span>　ch=P/Q/R/S　例: <span style="color:#8cf">MPH8,3,6,0</span>
         </div>
       </details>
       <!-- MMLエディタ -->
         <textarea id="mmlAll" rows="8"
           style="width:100%;background:#0a0a12;border:1px solid #334;color:#9cf;font-family:monospace;font-size:11px;padding:6px;resize:vertical;border-radius:3px;line-height:1.6"
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-          placeholder="; MUCOM88準拠: A=FM1 B=FM2 C=FM3 D=PSG1 E=PSG2 F=PSG3 G=リズム H=FM4 I=FM5 J=FM6 K=PCM">; MUCOM88準拠: A=FM1 B=FM2 C=FM3 D=PSG1 E=PSG2 F=PSG3 G=リズム H=FM4 I=FM5 J=FM6 K=PCM
+          placeholder="; MUCOM88: A=FM1 B=FM2 ... / FMP7: 'A0=FM1 'B0=FM2 ...">; MUCOM88形式: A=FM1 B=FM2 C=FM3 D=PSG1 E=PSG2 F=PSG3 G=リズム H=FM4 I=FM5 J=FM6 K=PCM
+; FMP7形式: 'A0 'B0 'C0 等のチャンネル行があれば自動判別
 A T120 O4 L8 C D E F G A B > C
 B O3 L4 C E G C
 G L16 %K R %S R %K %K %S R</textarea>
@@ -1496,6 +1510,12 @@ G L16 %K R %S R %K %K %S R</textarea>
             { on: Array(32).fill(false), slot: Array(32).fill(-1) },
             { on: Array(32).fill(false), slot: Array(32).fill(-1) },
           ],
+          // PSG(SSG)音色切替シーケンス: {on[32], slot[32]} slot=-1でtoneチェンジなし
+          psgTone: [
+            { on: Array(32).fill(false), slot: Array(32).fill(-1) },
+            { on: Array(32).fill(false), slot: Array(32).fill(-1) },
+            { on: Array(32).fill(false), slot: Array(32).fill(-1) },
+          ],
           fxSeq: {
             delayWet: { on: Array(32).fill(false), vals: Array(32).fill(0) },
             delayFb: { on: Array(32).fill(false), vals: Array(32).fill(30) },
@@ -1513,42 +1533,54 @@ G L16 %K R %S R %K %K %S R</textarea>
       // チャンネル単位: { algo, fb }
       fmParams: [
         {
-          algo: 4, fb: 4, ops: [
+          algo: 4, fb: 4,
+          lfo: { enable: false, freq: 3, pms: 4, ams: 0, delay: 0, sync: true },
+          ops: [
             { ar: 31, dr: 8, sr: 0, rr: 4, sl: 1, tl: 20, ks: 1, mul: 1, dt: 3 },
             { ar: 20, dr: 10, sr: 0, rr: 4, sl: 3, tl: 38, ks: 1, mul: 6, dt: 0 },
             { ar: 31, dr: 6, sr: 0, rr: 4, sl: 1, tl: 10, ks: 1, mul: 1, dt: 0 },
             { ar: 20, dr: 8, sr: 0, rr: 4, sl: 3, tl: 0, ks: 1, mul: 3, dt: 0 }]
         },
         {
-          algo: 4, fb: 4, ops: [
+          algo: 4, fb: 4,
+          lfo: { enable: false, freq: 3, pms: 4, ams: 0, delay: 0, sync: true },
+          ops: [
             { ar: 28, dr: 12, sr: 0, rr: 5, sl: 2, tl: 30, ks: 1, mul: 2, dt: 0 },
             { ar: 20, dr: 10, sr: 0, rr: 4, sl: 3, tl: 42, ks: 1, mul: 4, dt: 0 },
             { ar: 25, dr: 8, sr: 0, rr: 4, sl: 2, tl: 20, ks: 1, mul: 2, dt: 3 },
             { ar: 20, dr: 8, sr: 0, rr: 4, sl: 3, tl: 0, ks: 1, mul: 1, dt: 0 }]
         },
         {
-          algo: 5, fb: 0, ops: [
+          algo: 5, fb: 0,
+          lfo: { enable: false, freq: 3, pms: 4, ams: 0, delay: 0, sync: true },
+          ops: [
             { ar: 31, dr: 18, sr: 0, rr: 7, sl: 1, tl: 0, ks: 0, mul: 1, dt: 0 },
             { ar: 31, dr: 18, sr: 0, rr: 7, sl: 1, tl: 0, ks: 0, mul: 2, dt: 0 },
             { ar: 31, dr: 18, sr: 0, rr: 7, sl: 1, tl: 0, ks: 0, mul: 3, dt: 0 },
             { ar: 31, dr: 18, sr: 0, rr: 7, sl: 1, tl: 0, ks: 0, mul: 4, dt: 0 }]
         },
         {
-          algo: 5, fb: 0, ops: [
+          algo: 5, fb: 0,
+          lfo: { enable: false, freq: 3, pms: 4, ams: 0, delay: 0, sync: true },
+          ops: [
             { ar: 31, dr: 18, sr: 0, rr: 7, sl: 1, tl: 0, ks: 0, mul: 1, dt: 0 },
             { ar: 31, dr: 18, sr: 0, rr: 7, sl: 1, tl: 0, ks: 0, mul: 2, dt: 0 },
             { ar: 31, dr: 18, sr: 0, rr: 7, sl: 1, tl: 0, ks: 0, mul: 3, dt: 0 },
             { ar: 31, dr: 18, sr: 0, rr: 7, sl: 1, tl: 0, ks: 0, mul: 4, dt: 0 }]
         },
         {
-          algo: 0, fb: 6, ops: [
+          algo: 0, fb: 6,
+          lfo: { enable: false, freq: 3, pms: 4, ams: 0, delay: 0, sync: true },
+          ops: [
             { ar: 31, dr: 5, sr: 0, rr: 3, sl: 0, tl: 24, ks: 0, mul: 14, dt: 0 },
             { ar: 22, dr: 14, sr: 6, rr: 5, sl: 3, tl: 50, ks: 0, mul: 1, dt: 0 },
             { ar: 31, dr: 5, sr: 0, rr: 3, sl: 0, tl: 18, ks: 0, mul: 14, dt: 0 },
             { ar: 22, dr: 14, sr: 6, rr: 5, sl: 3, tl: 0, ks: 0, mul: 1, dt: 0 }]
         },
         {
-          algo: 0, fb: 6, ops: [
+          algo: 0, fb: 6,
+          lfo: { enable: false, freq: 3, pms: 4, ams: 0, delay: 0, sync: true },
+          ops: [
             { ar: 31, dr: 5, sr: 0, rr: 3, sl: 0, tl: 24, ks: 0, mul: 14, dt: 0 },
             { ar: 22, dr: 14, sr: 6, rr: 5, sl: 3, tl: 50, ks: 0, mul: 1, dt: 0 },
             { ar: 31, dr: 5, sr: 0, rr: 3, sl: 0, tl: 18, ks: 0, mul: 14, dt: 0 },
@@ -1733,6 +1765,7 @@ G L16 %K R %S R %K %K %S R</textarea>
             } catch (e) { }
           });
           oscs.forEach(osc => { try { osc.stop(now + 0.2); } catch (e) { } });
+          if (n.lfoNodes) n.lfoNodes.forEach(l => { try { l.stop(now + 0.2); } catch (e) { } });
         } else {
           // PSG: osc（トーン）とnoise（ノイズ）それぞれ停止
           try {
@@ -1919,9 +1952,80 @@ G L16 %K R %S R %K %K %S R</textarea>
         envs[ci].connect(dest);
       });
 
+      // ===== OPNA LFO (ビブラート / トレモロ) =====
+      // PMS: ピッチ変調深さ(0〜7) → ビブラート
+      // AMS: 音量変調深さ(0〜3) → トレモロ
+      // FREQ: LFO周波数(0〜7) → OPNAハードウェアLFO近似値(Hz)
+      // delay: キーオン後のディレイ(0〜128, 音長分母で指定)
+      const lfo = p.lfo ?? { enable: false, freq: 3, pms: 4, ams: 0, delay: 0, sync: true };
+      const lfoNodes = [];
+      if (lfo.enable && (lfo.pms > 0 || lfo.ams > 0)) {
+        // OPNA FREQ(0〜7)→Hz変換 (YM2608データシートに基づく近似)
+        const LFO_FREQ_TABLE = [3.98, 5.56, 6.02, 6.37, 6.88, 9.63, 48.1, 72.2];
+        const lfoHz = LFO_FREQ_TABLE[Math.max(0, Math.min(7, lfo.freq ?? 3))];
+        // ディレイ秒数計算 (delay=n → n分音符分の時間)
+        const delaySec = lfo.delay > 0 ? (60 / (state.bpm || 120)) * 4 / lfo.delay : 0;
+        const lfoStart = when + delaySec;
+        const lfoStop = when + noteLen + 0.5;
+
+        // === ビブラート (PMS) ===
+        if (lfo.pms > 0) {
+          // PMS(1〜7) → セント深さ: 0,3.4,6.7,10,14,20,40,80セント近似
+          const PMS_CENT = [0, 3.4, 6.7, 10, 14, 20, 40, 80];
+          const pmsCent = PMS_CENT[Math.min(7, lfo.pms)];
+          // セント→周波数比: freq * (2^(cent/1200) - 1) ≒ freqRatio
+          const vibDepth = freq * (Math.pow(2, pmsCent / 1200) - 1);
+
+          oscs.forEach((osc, oi) => {
+            const mulRatio = p.ops[oi].mul === 0 ? 0.5 : (p.ops[oi].mul ?? 1);
+            const vibLFO = audioCtx.createOscillator();
+            const vibGain = audioCtx.createGain();
+            vibLFO.type = 'sine';
+            vibLFO.frequency.value = lfoHz;
+            // ディレイ中はゲインを0にして遅延後にフェードイン
+            vibGain.gain.setValueAtTime(0, when);
+            if (delaySec > 0) {
+              vibGain.gain.setValueAtTime(0, lfoStart);
+              vibGain.gain.linearRampToValueAtTime(vibDepth * mulRatio, lfoStart + 0.05);
+            } else {
+              vibGain.gain.setValueAtTime(vibDepth * mulRatio, when);
+            }
+            vibLFO.connect(vibGain);
+            vibGain.connect(osc.frequency);
+            vibLFO.start(when);
+            vibLFO.stop(lfoStop);
+            lfoNodes.push(vibLFO);
+          });
+        }
+
+        // === トレモロ (AMS) ===
+        if (lfo.ams > 0) {
+          // AMS(1〜3) → 音量変調深さ: 1.4dB, 5.9dB, 11.8dB近似 → 線形スケール
+          const AMS_DEPTH = [0, 0.12, 0.35, 0.60];
+          const amsDepth = AMS_DEPTH[Math.min(3, lfo.ams)];
+          const tremLFO = audioCtx.createOscillator();
+          const tremGain = audioCtx.createGain();
+          tremLFO.type = 'sine';
+          tremLFO.frequency.value = lfoHz;
+          // LFOの振幅をamsDepth分に設定してdest.gainに加算
+          tremGain.gain.setValueAtTime(0, when);
+          if (delaySec > 0) {
+            tremGain.gain.setValueAtTime(0, lfoStart);
+            tremGain.gain.linearRampToValueAtTime(amsDepth * masterV, lfoStart + 0.05);
+          } else {
+            tremGain.gain.setValueAtTime(amsDepth * masterV, when);
+          }
+          tremLFO.connect(tremGain);
+          tremGain.connect(dest.gain);
+          tremLFO.start(when);
+          tremLFO.stop(lfoStop);
+          lfoNodes.push(tremLFO);
+        }
+      }
+
       const stopAt = when + noteLen + 0.5;
       oscs.forEach(osc => { osc.start(when); osc.stop(stopAt); });
-      activeNodes[ch] = { oscs, envs, dest };
+      activeNodes[ch] = { oscs, envs, dest, lfoNodes };
     }
 
     function playPSG(psgIdx, freq, vol, when, tie, dur) {
@@ -2340,6 +2444,27 @@ G L16 %K R %S R %K %K %S R</textarea>
                 setTimeout(() => {
                   buildFMPanel(fmIdx);
                   updateToneBankUI(fmIdx);
+                }, 0);
+              }
+            }
+          });
+        }
+
+        // PSG(SSG)音色切替シーケンス処理
+        if (seq.psgTone) {
+          seq.psgTone.forEach((pt, psgIdx) => {
+            if (pt && pt.on[step] && pt.slot[step] >= 0) {
+              const slotIdx = pt.slot[step];
+              const toneData = state.ssgToneBank[slotIdx];
+              if (toneData) {
+                const params = JSON.parse(JSON.stringify(toneData));
+                delete params._name;
+                Object.assign(state.psgParams[psgIdx], params);
+                state.ssgActiveTone[psgIdx] = slotIdx;
+                // UI更新は非同期
+                setTimeout(() => {
+                  buildPSGPanels();
+                  updateSSGToneBankUI(psgIdx);
                 }, 0);
               }
             }
@@ -2937,7 +3062,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       mmlImportBtn.className = 'btn';
       mmlImportBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#446;color:#68a;margin-left:2px';
       mmlImportBtn.textContent = 'MML IMPORT';
-      mmlImportBtn.title = 'MMLテキスト内の @n{...} 音色定義をFM TONE BANKに読込';
+      mmlImportBtn.title = 'MMLテキスト内の @n{...} (MUCOM88) / \'@ FA (FMP7) 音色定義をFM TONE BANKに読込';
       mmlImportBtn.onclick = () => importMmlVoices();
       bankHeader.appendChild(mmlImportBtn);
       // SAVE/LOADボタン（全FMチャンネルに表示）
@@ -3145,6 +3270,113 @@ G L16 %K R %S R %K %K %S R</textarea>
       });
 
       opsContainer.appendChild(tbl);
+
+      // ===== LFO セクション (OPNA準拠) =====
+      const lfoSection = document.createElement('div');
+      lfoSection.style.cssText = 'margin-top:8px;padding:6px;background:#0a0f1a;border:1px solid #224;border-radius:3px';
+
+      const lfo = p.lfo ?? (p.lfo = { enable: false, freq: 3, pms: 4, ams: 0, delay: 0, sync: true });
+
+      // LFOヘッダー（トグル ON/OFF）
+      const lfoHdr = document.createElement('div');
+      lfoHdr.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:5px';
+
+      const lfoToggle = document.createElement('button');
+      lfoToggle.className = 'btn' + (lfo.enable ? ' active' : '');
+      lfoToggle.style.cssText = 'font-size:9px;padding:2px 8px;min-width:48px;border-color:#336;color:#68c';
+      lfoToggle.textContent = lfo.enable ? 'LFO ON' : 'LFO OFF';
+      lfoToggle.onclick = () => {
+        lfo.enable = !lfo.enable;
+        lfoToggle.textContent = lfo.enable ? 'LFO ON' : 'LFO OFF';
+        lfoToggle.classList.toggle('active', lfo.enable);
+        lfoBody.style.display = lfo.enable ? 'grid' : 'none';
+      };
+
+      const lfoTitle = document.createElement('span');
+      lfoTitle.style.cssText = 'font-size:8px;color:#446;letter-spacing:1px';
+      lfoTitle.textContent = 'LFO (OPNA)';
+
+      // MML構文ヒント
+      const lfoHint = document.createElement('span');
+      lfoHint.style.cssText = 'font-size:7px;color:#335;margin-left:auto';
+      const chLetters = ['A','B','C','H','I','J'];
+      lfoHint.textContent = `MML: M${chLetters[idx]}H delay,freq,pms,ams`;
+
+      lfoHdr.appendChild(lfoToggle);
+      lfoHdr.appendChild(lfoTitle);
+      lfoHdr.appendChild(lfoHint);
+      lfoSection.appendChild(lfoHdr);
+
+      // LFOパラメーターボディ
+      const lfoBody = document.createElement('div');
+      lfoBody.style.cssText = 'display:' + (lfo.enable ? 'grid' : 'none') + ';grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:4px 10px';
+
+      // OPNA LFO FREQ (0〜7) 周波数テーブル表示付き
+      const LFO_FREQ_LABELS = ['3.98Hz','5.56Hz','6.02Hz','6.37Hz','6.88Hz','9.63Hz','48.1Hz','72.2Hz'];
+      const lfoParams = [
+        { key: 'freq',  label: 'FREQ',  min: 0, max: 7,   defVal: lfo.freq,  fmt: v => LFO_FREQ_LABELS[v] },
+        { key: 'pms',   label: 'PMS',   min: 0, max: 7,   defVal: lfo.pms,   fmt: v => v + (v===0?' (OFF)':' (VIBRATO)') },
+        { key: 'ams',   label: 'AMS',   min: 0, max: 3,   defVal: lfo.ams,   fmt: v => v + (v===0?' (OFF)':' (TREMOLO)') },
+        { key: 'delay', label: 'DELAY', min: 0, max: 128, defVal: lfo.delay, fmt: v => v===0?'OFF':'1/'+v+' note' },
+      ];
+
+      lfoParams.forEach(({ key, label, min, max, defVal, fmt }) => {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;flex-direction:column;gap:1px';
+
+        const topRow = document.createElement('div');
+        topRow.style.cssText = 'display:flex;align-items:center;gap:4px';
+
+        const lbl = document.createElement('span');
+        lbl.style.cssText = 'font-size:7px;color:#668;width:36px;flex-shrink:0';
+        lbl.textContent = label;
+
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = min; slider.max = max; slider.step = 1;
+        slider.value = defVal;
+        slider.style.cssText = 'flex:1;height:14px';
+
+        const vspan = document.createElement('span');
+        vspan.style.cssText = 'font-size:6px;color:#88c;min-width:60px';
+        vspan.textContent = fmt(defVal);
+
+        slider.oninput = () => {
+          const v = parseInt(slider.value);
+          lfo[key] = v;
+          vspan.textContent = fmt(v);
+          // MMLヒントを更新
+          lfoHint.textContent = `MML: M${chLetters[idx]}H ${lfo.delay},${lfo.freq},${lfo.pms},${lfo.ams}`;
+        };
+
+        topRow.appendChild(lbl);
+        topRow.appendChild(slider);
+        topRow.appendChild(vspan);
+        wrap.appendChild(topRow);
+        lfoBody.appendChild(wrap);
+      });
+
+      // SYNC トグル
+      const syncWrap = document.createElement('div');
+      syncWrap.style.cssText = 'display:flex;align-items:center;gap:6px;grid-column:1/-1;margin-top:2px';
+      const syncBtn = document.createElement('button');
+      syncBtn.className = 'btn' + (lfo.sync ? ' active' : '');
+      syncBtn.style.cssText = 'font-size:8px;padding:2px 8px';
+      syncBtn.textContent = lfo.sync ? 'KEY SYNC' : 'FREE RUN';
+      syncBtn.onclick = () => {
+        lfo.sync = !lfo.sync;
+        syncBtn.textContent = lfo.sync ? 'KEY SYNC' : 'FREE RUN';
+        syncBtn.classList.toggle('active', lfo.sync);
+      };
+      const syncLbl = document.createElement('span');
+      syncLbl.style.cssText = 'font-size:7px;color:#446';
+      syncLbl.textContent = 'LFO同期';
+      syncWrap.appendChild(syncBtn);
+      syncWrap.appendChild(syncLbl);
+      lfoBody.appendChild(syncWrap);
+
+      lfoSection.appendChild(lfoBody);
+      opsContainer.appendChild(lfoSection);
     }
     // =============================================
     // FM Tone Bank ヘルパー関数
@@ -3386,50 +3618,77 @@ G L16 %K R %S R %K %K %S R</textarea>
     function importMmlVoices() {
       const input = document.createElement('input');
       input.type = 'file';
-      input.accept = '.muc,.txt,.mml,text/plain';
+      input.accept = '.muc,.fmp,.txt,.mml,text/plain';
       input.onchange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (ev) => {
           const text = ev.target.result;
-          // コメント除去
+          // コメント除去（;行 と //行）
           const stripped = text.split('\n').map(l => {
-            const ci = l.indexOf(';'); return ci >= 0 ? l.slice(0, ci) : l;
+            let s = l;
+            const dci = s.indexOf('//'); if (dci >= 0) s = s.slice(0, dci);
+            const ci = s.indexOf(';'); return ci >= 0 ? s.slice(0, ci) : s;
           }).join('\n');
 
-          // @n{...} を全抽出
-          // MUCOM88書式: @n{ FB,AL, ar,dr,sr,rr,sl,tl,ks,ml,dt ×4 }
-          //             1番目=FB, 2番目=AL
-          // honodori書式: @n{ AL,FB, ... }
-          //             1番目=AL(algo), 2番目=FB
-          // → 両方対応: MUC読込と同じ順（algo,fb）として扱う
-          //   ただし MUCOM88オリジナルは FB,AL 順なので要注意
-          //   ここでは .muc/.mml 両対応のため、
-          //   パラメータ数が38以上の場合はMUCOM88書式(FB,AL)、
-          //   そうでない場合はhonodori書式(AL,FB)として解釈
+          let loaded = 0, skipped = 0;
+
+          // ─── FMP7形式 '@ FA / '@ F 複数行音色定義 ───────────────
+          {
+            const fmpLines = stripped.split('\n');
+            let fmpVoiceNo = -1, fmpFormat = '', fmpOpRows = [], fmpAlFb = null;
+            const fmpFlush = () => {
+              if (fmpVoiceNo < 0 || fmpOpRows.length < 4) return;
+              const nos = fmpAlFb ?? [0, 0];
+              const al = nos[0] ?? 0, fb = nos[1] ?? 0;
+              const ops = [];
+              for (let op = 0; op < 4; op++) {
+                const r = fmpOpRows[op] || [];
+                ops.push({
+                  ar: r[0]??31, dr: r[1]??0, sr: r[2]??0, rr: r[3]??7,
+                  sl: r[4]??0,  tl: r[5]??0, ks: r[6]??0, mul:r[7]??1,
+                  dt: r[8]??0,  am: fmpFormat==='FA' ? (r[9]??0) : 0
+                });
+              }
+              const slotIdx = fmpVoiceNo;
+              if (slotIdx >= 0 && slotIdx < 400) {
+                state.fmToneBank[slotIdx] = { algo: al, fb, ops, _name: `@${fmpVoiceNo}(FMP7)` };
+                loaded++;
+              }
+              fmpVoiceNo = -1; fmpOpRows = []; fmpAlFb = null; fmpFormat = '';
+            };
+            for (const line of fmpLines) {
+              const t = line.trim();
+              const headerM = t.match(/^'@\s*(FA|FC|F)\s+(\d+)/i);
+              if (headerM) {
+                fmpFlush();
+                fmpFormat = headerM[1].toUpperCase() === 'FA' ? 'FA' : 'F';
+                fmpVoiceNo = parseInt(headerM[2]);
+                fmpOpRows = []; fmpAlFb = null;
+                continue;
+              }
+              const dataM = t.match(/^'@\s*([\d\s,]+)$/);
+              if (dataM && fmpVoiceNo >= 0) {
+                const nums = dataM[1].split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+                if (fmpOpRows.length < 4) { fmpOpRows.push(nums); }
+                else if (!fmpAlFb) { fmpAlFb = [nums[0]??0, nums[1]??0]; fmpFlush(); }
+                continue;
+              }
+              if (fmpVoiceNo >= 0 && !t.startsWith("'@")) fmpFlush();
+            }
+            fmpFlush();
+          }
+
+          // ─── MUCOM88形式 @n{...} ───────────────────────────────
           const voiceDefRegex = /@(\d+)\s*\{([^}]+)\}/g;
           let vmatch;
-          let loaded = 0, skipped = 0;
           while ((vmatch = voiceDefRegex.exec(stripped)) !== null) {
             const voiceNum = parseInt(vmatch[1]);
             const nums = vmatch[2].split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
             if (nums.length < 2) { skipped++; continue; }
-
-            // スロット番号決定: @10〜 → slot0〜, @0〜@9 → slot0〜9
-            let slotIdx;
-            if (voiceNum >= 10) {
-              slotIdx = voiceNum - 10;
-            } else {
-              slotIdx = voiceNum;
-            }
+            let slotIdx = voiceNum >= 10 ? voiceNum - 10 : voiceNum;
             if (slotIdx < 0 || slotIdx >= 400) { skipped++; continue; }
-
-            // MUCOM88 MML書式: @n{ FB,AL, ar,dr,sr,rr,sl,tl,ks,ml,dt ×4 }
-            // → nums[0]=FB, nums[1]=AL
-            // honodori内部書式: nums[0]=algo(AL), nums[1]=fb(FB)
-            // ファイル拡張子等で判断が難しいため、
-            // MUCOM88 WikiのMMLリファレンスに従い FB,AL 順として解釈する
             const fb   = nums[0];
             const algo = nums[1];
             const ops  = [];
@@ -3448,9 +3707,10 @@ G L16 %K R %S R %K %K %S R</textarea>
             state.fmToneBank[slotIdx] = { algo, fb, ops, _name: `@${voiceNum}` };
             loaded++;
           }
+
           for (let i = 0; i < 6; i++) updateToneBankUI(i);
           if (loaded === 0 && skipped === 0) {
-            alert('@n{...} 音色定義が見つかりませんでした。\nMUCOM88 MML書式: @n{ FB,AL, AR,DR,SR,RR,SL,TL,KS,ML,DT ×4op }');
+            alert('音色定義が見つかりませんでした。\nMUCOM88: @n{ FB,AL, AR,DR,SR,RR,SL,TL,KS,ML,DT ×4op }\nFMP7: \'@ FA No → \'@ AR,DR,...×4op → \'@ AL,FB');
           } else {
             alert(`MML IMPORT完了: ${loaded}音色を読込みました${skipped ? `（${skipped}件スキップ）` : ''}`);
           }
@@ -3994,11 +4254,13 @@ G L16 %K R %S R %K %K %S R</textarea>
           state.ssgToneBank[si] = { ...JSON.parse(JSON.stringify(state.psgParams[psgIdx])), _name: `slot${si}` };
           state.ssgActiveTone[psgIdx] = si;
           for (let i=0;i<3;i++) updateSSGToneBankUI(i);
+          if (/^psg[1-3]$/.test(state.currentSeqTab)) renderSeq();
         }},
         stored ? { label:'📋 Copy', action:() => { ssgSlotClipboard = JSON.parse(JSON.stringify(state.ssgToneBank[si])); } } : null,
         ssgSlotClipboard ? { label:'📌 Paste', action:() => {
           state.ssgToneBank[si] = JSON.parse(JSON.stringify(ssgSlotClipboard));
           for (let i=0;i<3;i++) updateSSGToneBankUI(i);
+          if (/^psg[1-3]$/.test(state.currentSeqTab)) renderSeq();
         }} : null,
         stored ? { label:'🗑 Clear', action:() => {
           state.ssgToneBank[si] = null;
@@ -4006,6 +4268,7 @@ G L16 %K R %S R %K %K %S R</textarea>
             if (state.ssgActiveTone[i]===si) state.ssgActiveTone[i]=-1;
           }
           for (let i=0;i<3;i++) updateSSGToneBankUI(i);
+          if (/^psg[1-3]$/.test(state.currentSeqTab)) renderSeq();
         }} : null,
       ].filter(Boolean);
 
@@ -4152,7 +4415,8 @@ G L16 %K R %S R %K %K %S R</textarea>
           for (let i = 0; i < len; i++) {
             const btn = document.createElement('div');
             btn.className = 'step-btn' + (seq.drums[key][i] ? ' on' : '');
-            if (i > 0 && i % 8 === 0) btn.style.borderLeftColor = '#555';
+            if (i > 0 && i % 16 === 0) { btn.style.borderLeftColor = '#c33'; btn.style.borderLeftWidth = '2px'; }
+            else if (i > 0 && i % 4 === 0) btn.style.borderLeftColor = '#555';
             btn.onclick = () => { seq.drums[key][i] = !seq.drums[key][i]; btn.classList.toggle('on', seq.drums[key][i]); };
             row.appendChild(btn);
           }
@@ -4230,7 +4494,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         for (let i = 0; i < len; i++) {
           const sel = document.createElement('select');
           sel.className = 'pcm-slot-sel' + (ps.slot[i] != null ? ' has-slot' : '');
-          if (i > 0 && i % 8 === 0) sel.style.borderLeftColor = '#6a5020';
+          if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#6a5020';
           // "ACT"=アクティブスロット使用
           const defOpt = document.createElement('option');
           defOpt.value = ''; defOpt.textContent = 'ACT';
@@ -4278,7 +4542,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           inp.min = 2000; inp.max = 55500;
           inp.placeholder = pcmDefaultPlayFreq;
           inp.value = ps.freq[i] != null ? ps.freq[i] : '';
-          if (i > 0 && i % 8 === 0) inp.style.borderLeftColor = '#6a5020';
+          if (i > 0 && i % 16 === 0) { inp.style.borderLeftColor = '#c33'; inp.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) inp.style.borderLeftColor = '#6a5020';
           inp.id = `pcmFreqInp_${i}`;
           inp.oninput = (e) => {
             const v = e.target.value.trim();
@@ -4306,7 +4570,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           const sel = document.createElement('select');
           sel.className = 'note-select';
           sel.style.cssText = 'background:#120e06;border-color:#4a3818;color:#c4956a';
-          if (i > 0 && i % 8 === 0) sel.style.borderLeftColor = '#6a5020';
+          if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#6a5020';
           // null=デフォルト(100)
           const defOpt = document.createElement('option');
           defOpt.value = ''; defOpt.textContent = 'DEF';
@@ -4340,14 +4604,14 @@ G L16 %K R %S R %K %K %S R</textarea>
           btn.style.cssText = btn.className.includes(' on')
             ? 'background:#211608;border-color:#7a5528'
             : '';
-          if (i > 0 && i % 8 === 0) btn.style.borderLeftColor = '#6a5020';
+          if (i > 0 && i % 16 === 0) { btn.style.borderLeftColor = '#c33'; btn.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) btn.style.borderLeftColor = '#6a5020';
           btn.onclick = () => {
             ps.on[i] = !ps.on[i];
             btn.classList.toggle('on', ps.on[i]);
             btn.style.background = ps.on[i] ? '#211608' : '';
             btn.style.borderColor = ps.on[i] ? '#7a5528' : '';
             // 8区切りの左ボーダーを復元
-            if (i > 0 && i % 8 === 0) btn.style.borderLeftColor = '#6a5020';
+            if (i > 0 && i % 16 === 0) { btn.style.borderLeftColor = '#c33'; btn.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) btn.style.borderLeftColor = '#6a5020';
             // SLOT表示をON/OFFに連動して更新
             const slotSelRow = slotRow.querySelectorAll('select.pcm-slot-sel');
             if (ps.on[i]) {
@@ -4478,7 +4742,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           for (let i = 0; i < len; i++) {
             const sel = document.createElement('select');
             sel.className = 'note-select';
-            if (i > 0 && i % 8 === 0) sel.style.borderLeftColor = '#555';
+            if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#555';
             opts.forEach(opt => {
               const o = document.createElement('option');
               o.value = opt; o.textContent = fmt(opt);
@@ -4499,7 +4763,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           for (let i = 0; i < len; i++) {
             const btn = document.createElement('div');
             btn.className = 'step-btn' + (ch.on[i] ? ' on' : '');
-            if (i > 0 && i % 8 === 0) btn.style.borderLeftColor = '#555';
+            if (i > 0 && i % 16 === 0) { btn.style.borderLeftColor = '#c33'; btn.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) btn.style.borderLeftColor = '#555';
             btn.onclick = () => { ch.on[i] = !ch.on[i]; btn.classList.toggle('on', ch.on[i]); };
             onRow.appendChild(btn);
           }
@@ -4578,7 +4842,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           inp.min = 20; inp.max = 500;
           inp.placeholder = state.bpm; // グローバルBPMをプレースホルダーで表示
           inp.value = bank.bpmTrack[i] != null ? bank.bpmTrack[i] : '';
-          if (i > 0 && i % 8 === 0) inp.style.borderLeftColor = '#446';
+          if (i > 0 && i % 16 === 0) { inp.style.borderLeftColor = '#c33'; inp.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) inp.style.borderLeftColor = '#446';
           inp.id = `bpmStepInp_${i}`;
           inp.oninput = (e) => {
             const v = e.target.value.trim();
@@ -4614,7 +4878,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           const h = Math.round(4 + pct * 14); // 4px〜18px
           const bar = document.createElement('div');
           bar.style.cssText = `height:${h}px;background:${bank.bpmTrack[i] != null ? '#446' : '#2a2a3a'};border-radius:1px;align-self:flex-end;margin-top:auto`;
-          if (i > 0 && i % 8 === 0) bar.style.borderLeft = '1px solid #446';
+          if (i > 0 && i % 16 === 0) bar.style.borderLeft = '2px solid #c33'; else if (i > 0 && i % 4 === 0) bar.style.borderLeft = '1px solid #446';
           barRow.appendChild(bar);
         }
         content.appendChild(barRow);
@@ -4630,7 +4894,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         for (let i = 0; i < len; i++) {
           const sel = document.createElement('select');
           sel.className = 'note-select';
-          if (i > 0 && i % 8 === 0) sel.style.borderLeftColor = '#555';
+          if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#555';
           NOTES.forEach(n => {
             const opt = document.createElement('option');
             opt.value = n; opt.textContent = n;
@@ -4650,7 +4914,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         for (let i = 0; i < len; i++) {
           const sel = document.createElement('select');
           sel.className = 'note-select';
-          if (i > 0 && i % 8 === 0) sel.style.borderLeftColor = '#555';
+          if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#555';
           for (let v = 100; v >= 0; v -= 5) {
             const opt = document.createElement('option');
             opt.value = v; opt.textContent = v;
@@ -4670,7 +4934,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         for (let i = 0; i < len; i++) {
           const btn = document.createElement('div');
           btn.className = 'step-btn' + (chData.on[i] ? ' on' : '');
-          if (i > 0 && i % 8 === 0) btn.style.borderLeftColor = '#555';
+          if (i > 0 && i % 16 === 0) { btn.style.borderLeftColor = '#c33'; btn.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) btn.style.borderLeftColor = '#555';
           btn.onclick = () => { chData.on[i] = !chData.on[i]; btn.classList.toggle('on', chData.on[i]); };
           onRow.appendChild(btn);
         }
@@ -4689,7 +4953,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           const sameNote = prevNote && prevNote === chData.notes[i];
           btn.className = 'step-btn' + (isTie ? (sameNote ? ' tie' : ' tie-slur') : '');
           btn.title = isTie ? (sameNote ? 'タイ (同音継続)' : 'スラー (異音継続)') : '';
-          if (i > 0 && i % 8 === 0) btn.style.borderLeftColor = '#555';
+          if (i > 0 && i % 16 === 0) { btn.style.borderLeftColor = '#c33'; btn.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) btn.style.borderLeftColor = '#555';
           btn.onclick = () => {
             if (!chData.tie) chData.tie = Array(32).fill(false);
             chData.tie[i] = !chData.tie[i];
@@ -4715,7 +4979,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         for (let i = 0; i < len; i++) {
           const sel = document.createElement('select');
           sel.className = 'note-select';
-          if (i > 0 && i % 8 === 0) sel.style.borderLeftColor = '#555';
+          if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#555';
           panOpts.forEach(opt => {
             const o = document.createElement('option');
             o.value = opt; o.textContent = panFmt(opt);
@@ -4762,7 +5026,7 @@ G L16 %K R %S R %K %K %S R</textarea>
             const sel = document.createElement('select');
             sel.className = 'note-select' + (ft.on[i] ? ' tone-active' : '');
             sel.style.cssText = 'background:#0a0a18;border:1px solid #224;color:' + (ft.on[i] ? '#9af' : '#445') + ';font-size:7px';
-            if (i > 0 && i % 8 === 0) sel.style.borderLeftColor = '#446';
+            if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#446';
             // OFF選択肢
             const offOpt = document.createElement('option');
             offOpt.value = -1; offOpt.textContent = '---';
@@ -4788,6 +5052,61 @@ G L16 %K R %S R %K %K %S R</textarea>
             toneRow.appendChild(sel);
           }
           content.appendChild(toneRow);
+        }
+
+        // TONE row (PSG1〜PSG3のみ)
+        const psgTabIdx = { psg1: 0, psg2: 1, psg3: 2 }[tab];
+        if (psgTabIdx !== undefined) {
+          // psgTone配列が未初期化のバンクに対応
+          if (!seq.psgTone) {
+            seq.psgTone = Array(3).fill(null).map(() => ({
+              on: Array(32).fill(false), slot: Array(32).fill(-1)
+            }));
+          }
+          const pt = seq.psgTone[psgTabIdx];
+
+          // TONE スロット選択行（プルダウン）
+          const psgToneRow = document.createElement('div');
+          psgToneRow.className = gridClass + ' tone-seq-row';
+          const psgToneLbl = document.createElement('div');
+          psgToneLbl.className = 'seq-label';
+          psgToneLbl.style.cssText = 'font-size:7px;color:#68a';
+          psgToneLbl.textContent = 'TONE';
+          psgToneRow.appendChild(psgToneLbl);
+
+          for (let i = 0; i < len; i++) {
+            const sel = document.createElement('select');
+            const isActive = pt.on[i] && pt.slot[i] >= 0;
+            sel.className = 'note-select' + (isActive ? ' tone-active' : '');
+            sel.style.cssText = 'background:#0a0a18;border:1px solid #224;color:' + (isActive ? '#adf' : '#355') + ';font-size:7px';
+            if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#446';
+            // OFF選択肢
+            const offOpt = document.createElement('option');
+            offOpt.value = -1; offOpt.textContent = '---';
+            if (!isActive) offOpt.selected = true;
+            sel.appendChild(offOpt);
+            // SSGバンクスロット選択肢（保存済みのみ表示）
+            for (let si = 0; si < 50; si++) {
+              if (state.ssgToneBank[si] !== null) {
+                const o = document.createElement('option');
+                o.value = si;
+                const nm = state.ssgToneBank[si]._name ? state.ssgToneBank[si]._name.replace(/^@\d+\s*/,'').slice(0,5) : si;
+                o.textContent = si + ':' + nm;
+                if (pt.slot[i] === si) o.selected = true;
+                sel.appendChild(o);
+              }
+            }
+            sel.onchange = (e) => {
+              const v = parseInt(e.target.value);
+              pt.slot[i] = v;
+              pt.on[i] = v >= 0;
+              const act = pt.on[i] && v >= 0;
+              sel.className = 'note-select' + (act ? ' tone-active' : '');
+              sel.style.color = act ? '#adf' : '#355';
+            };
+            psgToneRow.appendChild(sel);
+          }
+          content.appendChild(psgToneRow);
         }
       }
     }
@@ -5378,6 +5697,12 @@ G L16 %K R %S R %K %K %S R</textarea>
           seq.fmTone[fmIdx].on.fill(false);
           seq.fmTone[fmIdx].slot.fill(-1);
         }
+        // PSG1〜3のTONE行もクリア
+        const psgIdx = { psg1: 0, psg2: 1, psg3: 2 }[tab];
+        if (psgIdx !== undefined && seq.psgTone && seq.psgTone[psgIdx]) {
+          seq.psgTone[psgIdx].on.fill(false);
+          seq.psgTone[psgIdx].slot.fill(-1);
+        }
       }
       renderSeq();
     };
@@ -5520,16 +5845,92 @@ G L16 %K R %S R %K %K %S R</textarea>
       // MML文字列を解析してイベント列 [{time, freq, vol, dur, ch, tie}] を返す
       // MUCOM88 MML前処理：コメント除去・#タグ除去・マクロ展開
       preprocess(text) {
-        // 1. 行コメント（;以降）を除去
+        // 1. 行コメント（;以降 および FMP7の//以降）を除去
         let lines = text.split('\n').map(l => {
-          const ci = l.indexOf(';');
-          return ci >= 0 ? l.slice(0, ci) : l;
+          // //コメント除去（FMP7形式）※文字列リテラル内を考慮しない簡易版
+          let s = l;
+          const dci = s.indexOf('//');
+          if (dci >= 0) s = s.slice(0, dci);
+          // ;コメント除去（MUCOM88形式）
+          const ci = s.indexOf(';');
+          return ci >= 0 ? s.slice(0, ci) : s;
         });
 
-        // 2. @n{...} 音色定義ブロックを抽出してTONE BANKへ登録
+        // 2a. FMP7形式 '@ FA/F/FC 音色定義（複数行形式）の解析
+        //  '@ FA No       → 音色番号宣言
+        //  '@ AR,DR,...   → OPパラメータ（4行）
+        //  '@ AL,FB       → アルゴリズム・FB
+        //  形式: OPNA(FA): AR,DR,SR,RR,SL,TL,KS,ML,DT,AM ×4op  + AL,FB
+        //  形式: 互換(F):  AR,DR,SR,RR,SL,TL,KS,ML,DT    ×4op  + AL,FB
+        {
+          let fmpVoiceNo = -1;
+          let fmpFormat = ''; // 'FA' or 'F'
+          let fmpOpRows = [];  // 各OPの数値配列
+          let fmpAlFb = null;
+          const fmpFlush = () => {
+            if (fmpVoiceNo < 0 || fmpOpRows.length < 4) return;
+            const nos = fmpAlFb ?? [0, 0];
+            const al = nos[0] ?? 0, fb = nos[1] ?? 0;
+            const ops = [];
+            for (let op = 0; op < 4; op++) {
+              const r = fmpOpRows[op] || [];
+              if (fmpFormat === 'FA') {
+                // FA: AR,DR,SR,RR,SL,TL,KS,ML,DT,AM
+                ops.push({
+                  ar: r[0]??31, dr: r[1]??0, sr: r[2]??0, rr: r[3]??7,
+                  sl: r[4]??0,  tl: r[5]??0, ks: r[6]??0, mul:r[7]??1,
+                  dt: r[8]??0,  am: r[9]??0
+                });
+              } else {
+                // F(互換): AR,DR,SR,RR,SL,TL,KS,ML,DT (AMなし=0)
+                ops.push({
+                  ar: r[0]??31, dr: r[1]??0, sr: r[2]??0, rr: r[3]??7,
+                  sl: r[4]??0,  tl: r[5]??0, ks: r[6]??0, mul:r[7]??1,
+                  dt: r[8]??0,  am: 0
+                });
+              }
+            }
+            const slotIdx = fmpVoiceNo; // FMP7音色番号はそのままスロット番号
+            if (slotIdx >= 0 && slotIdx < 400) {
+              state.fmToneBank[slotIdx] = { algo: al, fb, ops, _name: `@${fmpVoiceNo}(FMP7)` };
+              for (let i = 0; i < 6; i++) updateToneBankUI(i);
+            }
+            fmpVoiceNo = -1; fmpOpRows = []; fmpAlFb = null; fmpFormat = '';
+          };
+          for (const line of lines) {
+            const t = line.trim();
+            // '@ FA No  または  '@ FC No  または  '@ F No
+            const headerM = t.match(/^'@\s*(FA|FC|F)\s+(\d+)/i);
+            if (headerM) {
+              fmpFlush();
+              fmpFormat = headerM[1].toUpperCase() === 'FA' ? 'FA' : 'F';
+              fmpVoiceNo = parseInt(headerM[2]);
+              fmpOpRows = []; fmpAlFb = null;
+              continue;
+            }
+            // '@ 数値,数値,...  （OP行 or AL,FB行）
+            const dataM = t.match(/^'@\s*([\d\s,]+)$/);
+            if (dataM && fmpVoiceNo >= 0) {
+              const nums = dataM[1].split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+              if (fmpOpRows.length < 4) {
+                fmpOpRows.push(nums);
+              } else if (!fmpAlFb) {
+                // AL,FB行（最後の2つ）
+                fmpAlFb = [nums[0] ?? 0, nums[1] ?? 0];
+                fmpFlush();
+              }
+              continue;
+            }
+            // '@ 行でない場合はフラッシュ
+            if (fmpVoiceNo >= 0 && !t.startsWith("'@")) {
+              fmpFlush();
+            }
+          }
+          fmpFlush();
+        }
+
+        // 2b. MUCOM88形式 @n{...} 音色定義ブロックを抽出してTONE BANKへ登録
         //    フォーマット: @n{ algo,fb, ar,dr,sr,rr,sl,tl,ks,mul,dt (×4op) }
-        //    @10→slot0, @11→slot1 ... (@10〜@324 → slot0〜314)
-        //    SSG向け: @0〜@9 はSSGバンクとしても解釈（E/Pパラメータ形式は別途）
         const fullText = lines.join('\n');
         const voiceDefRegex = /@(\d+)\s*\{([^}]+)\}/g;
         let vmatch;
@@ -5558,12 +5959,16 @@ G L16 %K R %S R %K %K %S R</textarea>
           }
         }
 
-        // 3. @n{...}ブロック除去・#タグ行除去
+        // 3. @n{...}ブロック除去・#タグ行除去・'@音色定義行除去・'チャンネル宣言行除去
         const textNoVoice = fullText.replace(/@\d+\s*\{[^}]+\}/g, '');
         const macros = {};
         const cleaned = [];
         for (const line of textNoVoice.split('\n')) {
           const trimmed = line.trim();
+          // FMP7音色定義行 '@ ... はMMLとして解釈しない
+          if (trimmed.startsWith("'@")) continue;
+          // FMP7チャンネル宣言行 'A0 ... → play()側で処理済みなのでここでは除去
+          if (trimmed.startsWith("'") && trimmed.length > 1 && /^'[A-Za-z]/.test(trimmed)) continue;
           // マクロ定義: # *n{ ... } or #*n{...}
           const macroMatch = trimmed.match(/^#\s*\*(\d+)\s*\{([\s\S]*?)\}/);
           if (macroMatch) {
@@ -5586,7 +5991,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         return result;
       },
 
-      parse(text, tempo, defaultTimbre = 0, isSSGCh = false, ssgPsgIdx = 0) {
+      parse(text, tempo, defaultTimbre = 0, isSSGCh = false, ssgPsgIdx = 0, isFMP7 = false) {
         const events = [];
         let pos = 0;
         let oct = 4, defLen = 4, vel = 10, bpm = tempo || state.bpm;
@@ -5655,8 +6060,10 @@ G L16 %K R %S R %K %K %S R</textarea>
             continue;
           }
           // オクターブ上下
-          if (ch === '<') { oct = Math.max(1, oct - 1); pos++; continue; }
-          if (ch === '>') { oct = Math.min(8, oct + 1); pos++; continue; }
+          // MUCOM88: < = 下げ、> = 上げ
+          // FMP7:    < = 上げ、> = 下げ  ← 逆
+          if (ch === '<') { oct = isFMP7 ? Math.min(8, oct + 1) : Math.max(1, oct - 1); pos++; continue; }
+          if (ch === '>') { oct = isFMP7 ? Math.max(1, oct - 1) : Math.min(8, oct + 1); pos++; continue; }
           // デフォルト音長 L
           if (ch === 'L') {
             pos++;
@@ -5686,11 +6093,23 @@ G L16 %K R %S R %K %K %S R</textarea>
                   setTimeout(() => buildPSGPanels(), 0);
                 }
                 // @16以上はSSGチャンネルでは無視
+              } else if (isFMP7) {
+                // FMP7モード: @n → スロット番号nの音色を参照（'@ FA形式で登録済み）
+                // n=0〜9 は音源切替として扱う（@0=SUB/@1-6=FM/@7-9=PSG）
+                if (n <= 9) {
+                  timbre = Math.min(9, Math.max(0, n));
+                } else if (n < 400 && state.fmToneBank[n]) {
+                  // スロット番号nの音色を現チャンネルのFMに適用
+                  const fmIdx = Math.max(0, timbre - 1); // timbre=1→FM0, 2→FM1...
+                  state.fmParams[fmIdx] = JSON.parse(JSON.stringify(state.fmToneBank[n]));
+                  buildFMPanel(fmIdx);
+                  if (timbre < 1 || timbre > 6) timbre = 1;
+                }
               } else if (n <= 9) {
-                // 非SSGチャンネル: @0〜@9 → 音源切替
+                // 非SSGチャンネル MUCOM88: @0〜@9 → 音源切替
                 timbre = Math.min(9, Math.max(0, n));
               } else if (n <= 109) {
-                // @10〜@324 → TONE BANKスロット(n-10)の音色をFM1に適用してFM1で発音
+                // @10〜@109 → TONE BANKスロット(n-10)の音色をFM1に適用してFM1で発音
                 const slotIdx = n - 10;
                 if (slotIdx >= 0 && slotIdx < 400 && state.fmToneBank[slotIdx]) {
                   state.fmParams[0] = JSON.parse(JSON.stringify(state.fmToneBank[slotIdx]));
@@ -5704,14 +6123,42 @@ G L16 %K R %S R %K %K %S R</textarea>
           // タイ
           if (ch === '&') { tieNext = true; pos++; continue; }
 
-          // パン p（MUCOM88準拠: 0=発音なし 1=右 2=左 3=中央）
+          // パン P
+          // MUCOM88: 0=発音なし 1=右 2=左 3=中央
+          // FMP7絶対指定: 1〜255 (1=左 128=中央 255=右)
+          // FMP7方向指定: PL n=左 PR n=右 PC=中央
           if (ch === 'P') {
             pos++;
+            // FMP7の PL/PR/PC 形式チェック
+            if (isFMP7 && pos < s.length) {
+              if (s[pos] === 'L') {
+                pos++;
+                const n = readInt() ?? 127;
+                panVal = -Math.round(n / 127 * 100);
+                continue;
+              }
+              if (s[pos] === 'R') {
+                pos++;
+                const n = readInt() ?? 127;
+                panVal = Math.round(n / 127 * 100);
+                continue;
+              }
+              if (s[pos] === 'C') {
+                pos++;
+                panVal = 0;
+                continue;
+              }
+            }
             const n = readInt();
             if (n !== null) {
-              // MUCOM88: 0=発音なし, 1=右, 2=左, 3=中央
-              const panMap = { 0: null, 1: 100, 2: -100, 3: 0 };
-              panVal = (n in panMap) ? panMap[n] : 0;
+              if (isFMP7) {
+                // FMP7絶対指定: 1=左, 128=中央, 255=右 → -100〜100に変換
+                panVal = Math.round((n - 128) / 127 * 100);
+              } else {
+                // MUCOM88: 0=発音なし, 1=右, 2=左, 3=中央
+                const panMap = { 0: null, 1: 100, 2: -100, 3: 0 };
+                panVal = (n in panMap) ? panMap[n] : 0;
+              }
             }
             continue;
           }
@@ -5736,10 +6183,39 @@ G L16 %K R %S R %K %K %S R</textarea>
             if (n !== null) gate = Math.max(0.01, Math.min(1.0, n / 100));
             continue;
           }
-          // ポルタメント M,n1,n2,n3,n4,n5 → スキップ（MUCOM88: 5引数）
+          // LFO (OPNA MML): M{ch}H delay,freq,pms,ams[,sync]
+          // ch: P=FM1/A, Q=FM2/B, R=FM3/C, S=FM4/H (MUCOM88チャンネル対応)
+          // 書式: MAH8,3,6,0 → FM1チャンネルにLFO設定
           if (ch === 'M') {
             pos++;
-            readInts(5);
+            // 次文字がチャンネル識別子かチェック
+            const lfoChMap = { P: 0, Q: 1, R: 2, S: 3, T: 4, U: 5 };
+            // MUCOM88チャンネル文字 → FM index
+            const mucChMap = { A: 0, B: 1, C: 2, H: 3, I: 4, J: 5 };
+            let fmLfoIdx = -1;
+            if (pos < s.length) {
+              const nc = s[pos];
+              if (nc in lfoChMap) { fmLfoIdx = lfoChMap[nc]; pos++; }
+              else if (nc in mucChMap) { fmLfoIdx = mucChMap[nc]; pos++; }
+            }
+            // 次文字が 'H' なら消費
+            if (pos < s.length && s[pos] === 'H') pos++;
+            // delay,freq,pms,ams[,sync] を読む
+            const lfoVals = readInts(5);
+            if (fmLfoIdx >= 0 && fmLfoIdx < 6) {
+              const [ldelay, lfreq, lpms, lams, lsync] = lfoVals;
+              const lp = state.fmParams[fmLfoIdx].lfo ?? {};
+              state.fmParams[fmLfoIdx].lfo = {
+                enable: (lpms > 0 || lams > 0),
+                delay: Math.max(0, ldelay ?? 0),
+                freq: Math.max(0, Math.min(7, lfreq ?? 3)),
+                pms: Math.max(0, Math.min(7, lpms ?? 0)),
+                ams: Math.max(0, Math.min(3, lams ?? 0)),
+                sync: lsync === undefined ? true : lsync !== 0,
+              };
+              // UIを即時更新 (FMパネルが開いていれば再ビルド)
+              buildFMPanel(fmLfoIdx);
+            }
             continue;
           }
           // [SSG] Eコマンド: E AL,AR,DR,SL,SR,RR → SSGエンベロープをリアルタイム適用
@@ -6072,15 +6548,17 @@ G L16 %K R %S R %K %K %S R</textarea>
 
         const allEvents = [];
 
-        // mmlAll テキストエリアを行ごとにパース（MUCOM88形式）
+        // mmlAll テキストエリアを行ごとにパース（MUCOM88形式 / FMP7形式 両対応）
         const taAll = document.getElementById('mmlAll');
         if (taAll && taAll.value.trim()) {
           const lines = taAll.value.split('\n');
-          // MUCOM88準拠チャンネル構成:
-          // A=FM1(@1)  B=FM2(@2)  C=FM3(@3)
-          // D=SSG1/PSG1(@7)  E=SSG2/PSG2(@8)  F=SSG3/PSG3(@9)
-          // G=リズム(ドラム)  H=FM4(@4)  I=FM5(@5)  J=FM6(@6)
-          // K=ADPCM/PCM  ※SUBは@0コマンドで使用可
+          // チャンネル構成:
+          // MUCOM88: A B C D E F G H I J K  （行頭1文字）
+          // FMP7:    'A0 'B0 'C0 'D0 'E0 'F0 'G0 'H0 'I0 'J0 'K0
+          //          チャンネル文字と番号の対応:
+          //            A0=FM1, B0=FM2, C0=FM3, H0=FM4, I0=FM5, J0=FM6
+          //            D0=SSG1, E0=SSG2, F0=SSG3
+          //            G0=リズム, K0=PCM
           const TONE_CHANNELS = ['A','B','C','D','E','F','H','I','J'];
           const DRUM_CHANNELS = ['G'];
           const PCM_CHANNELS  = ['K'];
@@ -6090,16 +6568,47 @@ G L16 %K R %S R %K %K %S R</textarea>
           // SSGチャンネル→psgIdx対応
           const SSG_PSG_IDX = { D:0, E:1, F:2 };
           const ALL_CHANNELS = [...TONE_CHANNELS, ...DRUM_CHANNELS, ...PCM_CHANNELS];
+
+          // FMP7形式の検出: '文字で始まる行が1つ以上あれば FMP7モード
+          const isFMP7 = lines.some(l => /^'\s*[A-Ka-k]\d/.test(l.trim()));
+
           let currentCh = null;
           lines.forEach(line => {
             const trimmed = line.trimEnd();
-            if (!trimmed || trimmed.startsWith(';') || trimmed.startsWith('#') || trimmed.startsWith('|')) return;
-            const m = trimmed.match(/^([A-K])(?:\s+(.*))?$/);
-            if (m && ALL_CHANNELS.includes(m[1])) {
-              currentCh = m[1];
-              chMml[currentCh] += (m[2] ?? '') + ' ';
-            } else if (currentCh && ALL_CHANNELS.includes(currentCh)) {
-              chMml[currentCh] += trimmed + ' ';
+            // コメント行スキップ（;、// 、#、| ）
+            if (!trimmed) return;
+            const stripped = trimmed.replace(/\/\/.*$/, '').replace(/;.*$/, '').trimEnd();
+            if (!stripped) return;
+            if (stripped.trim().startsWith('#') || stripped.trim().startsWith('|')) return;
+
+            if (isFMP7) {
+              // ─── FMP7形式 ───────────────────────────────
+              // 音色定義行 '@ ... はスキップ
+              if (stripped.trim().startsWith("'@")) return;
+              // チャンネル宣言行: 'A0 MML... / 'A0B0 MML... / 'A012 MML...
+              const fmpChM = stripped.trim().match(/^'([A-Ka-k])(\d*)(.*)?$/i);
+              if (fmpChM) {
+                const chLetter = fmpChM[1].toUpperCase();
+                if (ALL_CHANNELS.includes(chLetter)) {
+                  currentCh = chLetter;
+                  const rest = (fmpChM[3] ?? '').trim();
+                  if (rest) chMml[currentCh] += rest + ' ';
+                }
+                return;
+              }
+              // 継続行（直前のchannelに追記）
+              if (currentCh) {
+                chMml[currentCh] += stripped.trim() + ' ';
+              }
+            } else {
+              // ─── MUCOM88形式 ─────────────────────────────
+              const m = stripped.trim().match(/^([A-K])(?:\s+(.*))?$/);
+              if (m && ALL_CHANNELS.includes(m[1])) {
+                currentCh = m[1];
+                chMml[currentCh] += (m[2] ?? '') + ' ';
+              } else if (currentCh && ALL_CHANNELS.includes(currentCh)) {
+                chMml[currentCh] += stripped.trim() + ' ';
+              }
             }
           });
           // 音程チャンネル (A〜F, H〜J)
@@ -6109,7 +6618,7 @@ G L16 %K R %S R %K %K %S R</textarea>
             const defaultTimbre = CH_TIMBRE[chName];
             const isSSG = chName in SSG_PSG_IDX;
             const ssgIdx = SSG_PSG_IDX[chName] ?? 0;
-            const { events } = this.parse(mmlStr, state.bpm, defaultTimbre, isSSG, ssgIdx);
+            const { events } = this.parse(mmlStr, state.bpm, defaultTimbre, isSSG, ssgIdx, isFMP7);
             events.forEach(ev => allEvents.push({ ...ev, mmlCh: chName }));
           });
           // G: リズム（ドラム）チャンネル
@@ -6260,36 +6769,41 @@ G L16 %K R %S R %K %K %S R</textarea>
       const text = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
       const lines = text.split('\n');
 
+      // FMP7形式の検出: '文字で始まる行が存在する
+      const isFMP7format = lines.some(l => /^'\s*[A-Ka-k@]/.test(l.trim()));
+
+      if (isFMP7format) {
+        // FMP7形式: 設定チャンネル(#...)をコメントアウト、それ以外はそのまま
+        const FMP7_SKIP_HEADERS = ['#clock', '#part', '#title', '#comment', '#include', '#pcm'];
+        const result = lines.map(line => {
+          const trimmed = line.trim();
+          if (!trimmed) return line;
+          if (trimmed.startsWith('#')) {
+            const lower = trimmed.toLowerCase();
+            if (FMP7_SKIP_HEADERS.some(kw => lower.startsWith(kw))) {
+              return '// [FMP7設定] ' + line.trimStart();
+            }
+            return line;
+          }
+          return line;
+        });
+        return result.join('\n');
+      }
+
       // honodori_synth が対応しているコマンド集合
       // 音符 C D E F G A B R、< > O L T V @ & K Q C M D P W [ ] / ( ) は対応済み
-      // 未対応: #voice（外部音色ファイル参照）、#pcm_table 等の外部参照ヘッダー
-      // MML中の未対応コマンド: なし（主要コマンドは全実装）
-      // ただし意味的に無視される（honodoriでは音色定義なし）: @{...}音色定義ブロック（FM音色、sampl3.mucには登場しない）
-      // → #voice, #pcm_table 行はコメントアウト対象
-
-      // 未対応として扱う #ヘッダーキーワード（外部ファイル参照系）
       const UNSUPPORTED_HEADERS = ['#voice', '#pcm_table', '#pcm', '#include'];
 
       const result = lines.map(line => {
         const trimmed = line.trim();
-
-        // 空行はそのまま
         if (!trimmed) return line;
-
-        // #ヘッダー行の処理
         if (trimmed.startsWith('#')) {
           const lower = trimmed.toLowerCase();
-          // 未対応ヘッダー（外部ファイル参照等）→ コメントアウト
           if (UNSUPPORTED_HEADERS.some(kw => lower.startsWith(kw))) {
             return '; [未対応] ' + line.trimStart();
           }
-          // 対応ヘッダー (#mucom88, #title, #composer, #author, #date, #comment) → そのまま
           return line;
         }
-
-        // MMLチャンネル行・継続行の処理
-        // 行頭がチャンネル識別子 (A〜K) またはスペースの場合
-        // → コマンドレベルでは全対応済みのためそのまま通す
         return line;
       });
 
@@ -6306,8 +6820,11 @@ G L16 %K R %S R %K %K %S R</textarea>
         // ファイル名表示
         document.getElementById('mucFileName').textContent = file.name;
         document.getElementById('mucFileName').title = file.name;
+        // FMP7 / MUCOM88 判別
+        const isFMP7loaded = processed.split('\n').some(l => /^'\s*[A-Ka-k]\d/.test(l.trim()));
+        const fmt = isFMP7loaded ? '[FMP7]' : '[MUCOM88]';
         // ステータス更新
-        document.getElementById('mmlStatus').textContent = '✓ ' + file.name + ' 読込完了';
+        document.getElementById('mmlStatus').textContent = `✓ ${fmt} ${file.name} 読込完了`;
         setTimeout(() => {
           if (document.getElementById('mmlStatus').textContent.startsWith('✓'))
             document.getElementById('mmlStatus').textContent = '';
@@ -6377,6 +6894,9 @@ G L16 %K R %S R %K %K %S R</textarea>
               : undefined,
             fmTone: b.seqData.fmTone
               ? b.seqData.fmTone.map(ft => ft ? { on: ft.on.slice(), slot: ft.slot.slice() } : null)
+              : undefined,
+            psgTone: b.seqData.psgTone
+              ? b.seqData.psgTone.map(pt => pt ? { on: pt.on.slice(), slot: pt.slot.slice() } : null)
               : undefined,
           }
         })),
@@ -6502,6 +7022,14 @@ G L16 %K R %S R %K %K %S R</textarea>
             );
           } else {
             sd.fmTone = Array(6).fill(null).map(() => ({ on: Array(32).fill(false), slot: Array(32).fill(-1) }));
+          }
+          if (b.seqData && b.seqData.psgTone) {
+            sd.psgTone = b.seqData.psgTone.map(pt => pt
+              ? { on: _pad(pt.on ?? [], 32, false), slot: _pad(pt.slot ?? [], 32, -1) }
+              : { on: Array(32).fill(false), slot: Array(32).fill(-1) }
+            );
+          } else {
+            sd.psgTone = Array(3).fill(null).map(() => ({ on: Array(32).fill(false), slot: Array(32).fill(-1) }));
           }
         });
       }
