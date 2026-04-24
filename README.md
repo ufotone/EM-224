@@ -4,7 +4,6 @@ It features an FM sound source and PCM section inspired by the YM2608 (OPNA),
 an AY-x-xxxx style PSG sound source (expanded), a calculated drum sound source,
 a groovebox-like step sequencer similar to the TR recording method,
 and also allows sequencing using the MML scripting.
-MML(MUCOM88 ,FMP7).
 
 ![screenshot](./images/screenshot.png)
 
@@ -24,7 +23,7 @@ It is designed for chiptune creators, sound designers, and anyone exploring retr
 
 ### 🔊 Hybrid Sound Architecture
 - **SUB** — subtractive synthesis (SINE / SQUARE / SAW / TRIANGLE, ADSR, LPF/HPF)
-- **FM** — 4‑operator engine with 8 algorithms  
+- **FM** — 4‑operator engine with 8 algorithms(YM2608)  
   - Operator parameters: AR / DR / SR / RR / SL / TL / KS / MUL / DT  
   - Feedback, tone bank support
 - **PSG** — AY‑style extended PSG  
@@ -54,7 +53,7 @@ It is designed for chiptune creators, sound designers, and anyone exploring retr
 ### **MML Mode**
 - Supports note input (CDEFGAB), rests (R), note length, octave, tempo, velocity  
 - PAN, TIE, tone selection  
-- Partially MUCOM88‑compatible syntax  
+- Partially MUCOM88 and FMP7 compatible syntax
 - Executes independently from PATTERN/SONG modes
 
 ---
