@@ -55,6 +55,9 @@ It is designed for chiptune creators, sound designers, and anyone exploring retr
 - PAN, TIE, tone selection  
 - Partially MUCOM88 and FMP7 compatible syntax
 - Executes independently from PATTERN/SONG modes
+- Regarding the MML section, I referred to the description methods found in the publicly available
+- documentation for MUCOM88 and FMP7 (http://fmpdoc.fmp.jp/),
+- but I was not able to reproduce all of them.
 
 ---
 
@@ -103,6 +106,10 @@ No build step required.
 
 ---
 ## 📜 License
+Important point: MUCOM88 is based on data under CC BY-NC-SA 4.0.
+and the license information found at https://github.com/onitama/mucom88.
+This hongodori(EM-224) does not include those codes, 
+but the specifications and other details are based on publicly available documentation.
 
 This project is released under the CC0 1.0 Universal (Public Domain Dedication).
 To the extent possible under law, 
