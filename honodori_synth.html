@@ -3128,7 +3128,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       presetBtn.className = 'btn';
       presetBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#863;color:#ca8;margin-left:4px';
       presetBtn.textContent = 'N88 PRESET';
-      presetBtn.title = 'MUCOM88/N88 BASIC内蔵音色をスロット0〜27にロード';
+      presetBtn.title = 'N88 BASIC内蔵風音色をスロット0〜27にロード';
       presetBtn.onclick = () => {
         if (!confirm('N88内蔵音色をスロット0〜27にロードします。既存データは上書きされます。よろしいですか？')) return;
         loadN88Presets();
@@ -3986,7 +3986,7 @@ G L16 %K R %S R %K %K %S R</textarea>
 
 
     // =============================================
-    // N88 BASIC / MUCOM88 内蔵音色プリセット
+    // N88 BASIC 内蔵風音色プリセット
     // OPN(YM2203)互換パラメータ
     // 参考: http://radioc.web.fc2.com/column/pc98bas/n88func/play.htm
     // =============================================
@@ -4174,7 +4174,7 @@ G L16 %K R %S R %K %K %S R</textarea>
     }
 
     // =============================================
-    // MUCOM88準拠 SSG音色プリセット (@0〜@15)
+    // SSG音色プリセット (@0〜@15)
     // E: AL(初期音量0-127), AR(0-255), DR(0-255), SL(0-255), SR(0-255), RR(0-255)
     // P: 1=tone 2=noise 3=tone+noise
     // M: lfoDelay, lfoClk, lfoAmp, lfoAmount
