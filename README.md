@@ -1,5 +1,9 @@
 # EM-224 ( honodori )
 A browser‑based hybrid synthesizer and sequencer integrating FM, PSG, subtractive, and drum/PCM engines.
+It features an FM sound source and PCM section inspired by the YM2608 (OPNA),
+an AY-x-xxxx style PSG sound source (expanded), a calculated drum sound source,
+a groovebox-like step sequencer similar to the TR recording method,
+and also allows sequencing using the MML language.
 
 ![screenshot](./images/screenshot.png)
 
