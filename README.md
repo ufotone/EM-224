@@ -4,6 +4,7 @@ It features an FM sound source and PCM section inspired by the YM2608 (OPNA),
 an AY-x-xxxx style PSG sound source (expanded), a calculated drum sound source,
 a groovebox-like step sequencer similar to the TR recording method,
 and also allows sequencing using the MML scripting.
+(This contains Japanese text. Please translate it before porting it)
 
 ![screenshot](./images/screenshot.png)
 
