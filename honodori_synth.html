@@ -86,6 +86,11 @@
       margin-bottom: 6px
     }
 
+    /* MMLモード時: seqPanelのヘッダー行とseqTabBarを非表示 */
+    #seqPanel.mml-mode > .seq-header-row { display: none !important; }
+    #seqPanel.mml-mode #seqTabBar { display: none; }
+    #seqPanel.mml-mode #stepIndicator { display: none; }
+
     .tab {
       background: #111;
       border: 1px solid #333;
@@ -1219,6 +1224,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       <div class="tab" data-tab="psg2">PS2</div>
       <div class="tab" data-tab="psg3">PS3</div>
       <div class="tab" data-tab="fx">FX</div>
+      <div class="tab" data-tab="pcmseq" style="border-color:#553a1a;color:#a8824a">PCM</div>
     </div>
 
     <!-- Subtractive panel -->
@@ -1467,7 +1473,7 @@ G L16 %K R %S R %K %K %S R</textarea>
     <div class="panel" id="seqPanel">
       <!-- hidden legacy file input (kept for compat) -->
       <input type="file" id="loadPcmInput" accept=".wav,.wave,audio/*" style="display:none">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+      <div class="seq-header-row" style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
         <div class="small-title" style="margin-bottom:0">STEP SEQUENCER</div>
         <div style="display:flex;gap:2px">
           <button class="btn active" id="stepLen16">16</button>
@@ -2793,6 +2799,11 @@ G L16 %K R %S R %K %K %S R</textarea>
       songPanel.style.display = m === 'song' ? '' : 'none';
       mmlPanel.style.display = m === 'mml' ? '' : 'none';
       seqPanel.style.display = m === 'mml' ? 'none' : '';
+      seqPanel.classList.remove('mml-mode');
+      if (m === 'mml') {
+        // MMLモード時はFM1タブを初期選択して音源エディタを表示
+        activateSynthTab('fm1');
+      }
       document.getElementById('modePattern').classList.toggle('active', m === 'pattern');
       document.getElementById('modeSong').classList.toggle('active', m === 'song');
       document.getElementById('modeMML').classList.toggle('active', m === 'mml');
@@ -3636,20 +3647,29 @@ G L16 %K R %S R %K %K %S R</textarea>
     }
 
     // =============================================
-    // voice.dat LOAD（案1: バイナリ読込）
-    // MUCOM88 voice.dat は1音色26バイト固定長のバイナリ。
-    // byte0: FB(上位3bit) | AL(下位3bit)
-    // byte1-9:  OP1(AR,DR,SR,RR,SL,TL,KS,MUL,DT)
-    // byte10-18: OP3（YM2608物理順: OP1/OP3/OP2/OP4）
-    // byte19-27: OP2
-    // byte28-36: OP4
-    // honodoriのops[0..3]は論理順(OP1/OP2/OP3/OP4)なので
-    // 物理OP3→logical ops[1], 物理OP2→logical ops[2] に変換する。
+    // voice.dat LOAD
+    // MUCOM88 voice.dat: 1音色32バイト固定長バイナリ
+    // [0]=0xFF マーカー
+    // [1-4]  = DT/ML  × 4op (レジスタ順: OP1/OP3/OP2/OP4)
+    // [5-8]  = TL     × 4op
+    // [9-12] = KS/AR  × 4op
+    // [13-16]= AM/DR  × 4op
+    // [17-20]= SR     × 4op
+    // [21-24]= SL/RR  × 4op
+    // [25]   = ALG | (FB << 3)
+    // [26-31]= 名前(ASCII 6バイト)
+    //
+    // YM2608レジスタ物理順: OP1(ch0), OP3(ch2), OP2(ch1), OP4(ch3)
+    // → 論理順 ops[0]=OP1, ops[1]=OP2, ops[2]=OP3, ops[3]=OP4 へ変換:
+    //   物理p=0 → 論理op=0(OP1)
+    //   物理p=1 → 論理op=2(OP3)
+    //   物理p=2 → 論理op=1(OP2)
+    //   物理p=3 → 論理op=3(OP4)
     // =============================================
     function loadVoiceDat() {
       const input = document.createElement('input');
       input.type = 'file';
-      input.accept = '.dat,.bin,application/octet-stream';
+      input.accept = '.dat';
       input.onchange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -3657,42 +3677,69 @@ G L16 %K R %S R %K %K %S R</textarea>
         reader.onload = (ev) => {
           const ab = ev.target.result;
           const u8 = new Uint8Array(ab);
-          const VOICE_SIZE = 26;
-          const count = Math.floor(u8.length / VOICE_SIZE);
-          if (count === 0) { alert('有効な音色データが見つかりませんでした。'); return; }
-          // スロット0から上書き確認
-          const startSlot = 0;
-          if (!confirm(`voice.dat から ${count} 音色をスロット${startSlot}〜${startSlot + count - 1}に読込みます。既存データは上書きされます。よろしいですか？`)) return;
 
-          // YM2608物理OP順→論理OP順マッピング
-          // 物理: OP1(idx0), OP3(idx1), OP2(idx2), OP4(idx3)
-          // 論理: ops[0]=OP1, ops[1]=OP2, ops[2]=OP3, ops[3]=OP4
-          // → 物理idx1(OP3)→logical[2], 物理idx2(OP2)→logical[1]
-          const PHYS_TO_LOGICAL = [0, 2, 1, 3]; // phys[p] → logical[PHYS_TO_LOGICAL[p]]
+          const ENTRY_SIZE = 32;
+          const totalEntries = Math.floor(u8.length / ENTRY_SIZE);
+
+          // 有効エントリ(0xFFマーカー＋AR>0)を収集
+          const valid = [];
+          for (let i = 0; i < totalEntries; i++) {
+            const base = i * ENTRY_SIZE;
+            if (u8[base] !== 0xFF) continue;
+            const allZero = [9,10,11,12].every(o => (u8[base+o] & 0x1F) === 0);
+            if (allZero) continue;
+            valid.push({ base, slotHint: i });
+          }
+
+          if (valid.length === 0) { alert('有効な音色データが見つかりませんでした。'); return; }
+          if (!confirm(`MUCOM88 voice.dat から ${valid.length} 音色をスロット0〜${valid.length-1}に読込みます。よろしいですか？`)) return;
+
+          // 物理OP順→論理OP順の変換テーブル
+          // 物理p(0-3) に対して、論理ops配列のインデックス
+          const PHYS_TO_LOGICAL = [0, 2, 1, 3]; // OP1→0, OP3→2, OP2→1, OP4→3
 
           let loaded = 0;
-          for (let v = 0; v < count; v++) {
-            const base = v * VOICE_SIZE;
-            const fbAl = u8[base];
-            const fb   = (fbAl >> 3) & 0x07;
-            const algo = fbAl & 0x07;
-            const ops  = [null, null, null, null];
+          valid.forEach((entry, slotIdx) => {
+            if (slotIdx >= state.fmToneBank.length) return;
+            const { base } = entry;
+            // 先にops配列を論理順で確保
+            const ops = [null, null, null, null];
             for (let p = 0; p < 4; p++) {
-              const o = base + 1 + p * 9; // 各OP先頭バイト
-              const logIdx = PHYS_TO_LOGICAL[p];
-              ops[logIdx] = {
-                ar:  u8[o],   dr:  u8[o+1], sr:  u8[o+2],
-                rr:  u8[o+3], sl:  u8[o+4], tl:  u8[o+5],
-                ks:  u8[o+6], mul: u8[o+7], dt:  u8[o+8],
+              const logicalIdx = PHYS_TO_LOGICAL[p];
+              const dtMl = u8[base + 1 + p];
+              const tl   = u8[base + 5 + p] & 0x7F;
+              const ksAr = u8[base + 9 + p];
+              const amDr = u8[base + 13 + p];
+              const sr   = u8[base + 17 + p] & 0x1F;
+              const slRr = u8[base + 21 + p];
+              ops[logicalIdx] = {
+                dt:  (dtMl >> 4) & 0x07,
+                mul: dtMl & 0x0F,
+                tl,
+                ks:  (ksAr >> 6) & 0x03,
+                ar:  ksAr & 0x1F,
+                dr:  amDr & 0x1F,
+                sr,
+                sl:  (slRr >> 4) & 0x0F,
+                rr:  slRr & 0x0F,
               };
             }
-            const slotIdx = startSlot + v;
-            if (slotIdx >= state.fmToneBank.length) break;
-            state.fmToneBank[slotIdx] = { algo, fb, ops, _name: `dat@${v}` };
+            const algFb = u8[base + 25];
+            const algo  = algFb & 0x07;
+            const fb    = (algFb >> 3) & 0x07;
+            // 名前: ASCII 6バイト
+            let name = '';
+            for (let n = 26; n < 32; n++) {
+              const c = u8[base + n];
+              if (c >= 32 && c < 127) name += String.fromCharCode(c);
+            }
+            name = name.trim() || `v${slotIdx}`;
+            state.fmToneBank[slotIdx] = { algo, fb, ops, _name: name };
             loaded++;
-          }
+          });
+
           for (let i = 0; i < 6; i++) updateToneBankUI(i);
-          alert(`DAT LOAD完了: ${loaded}音色をスロット${startSlot}〜${startSlot + loaded - 1}に読込みました。`);
+          alert(`voice.dat: ${loaded}音色を読込みました。`);
         };
         reader.readAsArrayBuffer(file);
       };
@@ -3805,7 +3852,6 @@ G L16 %K R %S R %K %K %S R</textarea>
           if (loaded === 0 && skipped === 0) {
             alert('音色定義が見つかりませんでした。\nMUCOM88: @n{ FB,AL, AR,DR,SR,RR,SL,TL,KS,ML,DT ×4op }\nFMP7: \'@ FA No → \'@ AR,DR,...×4op → \'@ AL,FB');
           } else {
-            alert(`MML IMPORT完了: ${loaded}音色を読込みました${skipped ? `（${skipped}件スキップ）` : ''}`);
           }
         };
         reader.readAsText(file, 'UTF-8');
@@ -3865,7 +3911,7 @@ G L16 %K R %S R %K %K %S R</textarea>
     function loadFmToneBank() {
       const input = document.createElement('input');
       input.type = 'file';
-      input.accept = '.json,application/json';
+      input.accept = '.json';
       input.onchange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -3886,7 +3932,6 @@ G L16 %K R %S R %K %K %S R</textarea>
               }
               for (let i = 0; i < 6; i++) updateToneBankUI(i);
             }
-            alert(`FM TONEBANK LOAD完了: ${fmLoaded}音色`);
           } catch (err) {
             alert('ファイルの読み込みに失敗しました: ' + err.message);
           }
@@ -3902,7 +3947,7 @@ G L16 %K R %S R %K %K %S R</textarea>
     function loadPsgToneBank() {
       const input = document.createElement('input');
       input.type = 'file';
-      input.accept = '.json,application/json';
+      input.accept = '.json';
       input.onchange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -3923,7 +3968,6 @@ G L16 %K R %S R %K %K %S R</textarea>
               }
               for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
             }
-            alert(`PSG TONEBANK LOAD完了: ${ssgLoaded}音色`);
           } catch (err) {
             alert('ファイルの読み込みに失敗しました: ' + err.message);
           }
@@ -4662,7 +4706,6 @@ G L16 %K R %S R %K %K %S R</textarea>
             if (!data || data._app !== 'honodori' || data._type !== 'subToneBank') { alert('SUBトーンバンクファイルではありません'); return; }
             data.slots.forEach((s, i) => { if (i < 50) state.subToneBank[i] = s; });
             updateSubToneBankUI();
-            alert('SUB TONE BANK読込完了');
           } catch(err) { alert('読込エラー: ' + err.message); }
         });
       };
@@ -4761,8 +4804,10 @@ G L16 %K R %S R %K %K %S R</textarea>
       document.querySelectorAll('#tabBar .tab').forEach(t => t.classList.remove('active'));
       const target = document.querySelector(`#tabBar .tab[data-tab="${tabId}"]`);
       if (target) target.classList.add('active');
+      // DRM/PCMタブは音源パネルを持たないので既存パネルはすべて非表示
+      const isSynthTab = !['drums', 'pcmseq'].includes(tabId);
       ['subtractive', 'fm1', 'fm2', 'fm3', 'fm4', 'fm5', 'fm6', 'psg1', 'psg2', 'psg3', 'fx'].forEach(id => {
-        document.getElementById('tab-' + id).style.display = tabId === id ? '' : 'none';
+        document.getElementById('tab-' + id).style.display = (isSynthTab && tabId === id) ? '' : 'none';
       });
     }
 
@@ -4787,6 +4832,20 @@ G L16 %K R %S R %K %K %S R</textarea>
           activateSeqTab('fxseq');
         } else if (/^psg[1-3]$/.test(tabId)) {
           activateSeqTab(tabId);
+        } else if (tabId === 'pcmseq') {
+          activateSeqTab('pcmseq');
+          // MMLモード時はseqPanelを表示してPCMコンテンツを出す
+          if (state.mode === 'mml') {
+            const sp = document.getElementById('seqPanel');
+            sp.style.display = '';
+            sp.classList.add('mml-mode');
+          }
+        }
+        // MMLモード時にPCM以外のタブを選んだらseqPanelを再び隠す
+        if (state.mode === 'mml' && tabId !== 'pcmseq') {
+          const sp = document.getElementById('seqPanel');
+          sp.style.display = 'none';
+          sp.classList.remove('mml-mode');
         }
       };
     });
@@ -4803,6 +4862,8 @@ G L16 %K R %S R %K %K %S R</textarea>
           activateSynthTab('fx');
         } else if (/^psg[1-3]$/.test(stabId)) {
           activateSynthTab(stabId);
+        } else if (stabId === 'pcmseq') {
+          activateSynthTab('pcmseq');
         }
       };
     });
@@ -4899,7 +4960,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         if (!seq.pcmSeq.slot) seq.pcmSeq.slot = Array(32).fill(null);
         const ps = seq.pcmSeq;
 
-        // ---- PCM TONE BANK パネル（タブ内に格納） ----
+        // ---- PCM TONE BANK パネル ----
         const bankPanel = document.createElement('div');
         bankPanel.className = 'pcm-bank-panel';
         bankPanel.innerHTML = `
@@ -4929,6 +4990,15 @@ G L16 %K R %S R %K %K %S R</textarea>
           pcmLoadBtn.onclick = () => loadPcmToneBank();
           pcmBankHdr.appendChild(pcmLoadBtn);
 
+          // MUCOM BIN ボタン
+          const pcmMucomBtn = document.createElement('button');
+          pcmMucomBtn.className = 'btn';
+          pcmMucomBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#2a6a8a;color:#5ac0e8;margin-left:4px';
+          pcmMucomBtn.textContent = 'MUCOM BIN';
+          pcmMucomBtn.title = 'MUCOM88 PCMバイナリ(.bin)を読み込む';
+          pcmMucomBtn.onclick = () => openMucomPcmBinDialog(-1);
+          pcmBankHdr.appendChild(pcmMucomBtn);
+
           // ALLCLR ボタン（PCM TONE BANK 全消去）
           const pcmAllClrBtn = document.createElement('button');
           pcmAllClrBtn.className = 'btn';
@@ -4947,6 +5017,12 @@ G L16 %K R %S R %K %K %S R</textarea>
         // スロットUIを描画（DOM挿入後に実行）
         renderPcmToneBank();
 
+        // ---- PCM シーケンサー部分（MMLモード時は非表示）----
+        const seqSection = document.createElement('div');
+        seqSection.id = 'pcmSeqSection';
+        if (state.mode === 'mml') seqSection.style.display = 'none';
+        content.appendChild(seqSection);
+
         // ヘッダー情報
         const desc = document.createElement('div');
         desc.style.cssText = 'font-size:8px;color:#6a5530;margin-bottom:5px;margin-top:6px;padding:2px 4px;border-left:2px solid #6a5020';
@@ -4956,7 +5032,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         desc.innerHTML = 'PCM再生シーケンサー。'
           + 'SLOT=<span style="color:#d4a060">TONEBANKスロット（空欄=アクティブ: ' + actSlotLabel + '）</span>　'
           + 'FREQ空欄=<span style="color:#d4a060">元WAVと同ピッチ</span>';
-        content.appendChild(desc);
+        seqSection.appendChild(desc);
 
         // ---- SLOT行（PCM TONE BANKスロット選択） ----
         const slotRow = document.createElement('div');
@@ -4992,9 +5068,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           };
           slotRow.appendChild(sel);
         }
-        content.appendChild(slotRow);
-
-        // FREQ行（再生周波数）
+        seqSection.appendChild(slotRow);
         const freqRow = document.createElement('div');
         freqRow.className = gridClass;
         const flbl = document.createElement('div');
@@ -5031,7 +5105,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           };
           freqRow.appendChild(inp);
         }
-        content.appendChild(freqRow);
+        seqSection.appendChild(freqRow);
 
         // VOL行
         const volRow = document.createElement('div');
@@ -5063,7 +5137,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           };
           volRow.appendChild(sel);
         }
-        content.appendChild(volRow);
+        seqSection.appendChild(volRow);
 
         // ON行
         const onRow = document.createElement('div');
@@ -5109,7 +5183,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           };
           onRow.appendChild(btn);
         }
-        content.appendChild(onRow);
+        seqSection.appendChild(onRow);
 
         // ツールボタン行
         const toolRow = document.createElement('div');
@@ -5185,7 +5259,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         toolRow.appendChild(clrFreqBtn);
         toolRow.appendChild(clrSlotBtn);
         toolRow.appendChild(notePresetSel);
-        content.appendChild(toolRow);
+        seqSection.appendChild(toolRow);
 
       } else if (tab === 'fxseq') {
         // FXパラメーターの定義
@@ -5799,6 +5873,261 @@ G L16 %K R %S R %K %K %S R</textarea>
       return u8.buffer;
     }
 
+    // =============================================
+    // MUCOM88 PCMバイナリ (.bin) 読込
+    // YM2608 ADPCM 4bit → AudioBuffer へデコード
+    // =============================================
+
+    // YM2608 ADPCM (OKI/Yamaha 4bit) デコーダー
+    const _ADPCM_STEP_TABLE = [
+      16, 17, 19, 21, 23, 25, 28, 31, 34, 37, 41, 45, 50,
+      55, 60, 66, 73, 80, 88, 97, 107, 118, 130, 143, 157, 173, 190,
+      209, 230, 253, 279, 307, 337, 371, 408, 449, 494, 544, 598, 658,
+      724, 796, 876, 963, 1060, 1166, 1282, 1411, 1552
+    ];
+    const _ADPCM_INDEX_TABLE = [-1,-1,-1,-1, 2, 4, 6, 8, -1,-1,-1,-1, 2, 4, 6, 8];
+
+    function decodeYM2608ADPCM(adpcmBytes) {
+      const out = new Int16Array(adpcmBytes.length * 2);
+      let predictor = 0, stepIdx = 0, pos = 0;
+      for (let i = 0; i < adpcmBytes.length; i++) {
+        const b = adpcmBytes[i];
+        for (let sh = 4; sh >= 0; sh -= 4) {  // high nibble → low nibble
+          const nibble = (b >> sh) & 0x0F;
+          const step = _ADPCM_STEP_TABLE[stepIdx];
+          let diff = step >> 3;
+          if (nibble & 4) diff += step;
+          if (nibble & 2) diff += step >> 1;
+          if (nibble & 1) diff += step >> 2;
+          predictor += (nibble & 8) ? -diff : diff;
+          predictor = Math.max(-32768, Math.min(32767, predictor));
+          stepIdx = Math.max(0, Math.min(48, stepIdx + _ADPCM_INDEX_TABLE[nibble]));
+          out[pos++] = predictor;
+        }
+      }
+      return out;
+    }
+
+    // AudioContext に Int16Array を乗せた AudioBuffer を作成
+    function int16ToAudioBuffer(samples, sampleRate) {
+      const buf = audioCtx.createBuffer(1, samples.length, sampleRate);
+      const ch  = buf.getChannelData(0);
+      const inv = 1 / 32768;
+      for (let i = 0; i < samples.length; i++) ch[i] = samples[i] * inv;
+      return buf;
+    }
+
+    // MUCOM88 pcm.bin 解析
+    // ヘッダー: 32エントリ × 32バイト (0x000〜0x3FF)
+    //   [0..15]  = 名前(ASCII, null padding)
+    //   [16..27] = 不明パラメータ
+    //   [28..29] = データ領域内のスタートオフセット (LE16, 0x400からの相対)
+    //   [30..31] = バイト長 (LE16)
+    // データ領域: 0x400〜EOF (YM2608 ADPCM 4bit 生データ連結)
+    function parseMucomPcmBin(arrayBuffer) {
+      const dv   = new DataView(arrayBuffer);
+      const u8   = new Uint8Array(arrayBuffer);
+      const total = arrayBuffer.byteLength;
+      const DATA_OFFSET = 0x400;
+
+      const entries = [];
+      for (let i = 0; i < 32; i++) {
+        const base = i * 32;
+        if (base + 32 > total) break;
+
+        // 全ゼロエントリはスキップ
+        let allZero = true;
+        for (let j = 0; j < 32; j++) { if (u8[base + j]) { allZero = false; break; } }
+        if (allZero) continue;
+
+        // 名前 (bytes 0〜15, ASCII)
+        let name = '';
+        for (let j = 0; j < 16; j++) {
+          const c = u8[base + j];
+          if (c === 0) break;
+          name += (c >= 0x20 && c < 0x7F) ? String.fromCharCode(c) : '';
+        }
+        name = name.trim() || `PCM${i + 1}`;
+
+        const startRel = dv.getUint16(base + 28, true); // little endian
+        const byteLen  = dv.getUint16(base + 30, true);
+        const absStart = DATA_OFFSET + startRel;
+        const absEnd   = absStart + byteLen;
+
+        if (byteLen === 0 || absEnd > total) continue;
+
+        entries.push({ slot: i, name, absStart, byteLen });
+      }
+      return { entries, u8 };
+    }
+
+    // MUCOM88 PCMバイナリを読み込み、スロットへ展開
+    // startSlot: 0ベースで何番スロットから割り当てるか
+    async function loadMucomPcmBin(arrayBuffer, startSlot, sampleRateHz) {
+      initAudio();
+      const { entries, u8 } = parseMucomPcmBin(arrayBuffer);
+      if (entries.length === 0) {
+        alert('MUCOM88 PCMエントリが見つかりませんでした。\n(ファイル形式が正しいか確認してください)');
+        return 0;
+      }
+
+      let loaded = 0, skipped = 0;
+      for (const entry of entries) {
+        const si = startSlot + entry.slot;
+        if (si >= 32) { skipped++; continue; }
+
+        const adpcmBytes = u8.slice(entry.absStart, entry.absStart + entry.byteLen);
+        const pcm16      = decodeYM2608ADPCM(adpcmBytes);
+        const rawBuf     = int16ToAudioBuffer(pcm16, sampleRateHz);
+
+        if (state.pcmToneBank[si]) releasePcmSlot(si);
+        state.pcmToneBank[si] = {
+          rawBuffer:  rawBuf,
+          buffer:     null,
+          bits:       4,           // YM2608 ADPCM = 4bit
+          sampleRate: sampleRateHz,
+          name:       entry.name.slice(0, 10),
+          gain:       100,
+        };
+        applyPcmSlotBits(si);
+        loaded++;
+      }
+
+      state.pcmActiveToneSlot = startSlot;
+      renderPcmToneBank();
+      if (state.currentSeqTab === 'pcmseq') renderSeq();
+
+      if (skipped > 0)
+      return loaded;
+    }
+
+    // ダイアログ UI: .bin ファイル選択 → サンプルレート選択 → 読込
+    function openMucomPcmBinDialog(targetSlot) {
+      // 既存ダイアログがあれば閉じる
+      const prev = document.getElementById('mucomBinDialog');
+      if (prev) prev.remove();
+
+      const dlg = document.createElement('div');
+      dlg.id = 'mucomBinDialog';
+      dlg.style.cssText = [
+        'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%)',
+        'background:#14100a;border:1px solid #c08040;border-radius:8px',
+        'z-index:99999;min-width:280px;max-width:90vw;padding:14px 16px',
+        'font-family:monospace;font-size:11px;color:#c49060;box-shadow:0 6px 28px #0009'
+      ].join(';');
+
+      const SR_OPTIONS = [
+        { hz: 8000,  label: '8kHz (標準)' },
+        { hz: 11025, label: '11kHz' },
+        { hz: 16000, label: '16kHz' },
+        { hz: 6000,  label: '6kHz (低品質)' },
+        { hz: 4000,  label: '4kHz' },
+      ];
+
+      let selectedFile = null;
+      let selectedSR   = 8000;
+      let selectedSlot = (targetSlot != null && targetSlot >= 0) ? targetSlot : 0;
+
+      dlg.innerHTML = `
+        <div style="font-size:12px;color:#f0b050;font-weight:bold;margin-bottom:10px;letter-spacing:1px">
+          MUCOM88 PCMバイナリ読込
+        </div>
+        <div style="font-size:9px;color:#7a5828;margin-bottom:10px;line-height:1.6">
+          pcm.bin などのYM2608 ADPCM(.bin)を<br>
+          PCM TONE BANKスロットに展開します。
+        </div>
+
+        <div style="margin-bottom:8px">
+          <label id="mucomBinFileLabel" style="display:inline-block;padding:5px 12px;border:1px solid #c08040;border-radius:4px;cursor:pointer;background:#1a1006;color:#f0b050;font-size:10px">
+            📂 .binファイルを開く
+          </label>
+          <input type="file" id="mucomBinFileInput" accept=".bin,application/octet-stream" style="display:none">
+          <div id="mucomBinFileName" style="margin-top:4px;font-size:9px;color:#8a6030"></div>
+        </div>
+
+        <div style="margin-bottom:8px">
+          <div style="font-size:9px;color:#8a6030;margin-bottom:3px">再生サンプルレート (SMPL)</div>
+          <div id="mucomSRBtns" style="display:flex;flex-wrap:wrap;gap:4px">
+            ${SR_OPTIONS.map(o => `
+              <button data-hz="${o.hz}" style="
+                background:${o.hz === selectedSR ? '#3a1a06' : '#111'};
+                border:1px solid ${o.hz === selectedSR ? '#e0901a' : '#4a3010'};
+                color:${o.hz === selectedSR ? '#f0b050' : '#8a6030'};
+                font-size:9px;padding:3px 8px;cursor:pointer;border-radius:3px;font-family:monospace
+              ">${o.label}</button>
+            `).join('')}
+          </div>
+        </div>
+
+        <div style="margin-bottom:10px">
+          <div style="font-size:9px;color:#8a6030;margin-bottom:3px">展開先 スタートスロット</div>
+          <select id="mucomStartSlot" style="background:#111;border:1px solid #4a3010;color:#c49060;font-family:monospace;font-size:10px;padding:3px 6px;border-radius:3px">
+            ${Array.from({length:32},(_,k)=>`<option value="${k}" ${k===selectedSlot?'selected':''}>S${k+1}</option>`).join('')}
+          </select>
+          <span style="font-size:8px;color:#6a5020;margin-left:6px">@0=S1 / @1=S2 ...</span>
+        </div>
+
+        <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:4px">
+          <button id="mucomBinCancel" style="background:#1a1006;border:1px solid #5a3010;color:#8a6030;font-size:10px;padding:5px 14px;cursor:pointer;border-radius:4px;font-family:monospace">キャンセル</button>
+          <button id="mucomBinLoad" style="background:#2a1206;border:1px solid #e0901a;color:#f0b050;font-size:10px;padding:5px 14px;cursor:pointer;border-radius:4px;font-family:monospace" disabled>読込</button>
+        </div>
+      `;
+
+      document.body.appendChild(dlg);
+
+      // サンプルレートボタン
+      dlg.querySelectorAll('#mucomSRBtns button').forEach(btn => {
+        btn.onclick = () => {
+          selectedSR = parseInt(btn.dataset.hz);
+          dlg.querySelectorAll('#mucomSRBtns button').forEach(b => {
+            const active = parseInt(b.dataset.hz) === selectedSR;
+            b.style.background = active ? '#3a1a06' : '#111';
+            b.style.borderColor = active ? '#e0901a' : '#4a3010';
+            b.style.color = active ? '#f0b050' : '#8a6030';
+          });
+        };
+      });
+
+      // ファイル選択
+      const fileInput = dlg.querySelector('#mucomBinFileInput');
+      dlg.querySelector('#mucomBinFileLabel').onclick = () => fileInput.click();
+      fileInput.onchange = () => {
+        selectedFile = fileInput.files[0] || null;
+        dlg.querySelector('#mucomBinFileName').textContent = selectedFile ? selectedFile.name : '';
+        dlg.querySelector('#mucomBinLoad').disabled = !selectedFile;
+      };
+
+      // スタートスロット
+      dlg.querySelector('#mucomStartSlot').onchange = (e) => {
+        selectedSlot = parseInt(e.target.value);
+      };
+
+      // キャンセル
+      dlg.querySelector('#mucomBinCancel').onclick = () => dlg.remove();
+
+      // 読込実行
+      dlg.querySelector('#mucomBinLoad').onclick = async () => {
+        if (!selectedFile) return;
+        dlg.querySelector('#mucomBinLoad').textContent = '読込中...';
+        dlg.querySelector('#mucomBinLoad').disabled = true;
+        try {
+          const ab = await selectedFile.arrayBuffer();
+          const n = await loadMucomPcmBin(ab, selectedSlot, selectedSR);
+          dlg.remove();
+        } catch (err) {
+          alert('読込エラー: ' + err.message);
+          dlg.querySelector('#mucomBinLoad').textContent = '読込';
+          dlg.querySelector('#mucomBinLoad').disabled = false;
+        }
+      };
+
+      // ダイアログ外タップで閉じる
+      const closeOnOut = (e) => {
+        if (!dlg.contains(e.target)) { dlg.remove(); document.removeEventListener('pointerdown', closeOnOut); }
+      };
+      setTimeout(() => document.addEventListener('pointerdown', closeOnOut), 100);
+    }
+
     async function savePcmToneBank() {
       const usedSlots = state.pcmToneBank
         .map((slot, i) => slot && slot.rawBuffer ? { i, slot } : null)
@@ -5845,7 +6174,6 @@ G L16 %K R %S R %K %K %S R</textarea>
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      alert(`PCM BANK SAVE完了: ${done}スロット保存${failed ? ' / ' + failed + '件失敗' : ''}`);
     }
 
     async function loadPcmToneBank() {
@@ -5859,7 +6187,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           const text = await file.text();
           const data = JSON.parse(text);
           if (!data || data._app !== 'honodori' || data._type !== 'pcmToneBank') {
-            alert('このファイルはhonodori用のPCM TONEBANKファイルではありません。');
+            alert('このファイルはhonodori用PCM TONEBANKファイルではありません。');
             return;
           }
           const validSlots = (data.slots || []).filter(s => s && s.slot != null && s.wav);
@@ -5892,7 +6220,6 @@ G L16 %K R %S R %K %K %S R</textarea>
               failed++;
             }
           }
-          alert(`PCM BANK LOAD完了: ${loaded}スロット復元${failed ? ' / ' + failed + '件失敗' : ''}`);
         } catch (err) {
           alert('ファイルの読み込みに失敗しました: ' + err.message);
         }
@@ -6065,6 +6392,19 @@ G L16 %K R %S R %K %K %S R</textarea>
       };
       titleRow.appendChild(loadMenuBtn);
       pcmSlotCtxMenu.appendChild(titleRow);
+
+      // MUCOM BIN 読込ボタン（このスロットを起点に展開）
+      const mucomRow = document.createElement('div');
+      mucomRow.style.cssText = 'padding:4px 10px 5px;border-bottom:1px solid #4a2a10';
+      const mucomBtn = document.createElement('button');
+      mucomBtn.textContent = 'MUCOM BIN からS' + (slotIdx + 1) + '〜展開';
+      mucomBtn.style.cssText = 'width:100%;background:#0a1a2a;border:1px solid #2a6a8a;color:#5ac0e8;font-size:9px;padding:4px 8px;cursor:pointer;border-radius:3px;font-family:monospace;text-align:left';
+      mucomBtn.onclick = () => {
+        pcmSlotCtxMenu.style.display = 'none';
+        openMucomPcmBinDialog(slotIdx);
+      };
+      mucomRow.appendChild(mucomBtn);
+      pcmSlotCtxMenu.appendChild(mucomRow);
 
       // BITS選択
       const bitsRow = document.createElement('div');
@@ -6453,18 +6793,21 @@ G L16 %K R %S R %K %K %S R</textarea>
         }
 
         // 2b. MUCOM88形式 @n{...} 音色定義ブロックを抽出してTONE BANKへ登録
-        //    フォーマット: @n{ algo,fb, ar,dr,sr,rr,sl,tl,ks,mul,dt (×4op) }
+        //    フォーマット: @n{ FB,AL, ar,dr,sr,rr,sl,tl,ks,mul,dt (×4op) }
+        //    MUCOM88では @n の n がそのままvoice.datのスロット番号に対応
+        //    MMLテキスト内定義は @n → fmToneBank[n] に直接格納
         const fullText = lines.join('\n');
         const voiceDefRegex = /@(\d+)\s*\{([^}]+)\}/g;
         let vmatch;
         while ((vmatch = voiceDefRegex.exec(fullText)) !== null) {
           const voiceNum = parseInt(vmatch[1]);
-          if (voiceNum < 10) continue; // @0〜@9は固定音色
-          const slotIdx = voiceNum - 10;
-          if (slotIdx >= 400) continue;
+          // MUCOM88 MML内定義は @n → スロットn に直接格納
+          const slotIdx = voiceNum;
+          if (slotIdx < 0 || slotIdx >= 400) continue;
           const nums = vmatch[2].split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
           if (nums.length < 2) continue;
-          const algo = nums[0], fb = nums[1];
+          // MUCOM88形式: FB,AL, op1(AR,DR,SR,RR,SL,TL,KS,ML,DT) ×4
+          const fb = nums[0], algo = nums[1];
           const ops = [];
           for (let op = 0; op < 4; op++) {
             const base = 2 + op * 9;
@@ -6521,10 +6864,19 @@ G L16 %K R %S R %K %K %S R</textarea>
         let t = 0;
         let tieNext = false;
         let timbre = defaultTimbre; // チャンネルのデフォルト音色（@コマンドで上書き可）
-        let detune = 0;    // Dn: セント単位デチューン（MUCOM88: -127〜127, 1単位≒3.125セント）
+        let detune = 0;    // Dn: デチューン（MUCOM88: -32768〜32767）
         let keyTrans = 0;  // Kn: 半音単位トランスポーズ
-        let gate = 1.0;    // Cn/Qn: ゲートタイム比（0〜100% → 0〜1.0）
+        // MUCOM88 Cコマンド = 全音符あたりのクロック数（分解能）。デフォルト128
+        // %n形式の音長計算ベース。テンポとは別。
+        let clockDiv = 128;
+        // MUCOM88 qコマンド = ゲートタイム整数(0〜8)
+        //   q0 = キーオフなし（タイ相当、最大音長）
+        //   q1〜q8 = q/8 の比率でキーオフ（q8=全音長）
+        let qgate = 8;
         let panVal = 0;    // pn: -100〜100
+        // ボリュームリスト対応 (v61,31,21,...) - 各ノートで順繰りに使用
+        let velList = [];
+        let velListIdx = 0;
         // ループスタック: { start, count, elapsed, skipPos }
         // skipPos: '/'が現れた位置（最終ループ時にここへジャンプしてループ内を抜ける）
         const loopStack = [];
@@ -6555,6 +6907,16 @@ G L16 %K R %S R %K %K %S R</textarea>
           return vals;
         };
 
+        // 現在の vel 値を取得（velList があればそこから循環）
+        const getVel = () => {
+          if (velList.length > 0) {
+            const v = velList[velListIdx % velList.length];
+            velListIdx++;
+            return Math.max(0, Math.min(15, v));
+          }
+          return vel;
+        };
+
         const noteMap = {
           'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11
         };
@@ -6562,7 +6924,10 @@ G L16 %K R %S R %K %K %S R</textarea>
         // 前処理（コメント除去・マクロ展開・#タグ除去）
         const preprocessed = this.preprocess(text);
         // | はループ区切りとしてスペースに置換
-        const s = preprocessed.replace(/\|/g, ' ').replace(/\s+/g, '').toUpperCase();
+        // @"..."の名前付き音色参照を @999(ダミー)に変換してパース継続できるようにする
+        const s = preprocessed
+          .replace(/@"[^"]*"/g, '@999')  // @"名前" → @999
+          .replace(/\|/g, ' ').replace(/\s+/g, '').toUpperCase();
         pos = 0;
 
         while (pos < s.length) {
@@ -6594,11 +6959,30 @@ G L16 %K R %S R %K %K %S R</textarea>
             if (n !== null && n > 0) defLen = n;
             continue;
           }
-          // ベロシティ V
+          // ベロシティ V（MUCOM88: V0-15 単値 or V61,31,21,... カンマ区切りリスト）
           if (ch === 'V') {
             pos++;
-            const n = readInt();
-            if (n !== null) vel = Math.max(0, Math.min(15, n));
+            // カンマ区切りリストの確認（数値の後にカンマがあるかチェック）
+            const firstVal = readInt();
+            if (firstVal !== null) {
+              if (pos < s.length && s[pos] === ',') {
+                // 複数値リスト: v61,31,21,...
+                velList = [firstVal];
+                while (pos < s.length && s[pos] === ',') {
+                  pos++; // カンマ消費
+                  const v2 = readInt();
+                  if (v2 !== null) velList.push(v2);
+                  else break;
+                }
+                velListIdx = 0;
+                vel = velList[0]; // 現在のvelも最初の値に設定
+              } else {
+                // 単値: 通常のベロシティ指定
+                vel = Math.max(0, Math.min(15, firstVal));
+                velList = []; // リストクリア
+                velListIdx = 0;
+              }
+            }
             continue;
           }
           // 音色 @  （@n:{...} 形式はpreprocessで除去済みのため番号のみ）
@@ -6607,7 +6991,7 @@ G L16 %K R %S R %K %K %S R</textarea>
             const n = readInt();
             if (n !== null) {
               if (isSSGCh) {
-                // SSGチャンネル: @0〜@15 はSSGプリセット番号。timbreは変更しない
+                // SSGチャンネル: @0〜@15 はSSGプリセット番号
                 if (n <= 15 && state.ssgToneBank[n]) {
                   const params = JSON.parse(JSON.stringify(state.ssgToneBank[n]));
                   delete params._name;
@@ -6615,42 +6999,47 @@ G L16 %K R %S R %K %K %S R</textarea>
                   state.ssgActiveTone[ssgPsgIdx] = n;
                   setTimeout(() => buildPSGPanels(), 0);
                 }
-                // @16以上はSSGチャンネルでは無視
               } else if (isFMP7) {
-                // FMP7モード: @n → スロット番号nの音色を参照（'@ FA形式で登録済み）
-                // n=0〜9 は音源切替として扱う（@0=SUB/@1-6=FM/@7-9=PSG）
+                // FMP7モード
                 if (n <= 9) {
                   timbre = Math.min(9, Math.max(0, n));
                 } else if (n < 400 && state.fmToneBank[n]) {
-                  // スロット番号nの音色を現チャンネルのFMに適用
-                  const fmIdx = Math.max(0, timbre - 1); // timbre=1→FM0, 2→FM1...
+                  const fmIdx = Math.max(0, timbre - 1);
                   state.fmParams[fmIdx] = JSON.parse(JSON.stringify(state.fmToneBank[n]));
                   buildFMPanel(fmIdx);
                   if (timbre < 1 || timbre > 6) timbre = 1;
                 }
-              } else if (n <= 9) {
-                // 非SSGチャンネル MUCOM88: @0〜@9 → 音源切替
-                timbre = Math.min(9, Math.max(0, n));
-                // @0 (SUB) でSUBトーンバンク参照: @0.スロット番号 形式
-                // 通常の @0 は SUBへの切替のみ
-              } else if (n <= 109) {
-                // @10〜@109 → TONE BANKスロット(n-10)の音色をFM1に適用してFM1で発音
-                const slotIdx = n - 10;
-                if (slotIdx >= 0 && slotIdx < 400 && state.fmToneBank[slotIdx]) {
-                  state.fmParams[0] = JSON.parse(JSON.stringify(state.fmToneBank[slotIdx]));
-                  buildFMPanel(0);
-                  timbre = 1; // FM1チャンネルで発音
+              } else {
+                // ─── MUCOM88モード ───────────────────────────────
+                // @n = voice.datのスロットn番の音色を現チャンネルのFMに適用
+                // timbreはチャンネル固定（A→FM1, B→FM2等）、音色選択のみ
+                // @999 は @"名前"の代替ダミー → スキップ
+                if (n === 999) {
+                  // @"名前" のダミー番号 → 無視
+                } else if (n >= 200 && n <= 249 && timbre === 0) {
+                  // @200〜@249 → SUBトーンバンクスロット(n-200)参照
+                  const subSlot = n - 200;
+                  if (subSlot < 50 && state.subToneBank[subSlot]) {
+                    const params = JSON.parse(JSON.stringify(state.subToneBank[subSlot]));
+                    delete params._name;
+                    Object.assign(state.subParams, params);
+                    state.subActiveTone = subSlot;
+                    setTimeout(() => { applySubParamsToUI(); updateSubToneBankUI(); }, 0);
+                  }
+                } else if (timbre >= 1 && timbre <= 6) {
+                  // FM チャンネル: @n → fmToneBank[n]の音色を現チャンネルに適用
+                  const fmIdx = timbre - 1; // timbre=1→FM0, 2→FM1...
+                  if (n < 400 && state.fmToneBank[n]) {
+                    state.fmParams[fmIdx] = JSON.parse(JSON.stringify(state.fmToneBank[n]));
+                    buildFMPanel(fmIdx);
+                  }
+                  // fmToneBank[n]が未登録でも timbre(チャンネル)は変更しない
                 }
-              } else if (n >= 200 && n <= 249 && timbre === 0) {
-                // @200〜@249 → SUBトーンバンクスロット(n-200)参照 (timbre=0=SUBチャンネルのみ有効)
-                const subSlot = n - 200;
-                if (subSlot < 50 && state.subToneBank[subSlot]) {
-                  const params = JSON.parse(JSON.stringify(state.subToneBank[subSlot]));
-                  delete params._name;
-                  Object.assign(state.subParams, params);
-                  state.subActiveTone = subSlot;
-                  setTimeout(() => { applySubParamsToUI(); updateSubToneBankUI(); }, 0);
-                }
+                // @0=SUB, @7〜@9=PSGチャンネルへの切替は残す（honodori独自拡張）
+                if (n === 0) timbre = 0;
+                else if (n === 7) timbre = 7;
+                else if (n === 8) timbre = 8;
+                else if (n === 9) timbre = 9;
               }
             }
             continue;
@@ -6743,10 +7132,19 @@ G L16 %K R %S R %K %K %S R</textarea>
             continue;
           }
           // デチューン D（MUCOM88: -127〜127、1単位≒3.125セント相当）
+          // D20+ = 相対加算, D-10+ = 相対減算 (+付きは相対指定として扱う)
           if (ch === 'D') {
             pos++;
             const n = readInt();
-            if (n !== null) detune = n * 3.125; // セントに変換
+            if (n !== null) {
+              // +が続く場合は相対デチューン（現在値に加算）
+              if (pos < s.length && s[pos] === '+') {
+                pos++;
+                detune = detune + n * 3.125;
+              } else {
+                detune = n * 3.125; // セントに変換（D0でリセット含む）
+              }
+            }
             continue;
           }
           // キートランスポーズ K（半音単位）
@@ -6756,18 +7154,32 @@ G L16 %K R %S R %K %K %S R</textarea>
             if (n !== null) keyTrans = n;
             continue;
           }
-          // ゲートタイム C / Q（1〜100%）
-          if (ch === 'C' || ch === 'Q') {
+          // ゲートタイム q（MUCOM88: qn = クロック数でキーオフ）
+          // q0=タイと同等（キーオフなし）、q1〜q8 = n/8 の比率
+          // 実際には q/clockDiv クロック分早くキーオフする = gate比率として近似
+          if (ch === 'Q') {
             pos++;
             const n = readInt();
-            if (n !== null) gate = Math.max(0.01, Math.min(1.0, n / 100));
+            if (n !== null) qgate = Math.max(0, Math.min(8, n));
             continue;
           }
+          // Cコマンド（MUCOM88: 全音符あたりのクロック数=分解能、デフォルト128）
+          // これはテンポではなく %n形式の音長計算のベース単位
+          // stk004.mucのC112等はクロック分解能変更（後続の%n音長に影響）
           // LFO (OPNA MML): M{ch}H delay,freq,pms,ams[,sync]
+          // MUCOM88拡張: MF0 = FM LFO OFF強制, MF1 = FM LFO ON強制 (スキップ)
+          // MF{n} = 全FMチャンネルのLFOをON(1)/OFF(0)
           // ch: P=FM1/A, Q=FM2/B, R=FM3/C, S=FM4/H (MUCOM88チャンネル対応)
           // 書式: MAH8,3,6,0 → FM1チャンネルにLFO設定
           if (ch === 'M') {
             pos++;
+            // MF0/MF1: FM LFO 強制ON/OFF
+            if (pos < s.length && s[pos] === 'F') {
+              pos++;
+              const n = readInt();
+              // MF0 = LFO OFF, MF1 = LFO ON → スキップ（再生には影響しない）
+              continue;
+            }
             // 次文字がチャンネル識別子かチェック
             const lfoChMap = { P: 0, Q: 1, R: 2, S: 3, T: 4, U: 5 };
             // MUCOM88チャンネル文字 → FM index
@@ -6888,49 +7300,112 @@ G L16 %K R %S R %K %K %S R</textarea>
           if (ch === '{' || ch === '}') { pos++; continue; }
 
           // ベロシティ増減 ( = +1, ) = -1
-          if (ch === '(') { vel = Math.min(15, vel + 1); pos++; continue; }
-          if (ch === ')') { vel = Math.max(0, vel - 1); pos++; continue; }
+          if (ch === '(') {
+            vel = Math.min(15, vel + 1);
+            if (velList.length > 0) { velList = []; velListIdx = 0; } // リストクリア
+            pos++; continue;
+          }
+          if (ch === ')') {
+            vel = Math.max(0, vel - 1);
+            if (velList.length > 0) { velList = []; velListIdx = 0; } // リストクリア
+            pos++; continue;
+          }
+
+          // MUCOM88 ^ コマンド: タイ（直前音符を延長）- &の別名として扱う
+          if (ch === '^') {
+            tieNext = true;
+            pos++;
+            // ^の後に音長が続く場合は直前のイベントを延長
+            if (pos < s.length && (s[pos] >= '1' && s[pos] <= '9')) {
+              let n = '';
+              while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+              let dots = 0;
+              while (pos < s.length && s[pos] === '.') { dots++; pos++; }
+              const extLen = parseInt(n) || defLen;
+              let extDur = lenSec(extLen, dots > 0);
+              if (dots >= 2) extDur = lenSec(extLen, false) * (2 - Math.pow(0.5, dots));
+              // 直前イベントを延長
+              if (events.length > 0) {
+                events[events.length - 1].dur += extDur;
+                t += extDur;
+              }
+              tieNext = false;
+            }
+            continue;
+          }
 
           // 休符 R
           if (ch === 'R') {
             pos++;
-            let n = '';
-            while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
-            let dots = 0;
-            while (pos < s.length && s[pos] === '.') { dots++; pos++; }
-            const len = parseInt(n) || defLen;
-            let dur = lenSec(len, dots > 0);
-            if (dots >= 2) dur = lenSec(len, false) * (2 - Math.pow(0.5, dots));
+            // %n 形式: 絶対クロック指定 (clockDiv クロック = 全音符)
+            let dur = 0;
+            if (pos < s.length && s[pos] === '%') {
+              pos++;
+              const n = readInt();
+              if (n !== null) dur = (n / clockDiv) * beatSec() * 4;
+              else dur = lenSec(defLen, false);
+            } else {
+              let n = '';
+              while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+              // 複数付点対応
+              let dots = 0;
+              while (pos < s.length && s[pos] === '.') { dots++; pos++; }
+              const len = parseInt(n) || defLen;
+              dur = lenSec(len, dots > 0);
+              if (dots >= 2) dur = lenSec(len, false) * (2 - Math.pow(0.5, dots));
+            }
             t += dur;
             tieNext = false;
             continue;
           }
 
           // 音符 C D E F G A B
+          // ※ 'C' は MUCOM88クロック分解能コマンド(C128等)と音符Cの両方に使われる
+          //   → 'C'の直後が数字ならclockDiv設定、それ以外は音符として処理
           if (noteMap[ch] !== undefined) {
+            // 'C' + 数字 = クロック分解能指定 (C128, C112 等)
+            if (ch === 'C' && pos + 1 < s.length && s[pos + 1] >= '0' && s[pos + 1] <= '9') {
+              pos++; // 'C'を消費
+              const n = readInt();
+              if (n !== null && n > 0) clockDiv = n;
+              continue;
+            }
             pos++;
             let semi = noteMap[ch];
             // シャープ/フラット
             if (s[pos] === '+' || s[pos] === '#') { semi++; pos++; }
             else if (s[pos] === '-') { semi--; pos++; }
-            // 音長
-            let n = '';
-            while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
-            let dots = 0;
-            while (pos < s.length && s[pos] === '.') { dots++; pos++; }
-            const len = parseInt(n) || defLen;
-            let fullDur = lenSec(len, dots > 0);
-            if (dots >= 2) fullDur = lenSec(len, false) * (2 - Math.pow(0.5, dots));
-            const dur = fullDur * gate; // ゲートタイム適用
+            // 音長: 通常の数値 or %n 絶対クロック指定
+            let fullDur = 0;
+            if (pos < s.length && s[pos] === '%') {
+              pos++;
+              const n = readInt();
+              // %n = n クロック = n/clockDiv 全音符
+              if (n !== null) fullDur = (n / clockDiv) * beatSec() * 4;
+              else fullDur = lenSec(defLen, false);
+            } else {
+              let n = '';
+              while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+              let dots = 0;
+              while (pos < s.length && s[pos] === '.') { dots++; pos++; }
+              const len = parseInt(n) || defLen;
+              fullDur = lenSec(len, dots > 0);
+              if (dots >= 2) fullDur = lenSec(len, false) * (2 - Math.pow(0.5, dots));
+            }
+            // ゲートタイム適用: qgate=0はキーオフなし（タイと同等）、q8=全音長
+            const gateRatio = qgate === 0 ? 1.0 : Math.min(1.0, qgate / 8);
+            const dur = fullDur * gateRatio;
 
             // キートランスポーズ・デチューン適用
             const semiTotal = semi + keyTrans;
             const midiNote = (oct + 1) * 12 + semiTotal;
             const baseFreq = 440 * Math.pow(2, (midiNote - 69) / 12);
             const freq = baseFreq * Math.pow(2, detune / 1200);
-            const vol = Math.round(vel / 15 * 100);
+            const vol = Math.round(getVel() / 15 * 100);
 
-            events.push({ time: t, freq, vol, dur, timbre, tie: tieNext, pan: panVal });
+            // q0はtieNextを強制（キーオフなし）
+            const forceTie = qgate === 0;
+            events.push({ time: t, freq, vol, dur, timbre, tie: tieNext || forceTie, pan: panVal });
             tieNext = false;
             t += fullDur; // 次音符の開始はgateではなくfullDurで進める
             continue;
@@ -6960,6 +7435,8 @@ G L16 %K R %S R %K %K %S R</textarea>
         let oct = 1;   // o1 = 原音ピッチ
         let vol = 128; // 0〜255
         let slot = -1; // -1=アクティブスロット使用
+        let clockDiv = 128; // Cコマンドのクロック分解能
+        let qgate = 8;      // Qコマンドのゲートタイム
         const loopStack = [];
         const noteMap = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
         const beatSec = () => 60 / bpm;
@@ -6973,7 +7450,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           const midiNote = (baseOct + 1) * 12 + semi;
           return 440 * Math.pow(2, (midiNote - 69) / 12);
         };
-        const s = this.preprocess(text).replace(/\|/g, ' ').replace(/\s+/g, '').toUpperCase();
+        const s = this.preprocess(text).replace(/@"[^"]*"/g, '@999').replace(/\|/g, ' ').replace(/\s+/g, '').toUpperCase();
         while (pos < s.length) {
           const ch = s[pos];
           if (ch === 'T') {
@@ -6991,20 +7468,56 @@ G L16 %K R %S R %K %K %S R</textarea>
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
             oct = parseInt(n) || oct; continue;
           }
+          if (ch === 'Q') {
+            pos++; let n = '';
+            while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+            qgate = Math.max(0, Math.min(8, parseInt(n) || 8)); continue;
+          }
           if (ch === '>') { oct++; pos++; continue; }
           if (ch === '<') { oct = Math.max(1, oct - 1); pos++; continue; }
+          if (ch === '(') { vol = Math.max(0, vol - 16); pos++; continue; }
+          if (ch === ')') { vol = Math.min(255, vol + 16); pos++; continue; }
+          if (ch === '&') { pos++; continue; } // タイ（ADPCMでは概ね無視）
+          if (ch === 'M') { // MFn等のコマンドをスキップ
+            pos++;
+            if (pos < s.length && s[pos] === 'F') { pos++; while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') pos++; }
+            continue;
+          }
           if (ch === 'V') {
             pos++; let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
             vol = Math.min(255, parseInt(n) || vol); continue;
           }
           if (ch === '@') {
-            pos++; let n = '';
+            pos++;
+            if (pos < s.length && s[pos] === '"') {
+              while (pos < s.length && s[pos] !== '"') pos++;
+              if (pos < s.length) pos++;
+              // @"名前" → 無視
+              continue;
+            }
+            let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
             const num = parseInt(n);
-            slot = (num >= 1 && num <= 32) ? num - 1 : -1; continue;
+            if (num !== 999) slot = (num >= 1 && num <= 32) ? num - 1 : -1;
+            continue;
           }
           if (ch === '[') { pos++; loopStack.push({ start: pos, count: null, elapsed: 0 }); continue; }
+          if (ch === '/') { // ループエスケープ
+            pos++;
+            if (loopStack.length > 0) {
+              const lp = loopStack[loopStack.length - 1];
+              if (lp.count !== null && lp.elapsed === lp.count - 1) {
+                let depth = 0;
+                while (pos < s.length) {
+                  if (s[pos] === '[') depth++;
+                  else if (s[pos] === ']') { if (depth === 0) break; depth--; }
+                  pos++;
+                }
+              }
+            }
+            continue;
+          }
           if (ch === ']') {
             pos++; let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
@@ -7025,6 +7538,15 @@ G L16 %K R %S R %K %K %S R</textarea>
             t += lenSec(parseInt(n) || defLen, dot); continue;
           }
           if (noteMap[ch] !== undefined) {
+            // C+数字 = clockDiv
+            if (ch === 'C' && pos + 1 < s.length && s[pos + 1] >= '0' && s[pos + 1] <= '9') {
+              pos++;
+              let n = '';
+              while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+              const cv = parseInt(n);
+              if (cv > 0) clockDiv = cv;
+              continue;
+            }
             pos++;
             let semi = noteMap[ch];
             if (s[pos] === '+' || s[pos] === '#') { semi++; pos++; }
@@ -7033,10 +7555,12 @@ G L16 %K R %S R %K %K %S R</textarea>
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
             const dot = s[pos] === '.' ? (pos++, true) : false;
             const len = parseInt(n) || defLen;
-            const dur = lenSec(len, dot);
+            const fullDur = lenSec(len, dot);
+            const gateRatio = qgate === 0 ? 1.0 : Math.min(1.0, qgate / 8);
+            const dur = fullDur * gateRatio;
             const freq = noteToFreq(semi);
             events.push({ time: t, pcmNote: true, slot, freq, vol: vol / 255, dur });
-            t += dur; continue;
+            t += fullDur; continue;
           }
           pos++;
         }
@@ -7370,15 +7894,20 @@ G L16 %K R %S R %K %K %S R</textarea>
         return result.join('\n');
       }
 
-      // honodori_synth が対応しているコマンド集合
-      // 音符 C D E F G A B R、< > O L T V @ & K Q C M D P W [ ] / ( ) は対応済み
-      const UNSUPPORTED_HEADERS = ['#voice', '#pcm_table', '#pcm', '#include'];
+      // MUCOM88形式の処理
+      // #voice, #pcm は重要なメタ情報なので; [ヘッダー] 形式で残す
+      // #include等の未対応タグはコメントアウト
+      const KEEP_AS_COMMENT = ['#voice', '#pcm', '#title', '#composer', '#author', '#date', '#comment', '#mucom88'];
+      const UNSUPPORTED_HEADERS = ['#pcm_table', '#include'];
 
       const result = lines.map(line => {
         const trimmed = line.trim();
         if (!trimmed) return line;
         if (trimmed.startsWith('#')) {
           const lower = trimmed.toLowerCase();
+          if (KEEP_AS_COMMENT.some(kw => lower.startsWith(kw))) {
+            return '; ' + line.trimStart(); // コメント化して保持
+          }
           if (UNSUPPORTED_HEADERS.some(kw => lower.startsWith(kw))) {
             return '; [未対応] ' + line.trimStart();
           }
@@ -7395,7 +7924,8 @@ G L16 %K R %S R %K %K %S R</textarea>
       if (!file) return;
       const reader = new FileReader();
       reader.onload = (ev) => {
-        const processed = processMucText(ev.target.result);
+        const raw = ev.target.result;
+        const processed = processMucText(raw);
         document.getElementById('mmlAll').value = processed;
         // ファイル名表示
         document.getElementById('mucFileName').textContent = file.name;
@@ -7403,13 +7933,27 @@ G L16 %K R %S R %K %K %S R</textarea>
         // FMP7 / MUCOM88 判別
         const isFMP7loaded = processed.split('\n').some(l => /^'\s*[A-Ka-k]\d/.test(l.trim()));
         const fmt = isFMP7loaded ? '[FMP7]' : '[MUCOM88]';
-        // ステータス更新
-        document.getElementById('mmlStatus').textContent = `✓ ${fmt} ${file.name} 読込完了`;
-        setTimeout(() => {
-          if (document.getElementById('mmlStatus').textContent.startsWith('✓'))
-            document.getElementById('mmlStatus').textContent = '';
-        }, 3000);
-        // ファイル入力リセット（同じファイルを再読み込み可能にする）
+
+        // #voice と #pcm タグを検出して補助情報を表示
+        const lines = raw.replace(/\r\n/g, '\n').split('\n');
+        const voiceLine = lines.find(l => /^#voice\s+/i.test(l.trim()));
+        const pcmLine   = lines.find(l => /^#pcm\s+/i.test(l.trim()));
+        const voiceFile = voiceLine ? voiceLine.trim().replace(/^#voice\s+/i,'').trim() : null;
+        const pcmFile   = pcmLine   ? pcmLine.trim().replace(/^#pcm\s+/i,'').trim() : null;
+
+        let hint = '';
+        if (voiceFile) hint += ` | 🎹 ${voiceFile} を FM TONE BANKへ読込してください`;
+        if (pcmFile)   hint += ` | 🔊 ${pcmFile} を PCM TONEBANKへ読込してください`;
+
+        document.getElementById('mmlStatus').textContent =
+          `✓ ${fmt} ${file.name} 読込完了${hint}`;
+        if (!hint) {
+          setTimeout(() => {
+            if (document.getElementById('mmlStatus').textContent.startsWith('✓'))
+              document.getElementById('mmlStatus').textContent = '';
+          }, 3000);
+        }
+        // ファイル入力リセット
         e.target.value = '';
       };
       reader.onerror = () => {
