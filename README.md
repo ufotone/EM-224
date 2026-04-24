@@ -56,7 +56,7 @@ It is designed for chiptune creators, sound designers, and anyone exploring retr
 - Partially MUCOM88 and FMP7 compatible syntax
 - Executes independently from PATTERN/SONG modes
 - Regarding the MML section, referred to the description methods found in the publicly available
-documentation for MUCOM88 and FMP7 (http://fmpdoc.fmp.jp/),
+documentation for MUCOM88(https://github.com/onitama/mucom88) and FMP7 (http://fmpdoc.fmp.jp/),
 but was not able to reproduce all of them.
 
 ---
