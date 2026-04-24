@@ -108,8 +108,7 @@ No build step required.
 ## 📜 License
 Important point: MUCOM88 is based on data under CC BY-NC-SA 4.0.
 and the license information found at https://github.com/onitama/mucom88.
-This hongodori(EM-224) does not include those codes, 
-but the specifications and other details are based on publicly available documentation.
+This hongodori(EM-224) does not include those codes.
 
 This project is released under the CC0 1.0 Universal (Public Domain Dedication).
 To the extent possible under law, 
