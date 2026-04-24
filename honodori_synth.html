@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>honodori — FM+PSG Extended Synth v15</title>
+  <title>honodori — FM+PSG Extended Synth v16</title>
   <style>
     * {
       box-sizing: border-box;
@@ -528,6 +528,57 @@
       border-color: #46a;
       color: #6af
     }
+
+    /* SUB Tone Bank */
+    .sub-bank-panel {
+      background: #0e1a0e;
+      border: 1px solid #2a4a2a;
+      border-radius: 3px;
+      padding: 6px 8px;
+      margin-bottom: 6px
+    }
+    .sub-bank-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 5px;
+      flex-wrap: wrap
+    }
+    .sub-bank-title {
+      font-size: 8px;
+      color: #4a8a4a;
+      letter-spacing: 2px
+    }
+    .sub-slot-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+      max-height: 100px;
+      overflow-y: auto
+    }
+    .sub-slot {
+      width: 52px;
+      height: 22px;
+      background: #0a130a;
+      border: 1px solid #2a3a2a;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7px;
+      color: #344;
+      cursor: pointer;
+      flex-shrink: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 0 2px
+    }
+    .sub-slot:hover { border-color: #446; color: #6a8 }
+    .sub-slot.stored { background: #0e1e0e; border-color: #336; color: #5a8 }
+    .sub-slot.active-tone { background: #1a3a1a; border-color: #4d7; color: #8fa; box-shadow: 0 0 4px #3a62 }
+    .sub-seq-row select { background:#0a130a; border:1px solid #224; color:#5a8; font-size:7px }
+    .sub-seq-row select.tone-active { background:#141e14; border-color:#3a6; color:#8fa }
 
     /* FM Tone Bank */
     .tone-bank-panel {
@@ -1124,6 +1175,8 @@
           <b style="color:#668">音符:</b> <span style="color:#9cf">C D E F G A B R</span>　<b style="color:#668">音長:</b> <span style="color:#9cf">4 8 16 .</span>　<b style="color:#668">オクターブ:</b> <span style="color:#9cf">O4 &lt; &gt;</span><br>
           <b style="color:#668">テンポ:</b> <span style="color:#9cf">T120</span>　<b style="color:#668">音量:</b> <span style="color:#9cf">V8</span>　<b style="color:#668">音色:</b> <span style="color:#9cf">@0〜@9</span> (0=SUB/1-6=FM/7-9=PSG)　<b style="color:#668">タイ:</b> <span style="color:#9cf">&amp;</span><br>
           <b style="color:#668">ゲート:</b> <span style="color:#9cf">C80</span>　<b style="color:#668">デチューン:</b> <span style="color:#9cf">D-5</span>　<b style="color:#668">パン:</b> <span style="color:#9cf">p3</span> (0=消音/1=右/2=左/3=中央)　<b style="color:#668">コメント:</b> <span style="color:#9cf">; ...</span><br>
+          <b style="color:#6da">SUBトーンバンク:</b> <span style="color:#8fa">@200〜@249</span>=スロット0〜49参照 (@0チャンネル使用時) 例: <span style="color:#8fa">A @0 @205 O4 C8 D8 E4</span><br>
+          <b style="color:#6da">SUBパラメータ直接指定(MML):</b> <span style="color:#8fa">$W{sine|sq|saw|tri}</span> <span style="color:#8fa">$F{Hz}</span>=フィルタ周波数 <span style="color:#8fa">$Q{val}</span>=Q/Res <span style="color:#8fa">$T{lpf|hpf}</span>=フィルタ種別 <span style="color:#8fa">$A{ms}</span>=Attack <span style="color:#8fa">$D{ms}</span>=Decay <span style="color:#8fa">$S{%}</span>=Sustain <span style="color:#8fa">$R{ms}</span>=Release <span style="color:#8fa">$L{ms}</span>=Length 例: <span style="color:#8fa">A @0 $Wsaw $F2000 $Q8 $A5 $D200 $S50 $R300 O4 L8 C D E F</span><br>
           <b style="color:#668">SSG音色:</b> <span style="color:#adf">@0〜@15</span>=プリセット　<b style="color:#668">SSGエンベロープ:</b> <span style="color:#adf">E AL,AR,DR,SL,SR,RR</span>　<b style="color:#668">SSGミキサー:</b> <span style="color:#adf">P1</span>=tone <span style="color:#adf">P2</span>=noise <span style="color:#adf">P3</span>=mix<br>
           <b style="color:#668">ループ:</b> <span style="color:#9cf">[...]2</span>=2回繰り返し　<span style="color:#9cf">/</span>=最終ループスキップ区切り　<b style="color:#668">ベロシティ増減:</b> <span style="color:#9cf">(</span>=+1 <span style="color:#9cf">)</span>=-1<br>
           <b style="color:#fca">リズム(G):</b> <span style="color:#fca">%K</span>=KICK　<span style="color:#fca">%S</span>=SNARE　<span style="color:#fca">%H</span>=HAT　<span style="color:#fca">%OH</span>=OpenHH　<span style="color:#fca">%P</span>=PCM　例: <span style="color:#fca">%K8</span><br>
@@ -1516,6 +1569,8 @@ G L16 %K R %S R %K %K %S R</textarea>
             { on: Array(32).fill(false), slot: Array(32).fill(-1) },
             { on: Array(32).fill(false), slot: Array(32).fill(-1) },
           ],
+          // SUB音色切替シーケンス: {on[32], slot[32]} slot=-1でtoneチェンジなし
+          subTone: { on: Array(32).fill(false), slot: Array(32).fill(-1) },
           fxSeq: {
             delayWet: { on: Array(32).fill(false), vals: Array(32).fill(0) },
             delayFb: { on: Array(32).fill(false), vals: Array(32).fill(30) },
@@ -1616,6 +1671,10 @@ G L16 %K R %S R %K %K %S R</textarea>
       ssgToneBank: Array(50).fill(null),
       // 現在各SSGチャンネルで選択中のSSGスロット (-1=未使用)
       ssgActiveTone: [-1, -1, -1],
+      // SUB音色バンク (50スロット): null=未使用, {...subParams, _name}
+      subToneBank: Array(50).fill(null),
+      // 現在選択中のSUBスロット (-1=未使用)
+      subActiveTone: -1,
       // PCM TONE BANK (32スロット): null=未使用, {rawBuffer, buffer, bits, sampleRate, name, gain}
       pcmToneBank: Array(32).fill(null),
       // 現在アクティブなPCMスロット (0〜31, -1=スロット未選択→レガシーモード)
@@ -2471,6 +2530,22 @@ G L16 %K R %S R %K %K %S R</textarea>
           });
         }
 
+        // SUB音色切替シーケンス処理
+        if (seq.subTone && seq.subTone.on[step] && seq.subTone.slot[step] >= 0) {
+          const slotIdx = seq.subTone.slot[step];
+          const toneData = state.subToneBank[slotIdx];
+          if (toneData) {
+            const params = JSON.parse(JSON.stringify(toneData));
+            delete params._name;
+            Object.assign(state.subParams, params);
+            state.subActiveTone = slotIdx;
+            setTimeout(() => {
+              applySubParamsToUI();
+              updateSubToneBankUI();
+            }, 0);
+          }
+        }
+
         // PAN反映（UIは後で更新）
         const panMap = [
           ['sub', 'panSub'],
@@ -3081,6 +3156,21 @@ G L16 %K R %S R %K %K %S R</textarea>
       fmLoadBtn.title = 'FM TONEBANKをhonodori_fm.jsonから読込';
       fmLoadBtn.onclick = () => loadFmToneBank();
       bankHeader.appendChild(fmLoadBtn);
+
+      // ALLCLR ボタン（FM TONE BANK 全消去）
+      const fmAllClrBtn = document.createElement('button');
+      fmAllClrBtn.className = 'btn';
+      fmAllClrBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#733;color:#d55;margin-left:4px';
+      fmAllClrBtn.textContent = 'ALLCLR';
+      fmAllClrBtn.title = 'FM TONE BANK を全スロット初期化（クリア）';
+      fmAllClrBtn.onclick = () => {
+        if (!confirm('FM TONE BANK を全スロット消去します。よろしいですか？')) return;
+        state.fmToneBank.fill(null);
+        state.fmActiveTone.fill(-1);
+        for (let i = 0; i < 6; i++) updateToneBankUI(i);
+      };
+      bankHeader.appendChild(fmAllClrBtn);
+
       bankHeader.appendChild(slotInfo);
       bankPanel.appendChild(bankHeader);
 
@@ -3540,6 +3630,9 @@ G L16 %K R %S R %K %K %S R</textarea>
       const info = document.getElementById(`fmToneSlotInfo${fmIdx}`);
       if (grid) renderToneSlotGrid(fmIdx, grid);
       if (info) updateToneSlotInfo(fmIdx, info);
+      // FMシーケンサーが表示中ならTONEプルダウンを即時更新
+      const fmTab = ['fm1','fm2','fm3','fm4','fm5','fm6'][fmIdx];
+      if (state.currentSeqTab === fmTab) refreshToneRow(fmTab);
     }
 
     // =============================================
@@ -4181,6 +4274,9 @@ G L16 %K R %S R %K %K %S R</textarea>
       const info = document.getElementById(`ssgToneSlotInfo${psgIdx}`);
       if (grid) renderSSGSlotGrid(psgIdx, grid);
       if (info) updateSSGSlotInfo(psgIdx, info);
+      // PSGシーケンサーが表示中ならTONEプルダウンを即時更新
+      const psgTab = ['psg1','psg2','psg3'][psgIdx];
+      if (state.currentSeqTab === psgTab) refreshToneRow(psgTab);
     }
 
     function renderSSGSlotGrid(psgIdx, container) {
@@ -4293,6 +4389,371 @@ G L16 %K R %S R %K %K %S R</textarea>
 
     buildPSGPanels();
     for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
+
+    // =============================================
+    // SUB TONE BANK functions
+    // =============================================
+    const SUB_PRESETS = [
+      { _name:'sine-short',  wave:'sine',     length:200,  filterFreq:8000,  filterRes:1,  filterType:'lowpass',  envA:5,   envD:80,  envS:40, envR:150 },
+      { _name:'sine-sus',    wave:'sine',     length:800,  filterFreq:12000, filterRes:1,  filterType:'lowpass',  envA:10,  envD:200, envS:70, envR:300 },
+      { _name:'sine-pad',    wave:'sine',     length:1500, filterFreq:6000,  filterRes:1,  filterType:'lowpass',  envA:200, envD:300, envS:80, envR:500 },
+      { _name:'sq-lead',     wave:'square',   length:400,  filterFreq:5000,  filterRes:3,  filterType:'lowpass',  envA:5,   envD:100, envS:60, envR:200 },
+      { _name:'sq-bass',     wave:'square',   length:300,  filterFreq:2000,  filterRes:5,  filterType:'lowpass',  envA:5,   envD:150, envS:30, envR:100 },
+      { _name:'sq-hpf',      wave:'square',   length:300,  filterFreq:800,   filterRes:2,  filterType:'highpass', envA:5,   envD:80,  envS:50, envR:150 },
+      { _name:'saw-bright',  wave:'sawtooth', length:400,  filterFreq:8000,  filterRes:6,  filterType:'lowpass',  envA:5,   envD:200, envS:50, envR:200 },
+      { _name:'saw-dark',    wave:'sawtooth', length:500,  filterFreq:1500,  filterRes:8,  filterType:'lowpass',  envA:20,  envD:300, envS:60, envR:400 },
+      { _name:'saw-pluck',   wave:'sawtooth', length:250,  filterFreq:4000,  filterRes:12, filterType:'lowpass',  envA:2,   envD:150, envS:0,  envR:80  },
+      { _name:'tri-mellow',  wave:'triangle', length:600,  filterFreq:6000,  filterRes:1,  filterType:'lowpass',  envA:30,  envD:200, envS:70, envR:400 },
+      { _name:'tri-bell',    wave:'triangle', length:1000, filterFreq:15000, filterRes:5,  filterType:'lowpass',  envA:5,   envD:400, envS:20, envR:600 },
+      { _name:'tri-bass',    wave:'triangle', length:350,  filterFreq:1000,  filterRes:3,  filterType:'lowpass',  envA:5,   envD:120, envS:40, envR:200 },
+      { _name:'perc-kick',   wave:'sine',     length:150,  filterFreq:200,   filterRes:1,  filterType:'lowpass',  envA:2,   envD:80,  envS:0,  envR:50  },
+      { _name:'perc-snare',  wave:'square',   length:100,  filterFreq:3000,  filterRes:1,  filterType:'highpass', envA:2,   envD:50,  envS:0,  envR:40  },
+      { _name:'org-saw',     wave:'sawtooth', length:600,  filterFreq:3000,  filterRes:2,  filterType:'lowpass',  envA:5,   envD:50,  envS:90, envR:200 },
+      { _name:'air-pad',     wave:'sine',     length:2000, filterFreq:4000,  filterRes:1,  filterType:'lowpass',  envA:400, envD:600, envS:80, envR:800 },
+    ];
+
+    function loadSubPresets() {
+      SUB_PRESETS.forEach((preset, i) => { state.subToneBank[i] = JSON.parse(JSON.stringify(preset)); });
+    }
+
+    // TONEプルダウンのみを差分更新する（renderSeq全体再描画より軽量）
+    // tab: 'sub' | 'fm1'〜'fm6' | 'psg1'〜'psg3'
+    function refreshToneRow(tab) {
+      const seq = getSeqData();
+      const len = getStepLen();
+
+      if (tab === 'sub') {
+        // SUB: .sub-seq-row の select を更新
+        const rows = document.querySelectorAll('#seqContent .sub-seq-row');
+        if (!rows.length) return;
+        const st = seq.subTone || { on: Array(32).fill(false), slot: Array(32).fill(-1) };
+        const sels = rows[0].querySelectorAll('select');
+        sels.forEach((sel, i) => {
+          if (i >= len) return;
+          // 現在の選択値を保持
+          const curVal = parseInt(sel.value);
+          // optionを再構築（--- + 保存済みスロット）
+          sel.innerHTML = '';
+          const offOpt = document.createElement('option');
+          offOpt.value = -1; offOpt.textContent = '---';
+          sel.appendChild(offOpt);
+          for (let si = 0; si < 50; si++) {
+            if (state.subToneBank[si] !== null) {
+              const o = document.createElement('option');
+              o.value = si;
+              const nm = state.subToneBank[si]._name ? state.subToneBank[si]._name.slice(0,6) : si;
+              o.textContent = si + ':' + nm;
+              sel.appendChild(o);
+            }
+          }
+          // 選択値を復元（消えたスロットなら --- に戻す）
+          sel.value = curVal;
+          if (sel.value === '' || sel.value === 'null') { sel.value = -1; st.slot[i] = -1; st.on[i] = false; }
+          const act = st.on[i] && st.slot[i] >= 0;
+          sel.className = 'note-select' + (act ? ' tone-active' : '');
+          sel.style.color = act ? '#8fa' : '#354';
+        });
+
+      } else if (/^fm[1-6]$/.test(tab)) {
+        // FM: .tone-seq-row の select を更新
+        const rows = document.querySelectorAll('#seqContent .tone-seq-row');
+        if (!rows.length) return;
+        const fmTabIdx = { fm1:0, fm2:1, fm3:2, fm4:3, fm5:4, fm6:5 }[tab];
+        if (!seq.fmTone || !seq.fmTone[fmTabIdx]) return;
+        const ft = seq.fmTone[fmTabIdx];
+        const sels = rows[0].querySelectorAll('select');
+        sels.forEach((sel, i) => {
+          if (i >= len) return;
+          const curVal = parseInt(sel.value);
+          sel.innerHTML = '';
+          const offOpt = document.createElement('option');
+          offOpt.value = -1; offOpt.textContent = '---';
+          sel.appendChild(offOpt);
+          for (let si = 0; si < 400; si++) {
+            if (state.fmToneBank[si] !== null) {
+              const o = document.createElement('option');
+              o.value = si;
+              const nm = state.fmToneBank[si]._name ? state.fmToneBank[si]._name.slice(0,6) : '';
+              o.textContent = nm ? `${si}:${nm}` : 'T' + si;
+              sel.appendChild(o);
+            }
+          }
+          sel.value = curVal;
+          if (sel.value === '' || sel.value === 'null') { sel.value = -1; ft.slot[i] = -1; ft.on[i] = false; }
+          const on = ft.on[i] && ft.slot[i] >= 0;
+          sel.className = 'note-select' + (on ? ' tone-active' : '');
+          sel.style.color = on ? '#9af' : '#445';
+        });
+
+      } else if (/^psg[1-3]$/.test(tab)) {
+        // PSG: .tone-seq-row の select を更新
+        const rows = document.querySelectorAll('#seqContent .tone-seq-row');
+        if (!rows.length) return;
+        const psgTabIdx = { psg1:0, psg2:1, psg3:2 }[tab];
+        if (!seq.psgTone || !seq.psgTone[psgTabIdx]) return;
+        const pt = seq.psgTone[psgTabIdx];
+        const sels = rows[0].querySelectorAll('select');
+        sels.forEach((sel, i) => {
+          if (i >= len) return;
+          const curVal = parseInt(sel.value);
+          sel.innerHTML = '';
+          const offOpt = document.createElement('option');
+          offOpt.value = -1; offOpt.textContent = '---';
+          sel.appendChild(offOpt);
+          for (let si = 0; si < 50; si++) {
+            if (state.ssgToneBank[si] !== null) {
+              const o = document.createElement('option');
+              o.value = si;
+              const nm = state.ssgToneBank[si]._name ? state.ssgToneBank[si]._name.replace(/^@\d+\s*/,'').slice(0,5) : si;
+              o.textContent = si + ':' + nm;
+              sel.appendChild(o);
+            }
+          }
+          sel.value = curVal;
+          if (sel.value === '' || sel.value === 'null') { sel.value = -1; pt.slot[i] = -1; pt.on[i] = false; }
+          const act = pt.on[i] && pt.slot[i] >= 0;
+          sel.className = 'note-select' + (act ? ' tone-active' : '');
+          sel.style.color = act ? '#adf' : '#355';
+        });
+      }
+    }
+
+    function updateSubToneBankUI() {
+      const grid = document.getElementById('subToneSlotGrid');
+      const info = document.getElementById('subToneSlotInfo');
+      if (grid) renderSubSlotGrid(grid);
+      if (info) updateSubSlotInfo(info);
+      // SUBシーケンサーが表示中ならTONEプルダウンを即時更新
+      if (state.currentSeqTab === 'sub') refreshToneRow('sub');
+    }
+
+    function renderSubSlotGrid(container) {
+      container.innerHTML = '';
+      for (let si = 0; si < 50; si++) {
+        const slot = document.createElement('div');
+        const stored = state.subToneBank[si] !== null;
+        const isActive = state.subActiveTone === si;
+        slot.className = 'sub-slot' + (stored ? ' stored' : '') + (isActive ? ' active-tone' : '');
+        slot.dataset.si = si;
+        slot.textContent = stored && state.subToneBank[si]._name
+          ? `${si}:${state.subToneBank[si]._name.slice(0, 6)}`
+          : si;
+        slot.title = stored
+          ? `スロット ${si}${state.subToneBank[si]._name ? ': ' + state.subToneBank[si]._name : ''}: 保存済み (クリック=呼出 / 右クリック=メニュー)`
+          : `スロット ${si}: 空 (右クリック=メニュー)`;
+        slot.onclick = () => {
+          if (stored) {
+            const params = JSON.parse(JSON.stringify(state.subToneBank[si]));
+            delete params._name;
+            Object.assign(state.subParams, params);
+            state.subActiveTone = si;
+            applySubParamsToUI();
+          } else {
+            state.subActiveTone = si;
+          }
+          updateSubToneBankUI();
+        };
+        slot.oncontextmenu = (e) => { e.preventDefault(); showSubSlotCtxMenu(e, si); };
+        container.appendChild(slot);
+      }
+    }
+
+    function updateSubSlotInfo(infoEl) {
+      const active = state.subActiveTone;
+      if (active < 0) { infoEl.textContent = '(未選択)'; infoEl.style.color = '#333'; }
+      else if (state.subToneBank[active]) { infoEl.textContent = `SLOT ${active} ● STORED`; infoEl.style.color = '#47a'; }
+      else { infoEl.textContent = `SLOT ${active} (空)`; infoEl.style.color = '#336'; }
+    }
+
+    function applySubParamsToUI() {
+      const p = state.subParams;
+      document.getElementById('oscWave').querySelectorAll('[data-wave]').forEach(b =>
+        b.classList.toggle('active', b.dataset.wave === p.wave));
+      const lenEl = document.getElementById('oscLength');
+      if (lenEl) { lenEl.value = p.length; document.getElementById('oscLengthVal').textContent = p.length + 'ms'; }
+      document.getElementById('filterType').querySelectorAll('[data-ftype]').forEach(b =>
+        b.classList.toggle('active', b.dataset.ftype === p.filterType));
+      const ffEl = document.getElementById('filterFreq');
+      if (ffEl) { ffEl.value = p.filterFreq; document.getElementById('filterFreqVal').textContent = p.filterFreq; }
+      const frEl = document.getElementById('filterRes');
+      if (frEl) { frEl.value = p.filterRes; document.getElementById('filterResVal').textContent = parseFloat(p.filterRes).toFixed(1); }
+      ['A','D','S','R'].forEach(x => {
+        const key = 'env' + x;
+        const el = document.getElementById(key);
+        const vEl = document.getElementById(key + 'Val');
+        if (el) el.value = p[key];
+        if (vEl) vEl.textContent = p[key] + (x === 'S' ? '%' : 'ms');
+      });
+    }
+
+    let subSlotCtxMenu = null;
+    let subSlotClipboard = null;
+    function showSubSlotCtxMenu(e, si) {
+      if (subSlotCtxMenu) { subSlotCtxMenu.remove(); subSlotCtxMenu = null; }
+      const stored = state.subToneBank[si] !== null;
+      const menu = document.createElement('div');
+      menu.style.cssText = 'position:fixed;background:#1a2a1a;border:1px solid #3a6;border-radius:4px;z-index:9999;min-width:150px;box-shadow:0 4px 12px rgba(0,0,0,0.6);font-family:monospace;font-size:9px';
+      subSlotCtxMenu = menu;
+      document.body.appendChild(menu);
+      const hide = () => { menu.remove(); subSlotCtxMenu = null; };
+      document.addEventListener('click', hide, { once: true });
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'padding:5px 10px 3px;color:#4a8;font-size:8px;border-bottom:1px solid #234';
+      lbl.textContent = `SUB SLOT ${si}${stored && state.subToneBank[si]._name ? ' ' + state.subToneBank[si]._name : ''}`;
+      menu.appendChild(lbl);
+      const items = [
+        { label:'💾 Store current', action:() => {
+          state.subToneBank[si] = { ...JSON.parse(JSON.stringify(state.subParams)), _name: `slot${si}` };
+          state.subActiveTone = si;
+          updateSubToneBankUI();
+          if (state.currentSeqTab === 'sub') renderSeq();
+        }},
+        stored ? { label:'✏ Rename', action:() => {
+          const nm = prompt('名前:', state.subToneBank[si]._name || '');
+          if (nm !== null) { state.subToneBank[si]._name = nm.slice(0,8); updateSubToneBankUI(); }
+        }} : null,
+        stored ? { label:'📋 Copy', action:() => { subSlotClipboard = JSON.parse(JSON.stringify(state.subToneBank[si])); } } : null,
+        subSlotClipboard ? { label:'📌 Paste', action:() => {
+          state.subToneBank[si] = JSON.parse(JSON.stringify(subSlotClipboard));
+          updateSubToneBankUI();
+          if (state.currentSeqTab === 'sub') renderSeq();
+        }} : null,
+        stored ? { label:'🗑 Clear', action:() => {
+          state.subToneBank[si] = null;
+          if (state.subActiveTone === si) state.subActiveTone = -1;
+          updateSubToneBankUI();
+          if (state.currentSeqTab === 'sub') renderSeq();
+        }} : null,
+      ].filter(Boolean);
+      items.forEach(item => {
+        const el = document.createElement('div');
+        el.style.cssText = 'padding:5px 12px;cursor:pointer;color:#ade;white-space:nowrap';
+        el.textContent = item.label;
+        el.onmouseenter = () => { el.style.background = '#1a3a1a'; };
+        el.onmouseleave = () => { el.style.background = ''; };
+        el.onclick = (ev) => { ev.stopPropagation(); item.action(); hide(); };
+        menu.appendChild(el);
+      });
+      menu.style.display = 'block';
+      const rect = menu.getBoundingClientRect();
+      let x = e.clientX, y = e.clientY;
+      if (x + rect.width > window.innerWidth) x = window.innerWidth - rect.width - 4;
+      if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 4;
+      menu.style.left = x + 'px'; menu.style.top = y + 'px';
+    }
+
+    function saveSubToneBank() {
+      const data = { _version:1, _app:'honodori', _type:'subToneBank', _saved: new Date().toISOString(), slots: state.subToneBank };
+      const blob = new Blob([JSON.stringify(data)], { type:'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'honodori_sub.json';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    }
+
+    function loadSubToneBank() {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = '.json';
+      input.onchange = (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        file.text().then(text => {
+          try {
+            const data = JSON.parse(text);
+            if (!data || data._app !== 'honodori' || data._type !== 'subToneBank') { alert('SUBトーンバンクファイルではありません'); return; }
+            data.slots.forEach((s, i) => { if (i < 50) state.subToneBank[i] = s; });
+            updateSubToneBankUI();
+            alert('SUB TONE BANK読込完了');
+          } catch(err) { alert('読込エラー: ' + err.message); }
+        });
+      };
+      document.body.appendChild(input); input.click(); document.body.removeChild(input);
+    }
+
+    function buildSubToneBankPanel() {
+      const subPanel = document.getElementById('tab-subtractive');
+      if (!subPanel || document.getElementById('subToneBankDiv')) return;
+
+      const bankDiv = document.createElement('div');
+      bankDiv.className = 'sub-bank-panel';
+      bankDiv.id = 'subToneBankDiv';
+
+      const hdr = document.createElement('div');
+      hdr.className = 'sub-bank-header';
+      hdr.innerHTML = '<span class="sub-bank-title">SUB TONE BANK</span>';
+
+      const storeBtn = document.createElement('button');
+      storeBtn.className = 'btn';
+      storeBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#3a6;color:#5a8';
+      storeBtn.textContent = 'STORE';
+      storeBtn.title = '現在のSUBパラメータを選択中スロットに保存';
+      storeBtn.onclick = () => {
+        const active = state.subActiveTone;
+        const targetSlot = active >= 0 ? active : state.subToneBank.findIndex(s => s === null);
+        if (targetSlot < 0) { alert('SUBバンクが満杯です (最大50)'); return; }
+        state.subToneBank[targetSlot] = { ...JSON.parse(JSON.stringify(state.subParams)), _name: `slot${targetSlot}` };
+        state.subActiveTone = targetSlot;
+        updateSubToneBankUI();
+      };
+
+      const preBtn = document.createElement('button');
+      preBtn.className = 'btn';
+      preBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#863;color:#ca8;margin-left:4px';
+      preBtn.textContent = 'INTNAL PRESET';
+      preBtn.title = 'SUB内蔵プリセットをスロット0〜15に読込';
+      preBtn.onclick = () => {
+        if (!confirm('SUBプリセットをスロット0〜15に読込みます。上書きされますがよろしいですか？')) return;
+        loadSubPresets(); updateSubToneBankUI();
+      };
+
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'btn';
+      saveBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#464;color:#6a8;margin-left:4px';
+      saveBtn.textContent = 'SAVE';
+      saveBtn.onclick = () => saveSubToneBank();
+
+      const loadBtn = document.createElement('button');
+      loadBtn.className = 'btn';
+      loadBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#464;color:#6a8;margin-left:2px';
+      loadBtn.textContent = 'LOAD';
+      loadBtn.onclick = () => loadSubToneBank();
+
+      const slotInfo = document.createElement('span');
+      slotInfo.id = 'subToneSlotInfo';
+      slotInfo.style.cssText = 'font-size:8px;color:#445;margin-left:4px';
+
+      // ALLCLR ボタン（SUB TONE BANK 全消去）
+      const subAllClrBtn = document.createElement('button');
+      subAllClrBtn.className = 'btn';
+      subAllClrBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#733;color:#d55;margin-left:4px';
+      subAllClrBtn.textContent = 'ALLCLR';
+      subAllClrBtn.title = 'SUB TONE BANK を全スロット初期化（クリア）';
+      subAllClrBtn.onclick = () => {
+        if (!confirm('SUB TONE BANK を全スロット消去します。よろしいですか？')) return;
+        state.subToneBank.fill(null);
+        state.subActiveTone = -1;
+        updateSubToneBankUI();
+      };
+
+      hdr.appendChild(storeBtn);
+      hdr.appendChild(preBtn);
+      hdr.appendChild(saveBtn);
+      hdr.appendChild(loadBtn);
+      hdr.appendChild(subAllClrBtn);
+      hdr.appendChild(slotInfo);
+      bankDiv.appendChild(hdr);
+
+      const slotGrid = document.createElement('div');
+      slotGrid.className = 'sub-slot-grid';
+      slotGrid.id = 'subToneSlotGrid';
+      bankDiv.appendChild(slotGrid);
+
+      subPanel.insertBefore(bankDiv, subPanel.firstChild);
+      renderSubSlotGrid(slotGrid);
+      updateSubSlotInfo(slotInfo);
+    }
+
+    buildSubToneBankPanel();
+    updateSubToneBankUI();
 
     // Tabs
     // 音源エディットタブをアクティブにするヘルパー
@@ -4467,6 +4928,20 @@ G L16 %K R %S R %K %K %S R</textarea>
           pcmLoadBtn.title = 'PCM TONEBANKを.hpcmbファイルから読込';
           pcmLoadBtn.onclick = () => loadPcmToneBank();
           pcmBankHdr.appendChild(pcmLoadBtn);
+
+          // ALLCLR ボタン（PCM TONE BANK 全消去）
+          const pcmAllClrBtn = document.createElement('button');
+          pcmAllClrBtn.className = 'btn';
+          pcmAllClrBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#733;color:#d55;margin-left:4px';
+          pcmAllClrBtn.textContent = 'ALLCLR';
+          pcmAllClrBtn.title = 'PCM TONE BANK を全スロット初期化（クリア）';
+          pcmAllClrBtn.onclick = () => {
+            if (!confirm('PCM TONE BANK を全スロット消去します。\nロード済みのPCMバッファもすべて解放されます。よろしいですか？')) return;
+            releaseAllPcmSlots();
+            state.pcmActiveToneSlot = -1;
+            renderPcmToneBank();
+          };
+          pcmBankHdr.appendChild(pcmAllClrBtn);
         }
 
         // スロットUIを描画（DOM挿入後に実行）
@@ -5107,6 +5582,54 @@ G L16 %K R %S R %K %K %S R</textarea>
             psgToneRow.appendChild(sel);
           }
           content.appendChild(psgToneRow);
+        }
+
+        // TONE row (SUBのみ)
+        if (tab === 'sub') {
+          if (!seq.subTone) {
+            seq.subTone = { on: Array(32).fill(false), slot: Array(32).fill(-1) };
+          }
+          const st = seq.subTone;
+
+          const subToneRow = document.createElement('div');
+          subToneRow.className = gridClass + ' sub-seq-row';
+          const subToneLbl = document.createElement('div');
+          subToneLbl.className = 'seq-label';
+          subToneLbl.style.cssText = 'font-size:7px;color:#4a8';
+          subToneLbl.textContent = 'TONE';
+          subToneRow.appendChild(subToneLbl);
+
+          for (let i = 0; i < len; i++) {
+            const sel = document.createElement('select');
+            const isActive = st.on[i] && st.slot[i] >= 0;
+            sel.className = 'note-select' + (isActive ? ' tone-active' : '');
+            sel.style.cssText = 'background:#0a130a;border:1px solid #224;color:' + (isActive ? '#8fa' : '#354') + ';font-size:7px';
+            if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#446';
+            const offOpt = document.createElement('option');
+            offOpt.value = -1; offOpt.textContent = '---';
+            if (!isActive) offOpt.selected = true;
+            sel.appendChild(offOpt);
+            for (let si = 0; si < 50; si++) {
+              if (state.subToneBank[si] !== null) {
+                const o = document.createElement('option');
+                o.value = si;
+                const nm = state.subToneBank[si]._name ? state.subToneBank[si]._name.slice(0,6) : si;
+                o.textContent = si + ':' + nm;
+                if (st.slot[i] === si) o.selected = true;
+                sel.appendChild(o);
+              }
+            }
+            sel.onchange = (e) => {
+              const v = parseInt(e.target.value);
+              st.slot[i] = v;
+              st.on[i] = v >= 0;
+              const act = st.on[i] && v >= 0;
+              sel.className = 'note-select' + (act ? ' tone-active' : '');
+              sel.style.color = act ? '#8fa' : '#354';
+            };
+            subToneRow.appendChild(sel);
+          }
+          content.appendChild(subToneRow);
         }
       }
     }
@@ -6108,6 +6631,8 @@ G L16 %K R %S R %K %K %S R</textarea>
               } else if (n <= 9) {
                 // 非SSGチャンネル MUCOM88: @0〜@9 → 音源切替
                 timbre = Math.min(9, Math.max(0, n));
+                // @0 (SUB) でSUBトーンバンク参照: @0.スロット番号 形式
+                // 通常の @0 は SUBへの切替のみ
               } else if (n <= 109) {
                 // @10〜@109 → TONE BANKスロット(n-10)の音色をFM1に適用してFM1で発音
                 const slotIdx = n - 10;
@@ -6116,12 +6641,67 @@ G L16 %K R %S R %K %K %S R</textarea>
                   buildFMPanel(0);
                   timbre = 1; // FM1チャンネルで発音
                 }
+              } else if (n >= 200 && n <= 249 && timbre === 0) {
+                // @200〜@249 → SUBトーンバンクスロット(n-200)参照 (timbre=0=SUBチャンネルのみ有効)
+                const subSlot = n - 200;
+                if (subSlot < 50 && state.subToneBank[subSlot]) {
+                  const params = JSON.parse(JSON.stringify(state.subToneBank[subSlot]));
+                  delete params._name;
+                  Object.assign(state.subParams, params);
+                  state.subActiveTone = subSlot;
+                  setTimeout(() => { applySubParamsToUI(); updateSubToneBankUI(); }, 0);
+                }
               }
             }
             continue;
           }
           // タイ
           if (ch === '&') { tieNext = true; pos++; continue; }
+
+          // SUBパラメータ直接指定 $X{...}
+          // $Wsine|sq|saw|tri  $Flpf|hpf  $F{Hz}  $Q{res}  $A{ms}  $D{ms}  $S{%}  $R{ms}  $L{ms}
+          if (ch === '$' && timbre === 0) {
+            pos++;
+            if (pos >= s.length) continue;
+            const cmd = s[pos]; pos++;
+            if (cmd === 'W') {
+              // 波形: SINE/SQ/SAW/TRI (大文字で比較)
+              let wv = '';
+              while (pos < s.length && /[A-Z]/.test(s[pos])) wv += s[pos++];
+              const wvMap = { SINE:'sine', SQ:'square', SAW:'sawtooth', TRI:'triangle' };
+              if (wvMap[wv]) { state.subParams.wave = wvMap[wv]; setTimeout(() => applySubParamsToUI(), 0); }
+            } else if (cmd === 'T') {
+              // フィルタ種別: LPF/HPF
+              let ft = '';
+              while (pos < s.length && /[A-Z]/.test(s[pos])) ft += s[pos++];
+              if (ft === 'LPF') { state.subParams.filterType = 'lowpass'; setTimeout(() => applySubParamsToUI(), 0); }
+              else if (ft === 'HPF') { state.subParams.filterType = 'highpass'; setTimeout(() => applySubParamsToUI(), 0); }
+            } else if (cmd === 'F') {
+              const n = readInt();
+              if (n !== null) { state.subParams.filterFreq = Math.max(100, Math.min(20000, n)); setTimeout(() => applySubParamsToUI(), 0); }
+            } else if (cmd === 'Q') {
+              const n = readInt();
+              if (n !== null) { state.subParams.filterRes = Math.max(0.1, Math.min(20, n)); setTimeout(() => applySubParamsToUI(), 0); }
+            } else if (cmd === 'A') {
+              const n = readInt();
+              if (n !== null) { state.subParams.envA = Math.max(1, Math.min(500, n)); setTimeout(() => applySubParamsToUI(), 0); }
+            } else if (cmd === 'D') {
+              const n = readInt();
+              if (n !== null) { state.subParams.envD = Math.max(1, Math.min(1000, n)); setTimeout(() => applySubParamsToUI(), 0); }
+            } else if (cmd === 'S') {
+              const n = readInt();
+              if (n !== null) { state.subParams.envS = Math.max(0, Math.min(100, n)); setTimeout(() => applySubParamsToUI(), 0); }
+            } else if (cmd === 'R') {
+              const n = readInt();
+              if (n !== null) { state.subParams.envR = Math.max(10, Math.min(2000, n)); setTimeout(() => applySubParamsToUI(), 0); }
+            } else if (cmd === 'L') {
+              const n = readInt();
+              if (n !== null) { state.subParams.length = Math.max(50, Math.min(2000, n)); setTimeout(() => applySubParamsToUI(), 0); }
+            }
+            continue;
+          }
+          // SUBチャンネル以外の $ はスキップ
+          if (ch === '$') { pos++; while (pos < s.length && s[pos] !== ' ') pos++; continue; }
 
           // パン P
           // MUCOM88: 0=発音なし 1=右 2=左 3=中央
@@ -6898,12 +7478,17 @@ G L16 %K R %S R %K %K %S R</textarea>
             psgTone: b.seqData.psgTone
               ? b.seqData.psgTone.map(pt => pt ? { on: pt.on.slice(), slot: pt.slot.slice() } : null)
               : undefined,
+            subTone: b.seqData.subTone
+              ? { on: b.seqData.subTone.on.slice(), slot: b.seqData.subTone.slot.slice() }
+              : undefined,
           }
         })),
         fmToneBank: state.fmToneBank.map(t => t ? JSON.parse(JSON.stringify(t)) : null),
         fmActiveTone: state.fmActiveTone.slice(),
         ssgToneBank: state.ssgToneBank.map(t => t ? JSON.parse(JSON.stringify(t)) : null),
         ssgActiveTone: state.ssgActiveTone.slice(),
+        subToneBank: state.subToneBank.map(t => t ? JSON.parse(JSON.stringify(t)) : null),
+        subActiveTone: state.subActiveTone,
         fmParams: JSON.parse(JSON.stringify(state.fmParams)),
         psgParams: JSON.parse(JSON.stringify(state.psgParams)),
         subParams: { ...state.subParams },
@@ -7007,6 +7592,13 @@ G L16 %K R %S R %K %K %S R</textarea>
       if (cfg.ssgActiveTone) {
         cfg.ssgActiveTone.forEach((v, i) => { state.ssgActiveTone[i] = v ?? -1; });
       }
+      // SUB Tone Bank
+      if (cfg.subToneBank) {
+        cfg.subToneBank.forEach((t, i) => { state.subToneBank[i] = t ? JSON.parse(JSON.stringify(t)) : null; });
+      }
+      if (cfg.subActiveTone !== undefined) {
+        state.subActiveTone = cfg.subActiveTone ?? -1;
+      }
       // PCM Tone Bank (AudioBufferはJSONに含められないのでスロットメタのみ復元)
       // renderPcmToneBank は UI を初期状態（空スロット）で表示
       if (typeof renderPcmToneBank === 'function') renderPcmToneBank();
@@ -7031,10 +7623,20 @@ G L16 %K R %S R %K %K %S R</textarea>
           } else {
             sd.psgTone = Array(3).fill(null).map(() => ({ on: Array(32).fill(false), slot: Array(32).fill(-1) }));
           }
+          // SUBトーンシーケンス復元
+          if (b.seqData && b.seqData.subTone) {
+            sd.subTone = {
+              on: _pad(b.seqData.subTone.on ?? [], 32, false),
+              slot: _pad(b.seqData.subTone.slot ?? [], 32, -1)
+            };
+          } else {
+            sd.subTone = { on: Array(32).fill(false), slot: Array(32).fill(-1) };
+          }
         });
       }
       // FM Tone Bankが読み込まれたのでFMパネルのバンクUIを更新
       for (let i = 0; i < 6; i++) updateToneBankUI(i);
+      updateSubToneBankUI();
 
       // PSG params
       if (cfg.psgParams) {
@@ -7046,24 +7648,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       // Sub params
       if (cfg.subParams) {
         Object.assign(state.subParams, cfg.subParams);
-        // OSC wave ボタン
-        document.getElementById('oscWave').querySelectorAll('[data-wave]').forEach(b =>
-          b.classList.toggle('active', b.dataset.wave === state.subParams.wave));
-        document.getElementById('oscLength').value = state.subParams.length;
-        document.getElementById('oscLengthVal').textContent = state.subParams.length + 'ms';
-        // Filter
-        document.getElementById('filterType').querySelectorAll('[data-ftype]').forEach(b =>
-          b.classList.toggle('active', b.dataset.ftype === state.subParams.filterType));
-        document.getElementById('filterFreq').value = state.subParams.filterFreq;
-        document.getElementById('filterFreqVal').textContent = state.subParams.filterFreq;
-        document.getElementById('filterRes').value = state.subParams.filterRes;
-        document.getElementById('filterResVal').textContent = parseFloat(state.subParams.filterRes).toFixed(1);
-        // Env
-        ['A', 'D', 'S', 'R'].forEach(p => {
-          const key = 'env' + p;
-          document.getElementById(key).value = state.subParams[key];
-          document.getElementById(key + 'Val').textContent = state.subParams[key] + (p === 'S' ? '%' : 'ms');
-        });
+        applySubParamsToUI();
       }
 
       // FX
@@ -7252,6 +7837,21 @@ G L16 %K R %S R %K %K %S R</textarea>
         ssgLoadBtn.title = 'PSG TONEBANKをhonodori_psg.jsonから読込';
         ssgLoadBtn.onclick = () => loadPsgToneBank();
         ssgBankHdr.appendChild(ssgLoadBtn);
+
+        // ALLCLR ボタン（SSG TONE BANK 全消去）
+        const ssgAllClrBtn = document.createElement('button');
+        ssgAllClrBtn.className = 'btn';
+        ssgAllClrBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#733;color:#d55;margin-left:4px';
+        ssgAllClrBtn.textContent = 'ALLCLR';
+        ssgAllClrBtn.title = 'SSG TONE BANK を全スロット初期化（クリア）';
+        ssgAllClrBtn.onclick = () => {
+          if (!confirm('SSG TONE BANK を全スロット消去します。よろしいですか？')) return;
+          state.ssgToneBank.fill(null);
+          state.ssgActiveTone.fill(-1);
+          for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
+        };
+        ssgBankHdr.appendChild(ssgAllClrBtn);
+
         ssgBankHdr.appendChild(ssgSlotInfo);
         ssgBankDiv.appendChild(ssgBankHdr);
 
