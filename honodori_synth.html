@@ -116,17 +116,32 @@
       margin-bottom: 3px
     }
 
-    .seq-grid.steps32 {
-      grid-template-columns: 60px repeat(32, 1fr)
+    /* 動的ステップ数対応グリッド（CSS変数 --seq-steps をJS側から設定） */
+    .seq-grid-custom {
+      display: grid;
+      grid-template-columns: 60px repeat(var(--seq-steps, 16), 1fr);
+      gap: 2px;
+      margin-bottom: 3px;
     }
 
-    .seq-grid.steps32 .step-btn {
-      height: 16px
+    /* ステップ数が多い場合にstep-btnを小さく */
+    .seq-grid-custom .step-btn {
+      height: 18px;
     }
+    #seqContent[style*="--seq-steps: 2"] .step-btn,
+    #seqContent[style*="--seq-steps: 1"] .step-btn { height: 18px; }
 
-    .seq-grid.steps32 .note-select {
-      font-size: 7px
-    }
+    /* 17以上で高さを縮小 */
+    .seq-grid-custom .note-select { font-size: 9px; }
+
+    /* JS側でstep数に応じてstep-btnにクラスを付与 */
+    .seq-grid-custom.wide .step-btn { height: 14px; }
+    .seq-grid-custom.wide .note-select { font-size: 7px; }
+
+    /* seqContent.wide-seq のとき子グリッドをwideにする */
+    #seqContent.wide-seq .seq-grid-custom { }
+    #seqContent.wide-seq .seq-grid-custom .step-btn { height: 14px; }
+    #seqContent.wide-seq .seq-grid-custom .note-select { font-size: 7px; }
 
     .seq-label {
       font-size: 8px;
@@ -161,6 +176,53 @@
 
     .step-btn.on.playing {
       background: #3a6a3a
+    }
+
+    /* 拍グループ先頭マーカー */
+    .step-btn.beat-head {
+      border-left-color: #b85 !important;
+      border-left-width: 2px !important;
+    }
+    .step-btn.beat-head-strong {
+      border-left-color: #e93 !important;
+      border-left-width: 3px !important;
+    }
+    /* ビートグループUIパネル */
+    #beatGroupBar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+      padding: 4px 6px;
+      background: #161616;
+      border: 1px solid #2a2a2a;
+      border-radius: 3px;
+    }
+    .beat-group-chip {
+      background: #222;
+      border: 1px solid #444;
+      color: #b85;
+      font-family: monospace;
+      font-size: 10px;
+      padding: 2px 8px;
+      cursor: pointer;
+      border-radius: 2px;
+      letter-spacing: 1px;
+      user-select: none;
+    }
+    .beat-group-chip:hover { border-color: #b85; color: #e93; }
+    .beat-group-chip.active { background: #2a1a00; border-color: #e93; color: #e93; }
+    /* カスタムステップ長入力 */
+    .steplen-custom-input {
+      background: #111;
+      border: 1px solid #444;
+      color: #ddd;
+      font-family: monospace;
+      font-size: 11px;
+      width: 36px;
+      text-align: center;
+      padding: 2px;
     }
 
     .note-select {
@@ -1011,10 +1073,12 @@
         gap: 3px;
         grid-template-columns: 48px repeat(16, 1fr);
       }
-      .seq-grid.steps32 {
-        grid-template-columns: 48px repeat(32, 1fr);
+      .seq-grid-custom {
+        gap: 3px;
+        grid-template-columns: 48px repeat(var(--seq-steps, 16), 1fr);
         overflow-x: auto;
       }
+      #seqContent.wide-seq .seq-grid-custom .step-btn { height: 22px; }
       .seq-label {
         font-size: 9px;
       }
@@ -1576,12 +1640,30 @@ G L16 %K R %S R %K %K %S R</textarea>
       <input type="file" id="loadPcmInput" accept=".wav,.wave,audio/*" style="display:none">
       <div class="seq-header-row" style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
         <div class="small-title" style="margin-bottom:0">STEP SEQUENCER</div>
-        <div style="display:flex;gap:2px">
-          <button class="btn active" id="stepLen16">16</button>
-          <button class="btn" id="stepLen32">32</button>
+        <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+          <span style="font-size:8px;color:#666">STEPS:</span>
+          <div style="display:flex;gap:2px" id="stepLenPresets">
+            <button class="btn" data-slen="7">7</button>
+            <button class="btn" data-slen="8">8</button>
+            <button class="btn" data-slen="10">10</button>
+            <button class="btn" data-slen="12">12</button>
+            <button class="btn active" data-slen="16">16</button>
+            <button class="btn" data-slen="24">24</button>
+            <button class="btn" data-slen="28">28</button>
+            <button class="btn" data-slen="32">32</button>
+          </div>
+          <input class="steplen-custom-input" id="stepLenCustom" type="number" min="1" max="32" placeholder="?" title="カスタムステップ数(1-32)">
+        </div>
+        <div id="beatGroupBar">
+          <span style="font-size:8px;color:#666;letter-spacing:1px">BEAT:</span>
+          <span id="beatGroupChips" style="display:flex;gap:3px;flex-wrap:wrap"></span>
+          <button class="btn" id="beatGroupAddBtn" title="グループを追加" style="font-size:10px;padding:1px 6px">+</button>
+          <button class="btn" id="beatGroupResetBtn" title="グループをリセット" style="font-size:10px;padding:1px 6px;color:#855;border-color:#522">↺</button>
+          <span id="beatGroupTotal" style="font-size:8px;color:#555;margin-left:4px"></span>
         </div>
         <button class="btn" id="clearPartBtn" title="現在のパートをすべてクリア"
           style="margin-left:6px;border-color:#733;color:#d55">CLR PART</button>
+        <button class="btn" id="clearAllPartsBtn" title="全パートを一括クリア（確認あり）" style="border-color:#933;color:#f66;font-weight:bold">ALL CLR</button>
       </div>
       <div id="seqTabBar" style="margin-top:4px;margin-bottom:0">
         <div class="tab-bar" style="margin-bottom:0;flex-wrap:nowrap">
@@ -1675,6 +1757,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       },
       banks: Array(32).fill(null).map(() => ({
         stepLen: 16,
+        beatGroups: [4, 4, 4, 4], // 拍グループ定義（合計=stepLen）
         bpmTrack: Array(32).fill(null), // null=グローバルBPM, 数値=STEPごとBPM
         seqData: {
           sub: { notes: Array(32).fill('A3'), vols: Array(32).fill(80), on: Array(32).fill(false), tie: Array(32).fill(false), pan: Array(32).fill(0) },
@@ -1938,6 +2021,47 @@ G L16 %K R %S R %K %K %S R</textarea>
 
     function getSeqData() { return state.banks[state.currentBank].seqData; }
     function getStepLen() { return state.banks[state.currentBank].stepLen; }
+
+    // 現在bankのbeatGroupsを取得（未設定時は全体を4刻みに自動分割）
+    function getBeatGroups() {
+      const bank = state.banks[state.currentBank];
+      const len = bank.stepLen;
+      if (!bank.beatGroups || bank.beatGroups.length === 0) {
+        // デフォルト: 4ずつ分割
+        const groups = [];
+        let rem = len;
+        while (rem > 0) { groups.push(Math.min(4, rem)); rem -= 4; }
+        bank.beatGroups = groups;
+      }
+      // 合計がstepLenと一致しない場合は末尾調整
+      const total = bank.beatGroups.reduce((a, b) => a + b, 0);
+      if (total !== len) {
+        // 合計を合わせる: 末尾グループを調整または追加/削除
+        let t = 0;
+        const fixed = [];
+        for (const g of bank.beatGroups) {
+          if (t >= len) break;
+          const take = Math.min(g, len - t);
+          if (take > 0) fixed.push(take);
+          t += take;
+        }
+        if (t < len) fixed.push(len - t);
+        bank.beatGroups = fixed;
+      }
+      return bank.beatGroups;
+    }
+
+    // beatGroupsからstep番号→拍頭かどうかのSetを生成
+    function getBeatHeadSet() {
+      const groups = getBeatGroups();
+      const heads = new Set();
+      let pos = 0;
+      groups.forEach((g, gi) => {
+        if (pos > 0) heads.add(pos); // step 0は常に先頭なので除外（境界線不要）
+        pos += g;
+      });
+      return heads;
+    }
 
     // アクティブなノードを各チャンネルごとに保持（tie/slur処理用）
     const activeNodes = {
@@ -3012,14 +3136,17 @@ G L16 %K R %S R %K %K %S R</textarea>
     function updateStepIndicatorCount() {
       const indContainer = document.getElementById('stepIndicator');
       const len = getStepLen();
-      // 不足分を追加、余分を削除
-      while (indContainer.children.length < len) {
+      const beatHeads = getBeatHeadSet();
+      // 全再構築（beatGroups変更に対応）
+      indContainer.innerHTML = '';
+      for (let i = 0; i < len; i++) {
         const d = document.createElement('div');
         d.className = 'led-dot active';
+        if (i > 0 && beatHeads.has(i)) {
+          d.style.marginLeft = '4px';
+          d.style.borderLeft = '1px solid #b85';
+        }
         indContainer.appendChild(d);
-      }
-      while (indContainer.children.length > len) {
-        indContainer.removeChild(indContainer.lastChild);
       }
     }
 
@@ -5169,6 +5296,15 @@ G L16 %K R %S R %K %K %S R</textarea>
       };
     });
 
+    // ステップ要素に拍グループ境界のスタイルを適用するヘルパー
+    function applyStepBorder(el, stepIdx, beatHeads) {
+      if (stepIdx === 0) return;
+      if (beatHeads.has(stepIdx)) {
+        el.style.borderLeftColor = '#e93';
+        el.style.borderLeftWidth = '2px';
+      }
+    }
+
     function renderSeq() {
       // フォーカス中のselect/inputがシーケンサー内にある場合は再描画をスキップ
       const focused = document.activeElement;
@@ -5181,12 +5317,27 @@ G L16 %K R %S R %K %K %S R</textarea>
       const tab = state.currentSeqTab;
       const seq = getSeqData();
       const len = getStepLen();
-      const gridClass = len === 32 ? 'seq-grid steps32' : 'seq-grid';
+      const gridClass = 'seq-grid seq-grid-custom';
+      const beatHeads = getBeatHeadSet();
       content.innerHTML = '';
 
-      // 16/32ボタンのアクティブ状態を同期
-      document.getElementById('stepLen16').classList.toggle('active', len === 16);
-      document.getElementById('stepLen32').classList.toggle('active', len === 32);
+      // ステッププリセットボタンのアクティブ状態を同期
+      document.querySelectorAll('#stepLenPresets [data-slen]').forEach(b => {
+        b.classList.toggle('active', parseInt(b.dataset.slen) === len);
+      });
+      const customInp = document.getElementById('stepLenCustom');
+      if (customInp) {
+        const presetVals = [7,8,10,12,16,24,28,32];
+        customInp.value = presetVals.includes(len) ? '' : len;
+      }
+
+      // beatGroupBarを更新
+      renderBeatGroupBar();
+
+      // seqContentにグリッド変数を設定（全行が参照するCSS変数）
+      content.style.setProperty('--seq-steps', len);
+      // 17ステップ以上はwideクラスで縮小表示
+      content.classList.toggle('wide-seq', len > 16);
 
       if (tab === 'drums') {
         const drumDefs = [
@@ -5238,8 +5389,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           for (let i = 0; i < len; i++) {
             const btn = document.createElement('div');
             btn.className = 'step-btn' + (seq.drums[key][i] ? ' on' : '');
-            if (i > 0 && i % 16 === 0) { btn.style.borderLeftColor = '#c33'; btn.style.borderLeftWidth = '2px'; }
-            else if (i > 0 && i % 4 === 0) btn.style.borderLeftColor = '#555';
+            applyStepBorder(btn, i, beatHeads);
             btn.onclick = () => { seq.drums[key][i] = !seq.drums[key][i]; btn.classList.toggle('on', seq.drums[key][i]); };
             row.appendChild(btn);
           }
@@ -5293,7 +5443,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         for (let i = 0; i < len; i++) {
           const sel = document.createElement('select');
           sel.className = 'pcm-slot-sel' + (ps.slot[i] != null ? ' has-slot' : '');
-          if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#6a5020';
+          applyStepBorder(sel, i, beatHeads);
           // "ACT"=アクティブスロット使用
           const defOpt = document.createElement('option');
           defOpt.value = ''; defOpt.textContent = 'ACT';
@@ -5339,7 +5489,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           inp.min = 2000; inp.max = 55500;
           inp.placeholder = pcmDefaultPlayFreq;
           inp.value = ps.freq[i] != null ? ps.freq[i] : '';
-          if (i > 0 && i % 16 === 0) { inp.style.borderLeftColor = '#c33'; inp.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) inp.style.borderLeftColor = '#6a5020';
+          applyStepBorder(inp, i, beatHeads);
           inp.id = `pcmFreqInp_${i}`;
           inp.oninput = (e) => {
             const v = e.target.value.trim();
@@ -5367,7 +5517,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           const sel = document.createElement('select');
           sel.className = 'note-select';
           sel.style.cssText = 'background:#120e06;border-color:#4a3818;color:#c4956a';
-          if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#6a5020';
+          applyStepBorder(sel, i, beatHeads);
           // null=デフォルト(100)
           const defOpt = document.createElement('option');
           defOpt.value = ''; defOpt.textContent = 'DEF';
@@ -5401,14 +5551,14 @@ G L16 %K R %S R %K %K %S R</textarea>
           btn.style.cssText = btn.className.includes(' on')
             ? 'background:#211608;border-color:#7a5528'
             : '';
-          if (i > 0 && i % 16 === 0) { btn.style.borderLeftColor = '#c33'; btn.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) btn.style.borderLeftColor = '#6a5020';
+          applyStepBorder(btn, i, beatHeads);
           btn.onclick = () => {
             ps.on[i] = !ps.on[i];
             btn.classList.toggle('on', ps.on[i]);
             btn.style.background = ps.on[i] ? '#211608' : '';
             btn.style.borderColor = ps.on[i] ? '#7a5528' : '';
             // 8区切りの左ボーダーを復元
-            if (i > 0 && i % 16 === 0) { btn.style.borderLeftColor = '#c33'; btn.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) btn.style.borderLeftColor = '#6a5020';
+            applyStepBorder(btn, i, beatHeads);
             // SLOT表示をON/OFFに連動して更新
             const slotSelRow = slotRow.querySelectorAll('select.pcm-slot-sel');
             if (ps.on[i]) {
@@ -5539,7 +5689,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           for (let i = 0; i < len; i++) {
             const sel = document.createElement('select');
             sel.className = 'note-select';
-            if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#555';
+            applyStepBorder(sel, i, beatHeads);
             opts.forEach(opt => {
               const o = document.createElement('option');
               o.value = opt; o.textContent = fmt(opt);
@@ -5560,7 +5710,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           for (let i = 0; i < len; i++) {
             const btn = document.createElement('div');
             btn.className = 'step-btn' + (ch.on[i] ? ' on' : '');
-            if (i > 0 && i % 16 === 0) { btn.style.borderLeftColor = '#c33'; btn.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) btn.style.borderLeftColor = '#555';
+            applyStepBorder(btn, i, beatHeads);
             btn.onclick = () => { ch.on[i] = !ch.on[i]; btn.classList.toggle('on', ch.on[i]); };
             onRow.appendChild(btn);
           }
@@ -5639,7 +5789,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           inp.min = 20; inp.max = 500;
           inp.placeholder = state.bpm; // グローバルBPMをプレースホルダーで表示
           inp.value = bank.bpmTrack[i] != null ? bank.bpmTrack[i] : '';
-          if (i > 0 && i % 16 === 0) { inp.style.borderLeftColor = '#c33'; inp.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) inp.style.borderLeftColor = '#446';
+          applyStepBorder(inp, i, beatHeads);
           inp.id = `bpmStepInp_${i}`;
           inp.oninput = (e) => {
             const v = e.target.value.trim();
@@ -5675,7 +5825,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           const h = Math.round(4 + pct * 14); // 4px〜18px
           const bar = document.createElement('div');
           bar.style.cssText = `height:${h}px;background:${bank.bpmTrack[i] != null ? '#446' : '#2a2a3a'};border-radius:1px;align-self:flex-end;margin-top:auto`;
-          if (i > 0 && i % 16 === 0) bar.style.borderLeft = '2px solid #c33'; else if (i > 0 && i % 4 === 0) bar.style.borderLeft = '1px solid #446';
+          applyStepBorder(bar, i, beatHeads);
           barRow.appendChild(bar);
         }
         content.appendChild(barRow);
@@ -5691,7 +5841,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         for (let i = 0; i < len; i++) {
           const sel = document.createElement('select');
           sel.className = 'note-select';
-          if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#555';
+          applyStepBorder(sel, i, beatHeads);
           NOTES.forEach(n => {
             const opt = document.createElement('option');
             opt.value = n; opt.textContent = n;
@@ -5711,7 +5861,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         for (let i = 0; i < len; i++) {
           const sel = document.createElement('select');
           sel.className = 'note-select';
-          if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#555';
+          applyStepBorder(sel, i, beatHeads);
           for (let v = 100; v >= 0; v -= 5) {
             const opt = document.createElement('option');
             opt.value = v; opt.textContent = v;
@@ -5731,7 +5881,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         for (let i = 0; i < len; i++) {
           const btn = document.createElement('div');
           btn.className = 'step-btn' + (chData.on[i] ? ' on' : '');
-          if (i > 0 && i % 16 === 0) { btn.style.borderLeftColor = '#c33'; btn.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) btn.style.borderLeftColor = '#555';
+          applyStepBorder(btn, i, beatHeads);
           btn.onclick = () => { chData.on[i] = !chData.on[i]; btn.classList.toggle('on', chData.on[i]); };
           onRow.appendChild(btn);
         }
@@ -5761,7 +5911,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           };
           btn.className = 'step-btn' + getTieClass(isTie, isOn, sameNote);
           btn.title = getTieTitle(isTie, isOn, sameNote);
-          if (i > 0 && i % 16 === 0) { btn.style.borderLeftColor = '#c33'; btn.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) btn.style.borderLeftColor = '#555';
+          applyStepBorder(btn, i, beatHeads);
           btn.onclick = () => {
             if (!chData.tie) chData.tie = Array(32).fill(false);
             chData.tie[i] = !chData.tie[i];
@@ -5835,7 +5985,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         for (let i = 0; i < len; i++) {
           const sel = document.createElement('select');
           sel.className = 'note-select';
-          if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#555';
+          applyStepBorder(sel, i, beatHeads);
           panOpts.forEach(opt => {
             const o = document.createElement('option');
             o.value = opt; o.textContent = panFmt(opt);
@@ -5882,7 +6032,7 @@ G L16 %K R %S R %K %K %S R</textarea>
             const sel = document.createElement('select');
             sel.className = 'note-select' + (ft.on[i] ? ' tone-active' : '');
             sel.style.cssText = 'background:#0a0a18;border:1px solid #224;color:' + (ft.on[i] ? '#9af' : '#445') + ';font-size:7px';
-            if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#446';
+            applyStepBorder(sel, i, beatHeads);
             // OFF選択肢
             const offOpt = document.createElement('option');
             offOpt.value = -1; offOpt.textContent = '---';
@@ -5935,7 +6085,7 @@ G L16 %K R %S R %K %K %S R</textarea>
             const isActive = pt.on[i] && pt.slot[i] >= 0;
             sel.className = 'note-select' + (isActive ? ' tone-active' : '');
             sel.style.cssText = 'background:#0a0a18;border:1px solid #224;color:' + (isActive ? '#adf' : '#355') + ';font-size:7px';
-            if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#446';
+            applyStepBorder(sel, i, beatHeads);
             // OFF選択肢
             const offOpt = document.createElement('option');
             offOpt.value = -1; offOpt.textContent = '---';
@@ -5985,7 +6135,7 @@ G L16 %K R %S R %K %K %S R</textarea>
             const isActive = st.on[i] && st.slot[i] >= 0;
             sel.className = 'note-select' + (isActive ? ' tone-active' : '');
             sel.style.cssText = 'background:#0a130a;border:1px solid #224;color:' + (isActive ? '#8fa' : '#354') + ';font-size:7px';
-            if (i > 0 && i % 16 === 0) { sel.style.borderLeftColor = '#c33'; sel.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) sel.style.borderLeftColor = '#446';
+            applyStepBorder(sel, i, beatHeads);
             const offOpt = document.createElement('option');
             offOpt.value = -1; offOpt.textContent = '---';
             if (!isActive) offOpt.selected = true;
@@ -6019,19 +6169,147 @@ G L16 %K R %S R %K %K %S R</textarea>
     // Step indicator (初期は16)
     updateStepIndicatorCount();
 
-    // 16/32 ステップ切替ボタン
-    document.getElementById('stepLen16').onclick = () => {
-      if (getStepLen() === 16) return;
-      state.banks[state.currentBank].stepLen = 16;
-      if (state.playing) { state.currentStep = state.currentStep % 16; }
+    // =============================================
+    // ステップ長 & BEAT GROUP UI
+    // =============================================
+
+    // beatGroupBarを描画する関数
+    function renderBeatGroupBar() {
+      const bank = state.banks[state.currentBank];
+      const len = bank.stepLen;
+      const groups = getBeatGroups();
+      const total = groups.reduce((a, b) => a + b, 0);
+
+      const chipsEl = document.getElementById('beatGroupChips');
+      const totalEl = document.getElementById('beatGroupTotal');
+      if (!chipsEl || !totalEl) return;
+
+      chipsEl.innerHTML = '';
+      groups.forEach((g, gi) => {
+        const wrap = document.createElement('span');
+        wrap.style.cssText = 'display:inline-flex;align-items:center;gap:0;border:1px solid #444;border-radius:3px;overflow:hidden';
+
+        const mkBtn = (label, action, extraStyle) => {
+          const b = document.createElement('button');
+          b.textContent = label;
+          b.style.cssText = `background:#1a1a1a;border:none;color:#aaa;font-family:monospace;font-size:11px;padding:3px 6px;cursor:pointer;line-height:1;${extraStyle||''}`;
+          b.addEventListener('pointerdown', e => e.stopPropagation());
+          b.onclick = (e) => { e.stopPropagation(); action(); };
+          return b;
+        };
+
+        // − ボタン: 1より大きければ-1、1なら隣に吸収して削除
+        const minusBtn = mkBtn('−', () => {
+          if (groups[gi] > 1) {
+            groups[gi]--;
+          } else {
+            // グループが1以下: 隣（後 or 前）に吸収して削除
+            if (groups.length <= 1) return;
+            const target = gi + 1 < groups.length ? gi + 1 : gi - 1;
+            groups[target] += groups[gi];
+            groups.splice(gi, 1);
+          }
+          normalizeBeatGroups(bank);
+          renderBeatGroupBar();
+          renderSeq();
+        }, 'border-right:1px solid #444;color:#c88;');
+
+        // 数字ラベル
+        const label = document.createElement('span');
+        label.textContent = g;
+        label.style.cssText = 'padding:3px 7px;font-family:monospace;font-size:12px;color:#e93;background:#1e1200;min-width:20px;text-align:center;';
+
+        // + ボタン
+        const plusBtn = mkBtn('+', () => {
+          const sum = groups.reduce((a, b) => a + b, 0);
+          if (sum < len) {
+            groups[gi]++;
+            normalizeBeatGroups(bank);
+            renderBeatGroupBar();
+            renderSeq();
+          }
+        }, 'border-left:1px solid #444;color:#8c8;');
+
+        wrap.appendChild(minusBtn);
+        wrap.appendChild(label);
+        wrap.appendChild(plusBtn);
+        chipsEl.appendChild(wrap);
+      });
+
+      const match = total === len;
+      totalEl.textContent = `${total}/${len}`;
+      totalEl.style.color = match ? '#555' : '#c55';
+    }
+
+    // beatGroupsの合計をstepLenに正規化
+    function normalizeBeatGroups(bank) {
+      const len = bank.stepLen;
+      const groups = bank.beatGroups;
+      let total = groups.reduce((a, b) => a + b, 0);
+      // 超過: 末尾から削る
+      while (total > len && groups.length > 0) {
+        const diff = total - len;
+        const last = groups[groups.length - 1];
+        if (last <= diff) { groups.pop(); total -= last; }
+        else { groups[groups.length - 1] -= diff; total = len; }
+      }
+      // 不足: 末尾に追加
+      if (total < len) groups.push(len - total);
+    }
+
+    // ステップ長を変更する共通関数
+    function setStepLen(newLen) {
+      newLen = Math.max(1, Math.min(32, newLen));
+      const bank = state.banks[state.currentBank];
+      if (bank.stepLen === newLen) return;
+      bank.stepLen = newLen;
+      // beatGroupsを新しいstepLenに合わせる
+      normalizeBeatGroups(bank);
+      if (state.playing) { state.currentStep = state.currentStep % newLen; }
       renderSeq();
       updateStepIndicatorCount();
+    }
+
+    // プリセットボタン
+    document.getElementById('stepLenPresets').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-slen]');
+      if (!btn) return;
+      setStepLen(parseInt(btn.dataset.slen));
+    });
+
+    // カスタム入力
+    const stepLenCustom = document.getElementById('stepLenCustom');
+    stepLenCustom.addEventListener('change', () => {
+      const v = parseInt(stepLenCustom.value);
+      if (!isNaN(v)) setStepLen(v);
+    });
+    stepLenCustom.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { const v = parseInt(stepLenCustom.value); if (!isNaN(v)) setStepLen(v); }
+    });
+
+    // グループ追加ボタン
+    document.getElementById('beatGroupAddBtn').onclick = () => {
+      const bank = state.banks[state.currentBank];
+      const groups = getBeatGroups();
+      const total = groups.reduce((a, b) => a + b, 0);
+      if (total < bank.stepLen) {
+        groups.push(bank.stepLen - total);
+        renderBeatGroupBar();
+        renderSeq();
+      }
     };
-    document.getElementById('stepLen32').onclick = () => {
-      if (getStepLen() === 32) return;
-      state.banks[state.currentBank].stepLen = 32;
+
+    // グループリセットボタン
+    document.getElementById('beatGroupResetBtn').onclick = () => {
+      const bank = state.banks[state.currentBank];
+      const len = bank.stepLen;
+      // デフォルト: 4ずつ
+      const groups = [];
+      let rem = len;
+      while (rem > 0) { groups.push(Math.min(4, rem)); rem -= 4; }
+      bank.beatGroups = groups;
+      renderBeatGroupBar();
       renderSeq();
-      updateStepIndicatorCount();
     };
 
     // =============================================
@@ -6934,6 +7212,45 @@ G L16 %K R %S R %K %K %S R</textarea>
         }
       }
       renderSeq();
+    };
+
+
+    // ALL CLR: 現在バンクの全パートを一括クリア
+    document.getElementById('clearAllPartsBtn').onclick = async () => {
+      const ok = await mobileConfirm('現在バンクの全パートをクリアしますか？');
+      if (!ok) return;
+      {
+        const seq = getSeqData();
+        // FM/SUB/PSG チャンネル
+        ['sub','fm1','fm2','fm3','fm4','fm5','fm6','psg1','psg2','psg3'].forEach(ch => {
+          if (!seq[ch]) return;
+          seq[ch].on.fill(false);
+          seq[ch].tie.fill(false);
+          seq[ch].notes.fill('A3');
+          seq[ch].vols.fill(80);
+          if (seq[ch].pan) seq[ch].pan.fill(0);
+        });
+        // FM TONE シーケンス
+        if (seq.fmTone) seq.fmTone.forEach(ft => { if (ft) { ft.on.fill(false); ft.slot.fill(-1); } });
+        // PSG TONE シーケンス
+        if (seq.psgTone) seq.psgTone.forEach(pt => { if (pt) { pt.on.fill(false); pt.slot.fill(-1); } });
+        // SUB TONE シーケンス
+        if (seq.subTone) { seq.subTone.on.fill(false); seq.subTone.slot.fill(-1); }
+        // ドラム
+        ['kick','snare','hat','tomhi','tommid','tomlo','openhh','closehh'].forEach(k => {
+          if (seq.drums[k]) seq.drums[k].fill(false);
+        });
+        // PCM シーケンス
+        if (seq.pcmSeq) {
+          seq.pcmSeq.on.fill(false);
+          seq.pcmSeq.freq.fill(null);
+          seq.pcmSeq.vol.fill(null);
+          if (seq.pcmSeq.slot) seq.pcmSeq.slot.fill(null);
+        }
+        // FX シーケンス
+        if (seq.fxSeq) Object.values(seq.fxSeq).forEach(ch => ch.on.fill(false));
+        renderSeq();
+      }
     };
 
     // Controls
@@ -8386,6 +8703,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         },
         banks: state.banks.map(b => ({
           stepLen: b.stepLen,
+          beatGroups: b.beatGroups ? b.beatGroups.slice() : null,
           bpmTrack: (b.bpmTrack ?? Array(32).fill(null)).slice(),
           seqData: {
             sub: { notes: b.seqData.sub.notes.slice(), vols: b.seqData.sub.vols.slice(), on: b.seqData.sub.on.slice(), tie: b.seqData.sub.tie.slice(), pan: (b.seqData.sub.pan ?? Array(32).fill(0)).slice() },
@@ -8481,6 +8799,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         cfg.banks.forEach((b, i) => {
           if (!state.banks[i]) return;
           state.banks[i].stepLen = b.stepLen ?? 16;
+          state.banks[i].beatGroups = b.beatGroups ? b.beatGroups.slice() : null;
           state.banks[i].bpmTrack = b.bpmTrack ? b.bpmTrack.slice() : Array(32).fill(null);
           const sd = state.banks[i].seqData;
           const cs = b.seqData;
