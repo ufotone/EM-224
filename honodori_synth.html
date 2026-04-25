@@ -419,6 +419,45 @@
       border-color: #a74
     }
 
+    /* レガート: ON=false + TIE=true (前音を延長) */
+    .step-btn.tie-legato {
+      background: #1a3a2a;
+      border-color: #3a7
+    }
+
+    .step-btn.tie-legato.on {
+      background: #2a4a3a;
+      border-color: #5b9
+    }
+
+    /* PORTA行: スライダー付きセル */
+    .porta-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+      height: 28px;
+      font-size: 7px;
+      color: #68a;
+      background: #181824;
+      border: 1px solid #334;
+      border-radius: 2px;
+      padding: 1px 2px;
+      min-width: 0;
+    }
+    .porta-cell input[type=range] {
+      width: 100%;
+      accent-color: #68a;
+      height: 6px;
+      cursor: pointer;
+    }
+    .porta-cell span {
+      color: #9cf;
+      font-size: 6px;
+      line-height: 1;
+    }
+
     .mode-btn {
       background: #111;
       border: 1px solid #444;
@@ -1108,6 +1147,62 @@
         gap: 8px;
       }
     }
+    /* カスタム確認ダイアログ */
+    #customConfirmOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    #customConfirmOverlay.visible {
+      display: flex;
+    }
+    #customConfirmBox {
+      background: #1a1a1a;
+      border: 1px solid #555;
+      border-radius: 6px;
+      padding: 18px 20px 14px;
+      max-width: 280px;
+      width: 88vw;
+      text-align: center;
+    }
+    #customConfirmMsg {
+      font-family: monospace;
+      font-size: 11px;
+      color: #ddd;
+      margin-bottom: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    #customConfirmBtns {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+    #customConfirmBtns button {
+      font-family: monospace;
+      font-size: 11px;
+      padding: 6px 18px;
+      border-radius: 3px;
+      cursor: pointer;
+      border: 1px solid #555;
+      min-width: 70px;
+    }
+    #customConfirmOk {
+      background: #3a1a1a;
+      border-color: #933;
+      color: #f77;
+    }
+    #customConfirmOk:active { background: #5a2a2a; }
+    #customConfirmCancel {
+      background: #222;
+      border-color: #444;
+      color: #aaa;
+    }
+    #customConfirmCancel:active { background: #2a2a2a; }
   </style>
 </head>
 
@@ -1224,7 +1319,8 @@ G L16 %K R %S R %K %K %S R</textarea>
       <div class="tab" data-tab="psg2">PS2</div>
       <div class="tab" data-tab="psg3">PS3</div>
       <div class="tab" data-tab="fx">FX</div>
-      <div class="tab" data-tab="pcmseq" style="border-color:#553a1a;color:#a8824a">PCM</div>
+      <div class="tab" data-tab="pcmbank" style="border-color:#553a1a;color:#a8824a">PCM</div>
+      <div class="tab" data-tab="pcmseq" style="border-color:#553a1a;color:#a8824a;display:none">PCM</div>
     </div>
 
     <!-- Subtractive panel -->
@@ -1469,6 +1565,11 @@ G L16 %K R %S R %K %K %S R</textarea>
       </div>
     </div>
 
+    <!-- PCM TONE BANK panel (independent, like FX) -->
+    <div class="panel" id="tab-pcmbank" style="display:none">
+      <div id="pcmBankStandaloneContent"></div>
+    </div>
+
     <!-- Step Sequencer -->
     <div class="panel" id="seqPanel">
       <!-- hidden legacy file input (kept for compat) -->
@@ -1508,7 +1609,43 @@ G L16 %K R %S R %K %K %S R</textarea>
 
   </div>
 
+  <!-- カスタム確認ダイアログ -->
+  <div id="customConfirmOverlay">
+    <div id="customConfirmBox">
+      <div id="customConfirmMsg"></div>
+      <div id="customConfirmBtns">
+        <button id="customConfirmOk">OK</button>
+        <button id="customConfirmCancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
   <script>
+    // confirm() のスマートフォン対応版（Promiseベース）
+    function mobileConfirm(msg) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('customConfirmOverlay');
+        const msgEl   = document.getElementById('customConfirmMsg');
+        const okBtn   = document.getElementById('customConfirmOk');
+        const cancelBtn = document.getElementById('customConfirmCancel');
+        msgEl.textContent = msg;
+        overlay.classList.add('visible');
+        const cleanup = (result) => {
+          overlay.classList.remove('visible');
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          overlay.removeEventListener('click', onOverlay);
+          resolve(result);
+        };
+        const onOk     = () => cleanup(true);
+        const onCancel = () => cleanup(false);
+        const onOverlay = (e) => { if (e.target === overlay) cleanup(false); };
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        overlay.addEventListener('click', onOverlay);
+      });
+    }
+
     const NOTES = ['C2', 'C#2', 'D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2', 'A#2', 'B2',
       'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
       'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4',
@@ -1664,6 +1801,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       ],
       subParams: { wave: 'sine', length: 300, filterFreq: 8000, filterRes: 1, filterType: 'lowpass', envA: 10, envD: 100, envS: 60, envR: 200 },
       fx: { delayFb: 30, delayWet: 0, chorusRate: 30, chorusDepth: 0, chorusWet: 0, djFilterFreq: 20000, djFilterType: 'lowpass', djFilterRes: 1, delaySync: '3' },
+      portaTimes: { sub:80, fm1:80, fm2:80, fm3:80, fm4:80, fm5:80, fm6:80, psg1:80, psg2:80, psg3:80 },  // チャンネル別ポルタメント時間(ms)
       mix: {
         sub: 80, fm1: 65, fm2: 73, fm3: 65, fm4: 65, fm5: 65, fm6: 65, psg1: 69, psg2: 60, psg3: 56,
         panSub: 0, panFm1: 0, panFm2: 0, panFm3: 0, panFm4: 0, panFm5: 0, panFm6: 0, panPsg1: 0, panPsg2: 0, panPsg3: 0
@@ -1808,20 +1946,20 @@ G L16 %K R %S R %K %K %S R</textarea>
       psg1: null, psg2: null, psg3: null,
     };
 
-    function releaseNode(ch) {
+    function releaseNode(ch, when) {
       const n = activeNodes[ch];
       if (!n) return;
-      const now = audioCtx ? audioCtx.currentTime : 0;
+      const now = when ?? (audioCtx ? audioCtx.currentTime : 0);
       try {
         if (ch === 'sub') {
           const R = state.subParams.envR / 1000;
           n.gn.gain.cancelScheduledValues(now);
           n.gn.gain.setValueAtTime(n.gn.gain.value, now);
           n.gn.gain.linearRampToValueAtTime(0, now + R);
-          n.osc.stop(now + R + 0.05);
+          try { n.osc.stop(now + R + 0.1); } catch (e) { }
         } else if (ch.startsWith('fm')) {
-          const oscs = n.oscs ?? (n.ops ? n.ops.map(o => o.osc) : []);
-          const envs = n.envs ?? (n.ops ? n.ops.map(o => o.env) : []);
+          const oscs = n.oscs ?? [];
+          const envs = n.envs ?? [];
           envs.forEach(env => {
             try {
               env.gain.cancelScheduledValues(now);
@@ -1832,19 +1970,64 @@ G L16 %K R %S R %K %K %S R</textarea>
           oscs.forEach(osc => { try { osc.stop(now + 0.2); } catch (e) { } });
           if (n.lfoNodes) n.lfoNodes.forEach(l => { try { l.stop(now + 0.2); } catch (e) { } });
         } else {
-          // PSG: osc（トーン）とnoise（ノイズ）それぞれ停止
-          try {
-            if (n.osc) { n.osc.stop(now + 0.05); }
-          } catch (e) { }
-          try {
-            if (n.noise) { n.noise.stop(now + 0.05); }
-          } catch (e) { }
-          try {
-            if (n.lfo) { n.lfo.stop(now + 0.05); }
-          } catch (e) { }
+          if (n.osc) { try { n.osc.stop(now + 0.05); } catch (e) { } }
+          if (n.noise) { try { n.noise.stop(now + 0.05); } catch (e) { } }
+          if (n.lfo) { try { n.lfo.stop(now + 0.05); } catch (e) { } }
         }
       } catch (e) { }
       activeNodes[ch] = null;
+    }
+
+    // レガート: ON=false+TIE=true 時にゲインエンベロープを書き換えてstepTime分延長する
+    function extendNode(ch, when, stepTime) {
+      const n = activeNodes[ch];
+      if (!n) return;
+      const newEnd = when + stepTime; // 新しいリリース開始時刻
+
+      try {
+        if (ch === 'sub') {
+          const R = (state.subParams.envR / 1000);
+          const S = (state.subParams.envS / 100);
+          const v = n.sustainGain ?? 0;
+          // サスティンゲインを newEnd まで維持し、その後リリース
+          n.gn.gain.cancelScheduledValues(when);
+          n.gn.gain.setValueAtTime(v, when);
+          n.gn.gain.setValueAtTime(v, newEnd);
+          n.gn.gain.linearRampToValueAtTime(0, newEnd + R);
+          // stop を延長（既存値より後ろなら更新できる）
+          try { n.osc.stop(newEnd + R + 0.1); } catch(e) {}
+          n.sustainGain = v;
+          n.releaseAt = newEnd;
+        } else if (ch.startsWith('fm')) {
+          // FMはエンベロープが各OPにあるため、SR段階のまま延長（サスティン維持）
+          // キャリアOPのゲインをリスケジュール
+          if (n.envs) {
+            n.envs.forEach((env, i) => {
+              try {
+                const sv = n.sustainGains ? n.sustainGains[i] : env.gain.value;
+                env.gain.cancelScheduledValues(when);
+                env.gain.setValueAtTime(sv, when);
+                env.gain.setValueAtTime(sv, newEnd);
+                env.gain.linearRampToValueAtTime(0, newEnd + 0.15);
+              } catch(e) {}
+            });
+          }
+          if (n.oscs) {
+            n.oscs.forEach(osc => { try { osc.stop(newEnd + 0.25); } catch(e) {} });
+          }
+          if (n.lfoNodes) {
+            n.lfoNodes.forEach(l => { try { l.stop(newEnd + 0.25); } catch(e) {} });
+          }
+          n.releaseAt = newEnd;
+        } else {
+          // PSG: gainNodeがないのでosc.stopのみ延長
+          const stopAt = newEnd + 0.1;
+          if (n.osc) { try { n.osc.stop(stopAt); } catch(e) {} }
+          if (n.noise) { try { n.noise.stop(stopAt); } catch(e) {} }
+          if (n.lfo) { try { n.lfo.stop(stopAt); } catch(e) {} }
+          n.releaseAt = newEnd;
+        }
+      } catch(e) {}
     }
 
     function playSubtractive(freq, vol, when, tie, dur) {
@@ -1856,16 +2039,24 @@ G L16 %K R %S R %K %K %S R</textarea>
       const noteLen = (dur != null) ? Math.max(dur - R, 0.01) : p.length / 1000;
 
       if (tie && activeNodes.sub) {
-        // タイ/スラー: 既存ノードの周波数を変更してエンベロープ継続
+        // ポルタメント: 前の音から次の音へ portaTime ms かけてスライド
         try {
-          activeNodes.sub.osc.frequency.setTargetAtTime(freq, when, 0.01);
-          // ノート長を延長（stop時刻を更新）
-          activeNodes.sub.osc.stop(when + noteLen + R + 0.05);
+          const portaSec = Math.max(0.005, (state.portaTimes?.sub ?? 80) / 1000);
+          activeNodes.sub.osc.frequency.cancelScheduledValues(when);
+          activeNodes.sub.osc.frequency.setValueAtTime(activeNodes.sub.osc.frequency.value, when);
+          activeNodes.sub.osc.frequency.exponentialRampToValueAtTime(Math.max(1, freq), when + portaSec);
+          // ゲインスケジュールをリセットして新しいノート長で再スケジュール
+          activeNodes.sub.gn.gain.cancelScheduledValues(when);
+          activeNodes.sub.gn.gain.setValueAtTime(activeNodes.sub.sustainGain ?? (v * S), when);
+          activeNodes.sub.gn.gain.setValueAtTime(activeNodes.sub.sustainGain ?? (v * S), when + noteLen);
+          activeNodes.sub.gn.gain.linearRampToValueAtTime(0, when + noteLen + R);
+          activeNodes.sub.sustainGain = activeNodes.sub.sustainGain ?? (v * S);
+          activeNodes.sub.releaseAt = when + noteLen;
         } catch (e) { }
         return;
       }
 
-      releaseNode('sub');
+      releaseNode('sub', when);
       const osc = audioCtx.createOscillator();
       const gn = audioCtx.createGain();
       const filt = audioCtx.createBiquadFilter();
@@ -1883,8 +2074,9 @@ G L16 %K R %S R %K %K %S R</textarea>
       const panSub = audioCtx.createStereoPanner();
       panSub.pan.value = (state.mix.panSub ?? 0) / 100;
       gn.connect(panSub); panSub.connect(masterGainNode);
-      osc.start(when); osc.stop(when + noteLen + R + 0.05);
-      activeNodes.sub = { osc, gn, filt };
+      // stop を遠い未来に設定（extendNodeで延長可能にする）
+      osc.start(when); osc.stop(when + noteLen + R + 60);
+      activeNodes.sub = { osc, gn, filt, sustainGain: v * S, releaseAt: when + noteLen };
     }
 
     // OPN2レートを秒に変換 (rate=0〜31, ks=0〜3, octave)
@@ -1926,18 +2118,33 @@ G L16 %K R %S R %K %K %S R</textarea>
       const masterV = (vol / 100) * (mixVol / 100);
       const noteLen = (dur != null) ? Math.max(dur - 0.01, 0.01) : 0.3;
 
-      // タイ処理
+      // タイ処理（ポルタメント）
       if (tie && activeNodes[ch]) {
         try {
+          const portaSec = Math.max(0.005, (state.portaTimes?.[ch] ?? 80) / 1000);
           activeNodes[ch].oscs.forEach((osc, oi) => {
             const mul = p.ops[oi].mul === 0 ? 0.5 : p.ops[oi].mul;
-            osc.frequency.setTargetAtTime(freq * mul, when, 0.01);
+            osc.frequency.cancelScheduledValues(when);
+            osc.frequency.setValueAtTime(osc.frequency.value, when);
+            osc.frequency.exponentialRampToValueAtTime(Math.max(1, freq * mul), when + portaSec);
           });
+          // ゲインエンベロープをnoteLen分延長してreleaseAtを更新
+          const sg = activeNodes[ch].sustainGains ?? [];
+          activeNodes[ch].envs.forEach((env, i) => {
+            try {
+              const sv = sg[i] ?? env.gain.value;
+              env.gain.cancelScheduledValues(when);
+              env.gain.setValueAtTime(sv, when);
+              env.gain.setValueAtTime(sv, when + noteLen);
+              env.gain.linearRampToValueAtTime(0, when + noteLen + 0.15);
+            } catch(e) {}
+          });
+          activeNodes[ch].releaseAt = when + noteLen;
         } catch (e) { }
         return;
       }
 
-      releaseNode(ch);
+      releaseNode(ch, when);
 
       const dest = audioCtx.createGain();
       dest.gain.value = masterV;
@@ -2088,9 +2295,17 @@ G L16 %K R %S R %K %K %S R</textarea>
         }
       }
 
-      const stopAt = when + noteLen + 0.5;
-      oscs.forEach(osc => { osc.start(when); osc.stop(stopAt); });
-      activeNodes[ch] = { oscs, envs, dest, lfoNodes };
+      // stop を遠い未来に設定（extendNodeで延長可能にする）
+      oscs.forEach(osc => { osc.start(when); osc.stop(when + noteLen + 60); });
+      // sustainGains: 各OPのサスティンレベル（延長時のゲイン維持に使用）
+      const sustainGains = envs.map((env, i) => {
+        const op = p.ops[i];
+        const tl = Math.max(0, Math.min(127, op.tl ?? 0));
+        const tlGain = Math.pow(10, -tl * 0.0469);
+        const SL = 1 - (op.sl ?? 0) / 15;
+        return tlGain * SL;
+      });
+      activeNodes[ch] = { oscs, envs, dest, lfoNodes, sustainGains, releaseAt: when + noteLen };
     }
 
     function playPSG(psgIdx, freq, vol, when, tie, dur) {
@@ -2148,20 +2363,27 @@ G L16 %K R %S R %K %K %S R</textarea>
         }
       }
 
-      // タイ処理
+      // タイ処理（ポルタメント）
       if (tie && activeNodes[ch]) {
         try {
+          const portaSec = Math.max(0.005, (state.portaTimes?.[ch] ?? 80) / 1000);
           const detunedFreq = freq * Math.pow(2, (p.detune ?? 0) / 1200);
-          if (activeNodes[ch].osc) activeNodes[ch].osc.frequency.setTargetAtTime(detunedFreq, when, 0.01);
-          // ノードのstop時刻を延長
-          const stopAt = when + noteLen + 0.05;
+          if (activeNodes[ch].osc) {
+            activeNodes[ch].osc.frequency.cancelScheduledValues(when);
+            activeNodes[ch].osc.frequency.setValueAtTime(activeNodes[ch].osc.frequency.value, when);
+            activeNodes[ch].osc.frequency.exponentialRampToValueAtTime(Math.max(1, detunedFreq), when + portaSec);
+          }
+          // PSGはstop前倒し不可なので、stop時刻を延長方向にのみ更新
+          const stopAt = when + noteLen + 0.1;
           if (activeNodes[ch].osc) { try { activeNodes[ch].osc.stop(stopAt); } catch (e) { } }
           if (activeNodes[ch].noise) { try { activeNodes[ch].noise.stop(stopAt); } catch (e) { } }
+          // releaseAt更新（isLegato判定用）
+          activeNodes[ch].releaseAt = when + noteLen;
         } catch (e) { }
         return;
       }
 
-      releaseNode(ch);
+      releaseNode(ch, when);
 
       const noiseMix = Math.max(0, Math.min(100, p.noiseMix ?? 0)) / 100;
       const toneMix = 1 - noiseMix;
@@ -2565,17 +2787,67 @@ G L16 %K R %S R %K %K %S R</textarea>
         });
 
         // 発音スケジュール（whenはAudioContext絶対時刻）
-        if (seq.sub.on[step] && seq.sub.notes[step]) playSubtractive(noteToHz(seq.sub.notes[step]), seq.sub.vols[step] ?? 80, when, seq.sub.tie[step]);
-        if (seq.fm1.on[step] && seq.fm1.notes[step]) playFM(0, noteToHz(seq.fm1.notes[step]), seq.fm1.vols[step] ?? 80, when, seq.fm1.tie[step]);
-        if (seq.fm2.on[step] && seq.fm2.notes[step]) playFM(1, noteToHz(seq.fm2.notes[step]), seq.fm2.vols[step] ?? 80, when, seq.fm2.tie[step]);
-        if (seq.fm3 && seq.fm3.on[step] && seq.fm3.notes[step]) playFM(2, noteToHz(seq.fm3.notes[step]), seq.fm3.vols[step] ?? 80, when, seq.fm3.tie[step]);
-        if (seq.fm4 && seq.fm4.on[step] && seq.fm4.notes[step]) playFM(3, noteToHz(seq.fm4.notes[step]), seq.fm4.vols[step] ?? 80, when, seq.fm4.tie[step]);
-        if (seq.fm5 && seq.fm5.on[step] && seq.fm5.notes[step]) playFM(4, noteToHz(seq.fm5.notes[step]), seq.fm5.vols[step] ?? 80, when, seq.fm5.tie[step]);
-        if (seq.fm6 && seq.fm6.on[step] && seq.fm6.notes[step]) playFM(5, noteToHz(seq.fm6.notes[step]), seq.fm6.vols[step] ?? 80, when, seq.fm6.tie[step]);
-        if (seq.psg1.on[step] && seq.psg1.notes[step]) playPSG(0, noteToHz(seq.psg1.notes[step]), seq.psg1.vols[step] ?? 80, when, seq.psg1.tie[step]);
-        if (seq.psg2.on[step] && seq.psg2.notes[step]) playPSG(1, noteToHz(seq.psg2.notes[step]), seq.psg2.vols[step] ?? 80, when, seq.psg2.tie[step]);
-        if (seq.psg3.on[step] && seq.psg3.notes[step]) playPSG(2, noteToHz(seq.psg3.notes[step]), seq.psg3.vols[step] ?? 80, when, seq.psg3.tie[step]);
-        const dg = state.drumsGain;
+        // ON=true  + TIE=true  → ポルタメント（playXxx内で処理）
+        // ON=false + TIE=true  → レガート: ゲインスケジュールを延長し、ONは無視
+        // 「レガート中」の判定: activeNodes[ch].releaseAt > when
+        const isLegato = (ch) => {
+          const n = activeNodes[ch];
+          return n && n.releaseAt != null && n.releaseAt > when + 0.001;
+        };
+
+        // SUB
+        if (!seq.sub.on[step] && seq.sub.tie[step] && activeNodes.sub) {
+          extendNode('sub', when, stepTime);
+        } else if (seq.sub.on[step] && seq.sub.notes[step] && isLegato('sub') && !seq.sub.tie[step]) {
+          // レガート終了後の初の ON → 通常発音
+          playSubtractive(noteToHz(seq.sub.notes[step]), seq.sub.vols[step] ?? 80, when, false);
+        } else if (seq.sub.on[step] && seq.sub.notes[step] && !isLegato('sub')) {
+          playSubtractive(noteToHz(seq.sub.notes[step]), seq.sub.vols[step] ?? 80, when, seq.sub.tie[step]);
+        } else if (seq.sub.on[step] && seq.sub.notes[step] && isLegato('sub')) {
+          // レガート中にONが来た → ONを無視して延長継続
+          extendNode('sub', when, stepTime);
+        }
+
+        // FM1〜6 / PSG1〜3 共通ヘルパー
+        const scheduleNote = (chName, fmIdx, psgIdx, seqCh, playFn) => {
+          const on = seqCh.on[step];
+          const tie = seqCh.tie[step];
+          const note = seqCh.notes[step];
+          const vol = seqCh.vols[step] ?? 80;
+          const leg = isLegato(chName);
+          if (!on && tie && activeNodes[chName]) {
+            extendNode(chName, when, stepTime);
+          } else if (on && note && leg && !tie) {
+            // レガート終了の直後の ON → 通常発音
+            playFn(false);
+          } else if (on && note && !leg) {
+            playFn(tie);
+          } else if (on && note && leg) {
+            // レガート中にON → ONを無視して延長
+            extendNode(chName, when, stepTime);
+          }
+        };
+
+        scheduleNote('fm1', 0, null, seq.fm1,
+          (t) => playFM(0, noteToHz(seq.fm1.notes[step]), seq.fm1.vols[step] ?? 80, when, t));
+        scheduleNote('fm2', 1, null, seq.fm2,
+          (t) => playFM(1, noteToHz(seq.fm2.notes[step]), seq.fm2.vols[step] ?? 80, when, t));
+        if (seq.fm3) scheduleNote('fm3', 2, null, seq.fm3,
+          (t) => playFM(2, noteToHz(seq.fm3.notes[step]), seq.fm3.vols[step] ?? 80, when, t));
+        if (seq.fm4) scheduleNote('fm4', 3, null, seq.fm4,
+          (t) => playFM(3, noteToHz(seq.fm4.notes[step]), seq.fm4.vols[step] ?? 80, when, t));
+        if (seq.fm5) scheduleNote('fm5', 4, null, seq.fm5,
+          (t) => playFM(4, noteToHz(seq.fm5.notes[step]), seq.fm5.vols[step] ?? 80, when, t));
+        if (seq.fm6) scheduleNote('fm6', 5, null, seq.fm6,
+          (t) => playFM(5, noteToHz(seq.fm6.notes[step]), seq.fm6.vols[step] ?? 80, when, t));
+        scheduleNote('psg1', null, 0, seq.psg1,
+          (t) => playPSG(0, noteToHz(seq.psg1.notes[step]), seq.psg1.vols[step] ?? 80, when, t));
+        scheduleNote('psg2', null, 1, seq.psg2,
+          (t) => playPSG(1, noteToHz(seq.psg2.notes[step]), seq.psg2.vols[step] ?? 80, when, t));
+        scheduleNote('psg3', null, 2, seq.psg3,
+          (t) => playPSG(2, noteToHz(seq.psg3.notes[step]), seq.psg3.vols[step] ?? 80, when, t));
+
+                const dg = state.drumsGain;
         if (seq.drums.kick[step]) playKick(when, dg.kick);
         if (seq.drums.snare[step]) playSnare(when, dg.snare);
         if (seq.drums.hat[step]) playHat(when, dg.hat);
@@ -3129,8 +3401,8 @@ G L16 %K R %S R %K %K %S R</textarea>
       presetBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#863;color:#ca8;margin-left:4px';
       presetBtn.textContent = 'N88 PRESET';
       presetBtn.title = 'N88 BASIC内蔵風音色をスロット0〜27にロード';
-      presetBtn.onclick = () => {
-        if (!confirm('N88内蔵音色をスロット0〜27にロードします。既存データは上書きされます。よろしいですか？')) return;
+      presetBtn.onclick = async () => {
+        if (!await mobileConfirm('N88内蔵音色をスロット0〜27にロードします。既存データは上書きされます。よろしいですか？')) return;
         loadN88Presets();
         for (let i = 0; i < 6; i++) updateToneBankUI(i);
       };
@@ -3174,8 +3446,8 @@ G L16 %K R %S R %K %K %S R</textarea>
       fmAllClrBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#733;color:#d55;margin-left:4px';
       fmAllClrBtn.textContent = 'ALLCLR';
       fmAllClrBtn.title = 'FM TONE BANK を全スロット初期化（クリア）';
-      fmAllClrBtn.onclick = () => {
-        if (!confirm('FM TONE BANK を全スロット消去します。よろしいですか？')) return;
+      fmAllClrBtn.onclick = async () => {
+        if (!await mobileConfirm('FM TONE BANK を全スロット消去します。よろしいですか？')) return;
         state.fmToneBank.fill(null);
         state.fmActiveTone.fill(-1);
         for (let i = 0; i < 6; i++) updateToneBankUI(i);
@@ -3670,11 +3942,11 @@ G L16 %K R %S R %K %K %S R</textarea>
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = '.dat';
-      input.onchange = (e) => {
+      input.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (ev) => {
+        reader.onload = async (ev) => {
           const ab = ev.target.result;
           const u8 = new Uint8Array(ab);
 
@@ -3692,7 +3964,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           }
 
           if (valid.length === 0) { alert('有効な音色データが見つかりませんでした。'); return; }
-          if (!confirm(`MUCOM88 voice.dat から ${valid.length} 音色をスロット0〜${valid.length-1}に読込みます。よろしいですか？`)) return;
+          if (!await mobileConfirm(`MUCOM88 voice.dat から ${valid.length} 音色をスロット0〜${valid.length-1}に読込みます。よろしいですか？`)) return;
 
           // 物理OP順→論理OP順の変換テーブル
           // 物理p(0-3) に対して、論理ops配列のインデックス
@@ -4743,8 +5015,8 @@ G L16 %K R %S R %K %K %S R</textarea>
       preBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#863;color:#ca8;margin-left:4px';
       preBtn.textContent = 'INTNAL PRESET';
       preBtn.title = 'SUB内蔵プリセットをスロット0〜15に読込';
-      preBtn.onclick = () => {
-        if (!confirm('SUBプリセットをスロット0〜15に読込みます。上書きされますがよろしいですか？')) return;
+      preBtn.onclick = async () => {
+        if (!await mobileConfirm('SUBプリセットをスロット0〜15に読込みます。上書きされますがよろしいですか？')) return;
         loadSubPresets(); updateSubToneBankUI();
       };
 
@@ -4770,8 +5042,8 @@ G L16 %K R %S R %K %K %S R</textarea>
       subAllClrBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#733;color:#d55;margin-left:4px';
       subAllClrBtn.textContent = 'ALLCLR';
       subAllClrBtn.title = 'SUB TONE BANK を全スロット初期化（クリア）';
-      subAllClrBtn.onclick = () => {
-        if (!confirm('SUB TONE BANK を全スロット消去します。よろしいですか？')) return;
+      subAllClrBtn.onclick = async () => {
+        if (!await mobileConfirm('SUB TONE BANK を全スロット消去します。よろしいですか？')) return;
         state.subToneBank.fill(null);
         state.subActiveTone = -1;
         updateSubToneBankUI();
@@ -4805,9 +5077,8 @@ G L16 %K R %S R %K %K %S R</textarea>
       const target = document.querySelector(`#tabBar .tab[data-tab="${tabId}"]`);
       if (target) target.classList.add('active');
       // DRM/PCMタブは音源パネルを持たないので既存パネルはすべて非表示
-      const isSynthTab = !['drums', 'pcmseq'].includes(tabId);
-      ['subtractive', 'fm1', 'fm2', 'fm3', 'fm4', 'fm5', 'fm6', 'psg1', 'psg2', 'psg3', 'fx'].forEach(id => {
-        document.getElementById('tab-' + id).style.display = (isSynthTab && tabId === id) ? '' : 'none';
+      ['subtractive', 'fm1', 'fm2', 'fm3', 'fm4', 'fm5', 'fm6', 'psg1', 'psg2', 'psg3', 'fx', 'pcmbank'].forEach(id => {
+        document.getElementById('tab-' + id).style.display = (tabId === id) ? '' : 'none';
       });
     }
 
@@ -4832,6 +5103,16 @@ G L16 %K R %S R %K %K %S R</textarea>
           activateSeqTab('fxseq');
         } else if (/^psg[1-3]$/.test(tabId)) {
           activateSeqTab(tabId);
+        } else if (tabId === 'pcmbank') {
+          // PCM TONE BANK 独立パネルを表示（シーケンサーとの連動なし）
+          buildPcmBankStandalonePanel();
+          activateSeqTab('pcmseq');
+          // MMLモード時はseqPanelを表示
+          if (state.mode === 'mml') {
+            const sp = document.getElementById('seqPanel');
+            sp.style.display = '';
+            sp.classList.add('mml-mode');
+          }
         } else if (tabId === 'pcmseq') {
           activateSeqTab('pcmseq');
           // MMLモード時はseqPanelを表示してPCMコンテンツを出す
@@ -4842,7 +5123,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           }
         }
         // MMLモード時にPCM以外のタブを選んだらseqPanelを再び隠す
-        if (state.mode === 'mml' && tabId !== 'pcmseq') {
+        if (state.mode === 'mml' && tabId !== 'pcmseq' && tabId !== 'pcmbank') {
           const sp = document.getElementById('seqPanel');
           sp.style.display = 'none';
           sp.classList.remove('mml-mode');
@@ -4863,7 +5144,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         } else if (/^psg[1-3]$/.test(stabId)) {
           activateSynthTab(stabId);
         } else if (stabId === 'pcmseq') {
-          activateSynthTab('pcmseq');
+          activateSynthTab('pcmbank');
         }
       };
     });
@@ -4960,62 +5241,9 @@ G L16 %K R %S R %K %K %S R</textarea>
         if (!seq.pcmSeq.slot) seq.pcmSeq.slot = Array(32).fill(null);
         const ps = seq.pcmSeq;
 
-        // ---- PCM TONE BANK パネル ----
-        const bankPanel = document.createElement('div');
-        bankPanel.className = 'pcm-bank-panel';
-        bankPanel.innerHTML = `
-          <div class="pcm-bank-header" id="pcmBankHeader">
-            <span class="pcm-bank-title">PCM TONE BANK</span>
-            <span style="font-size:7px;color:#6a4820">タップ=選択（橙枠）　長押し=設定メニュー</span>
-          </div>
-          <div class="pcm-slot-grid" id="pcmSlotGrid"></div>`;
-        content.appendChild(bankPanel);
-
-        // PCM TONE BANK SAVE/LOADボタン（ヘッダーに追加）
-        const pcmBankHdr = document.getElementById('pcmBankHeader');
-        if (pcmBankHdr) {
-          const pcmSaveBtn = document.createElement('button');
-          pcmSaveBtn.className = 'btn';
-          pcmSaveBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#6a4010;color:#c08040;margin-left:4px';
-          pcmSaveBtn.textContent = 'SAVE';
-          pcmSaveBtn.title = 'PCM TONEBANKを.hpcmbファイルに保存';
-          pcmSaveBtn.onclick = () => savePcmToneBank();
-          pcmBankHdr.appendChild(pcmSaveBtn);
-
-          const pcmLoadBtn = document.createElement('button');
-          pcmLoadBtn.className = 'btn';
-          pcmLoadBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#6a4010;color:#c08040;margin-left:2px';
-          pcmLoadBtn.textContent = 'LOAD';
-          pcmLoadBtn.title = 'PCM TONEBANKを.hpcmbファイルから読込';
-          pcmLoadBtn.onclick = () => loadPcmToneBank();
-          pcmBankHdr.appendChild(pcmLoadBtn);
-
-          // MUCOM BIN ボタン
-          const pcmMucomBtn = document.createElement('button');
-          pcmMucomBtn.className = 'btn';
-          pcmMucomBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#2a6a8a;color:#5ac0e8;margin-left:4px';
-          pcmMucomBtn.textContent = 'MUCOM BIN';
-          pcmMucomBtn.title = 'MUCOM88 PCMバイナリ(.bin)を読み込む';
-          pcmMucomBtn.onclick = () => openMucomPcmBinDialog(-1);
-          pcmBankHdr.appendChild(pcmMucomBtn);
-
-          // ALLCLR ボタン（PCM TONE BANK 全消去）
-          const pcmAllClrBtn = document.createElement('button');
-          pcmAllClrBtn.className = 'btn';
-          pcmAllClrBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#733;color:#d55;margin-left:4px';
-          pcmAllClrBtn.textContent = 'ALLCLR';
-          pcmAllClrBtn.title = 'PCM TONE BANK を全スロット初期化（クリア）';
-          pcmAllClrBtn.onclick = () => {
-            if (!confirm('PCM TONE BANK を全スロット消去します。\nロード済みのPCMバッファもすべて解放されます。よろしいですか？')) return;
-            releaseAllPcmSlots();
-            state.pcmActiveToneSlot = -1;
-            renderPcmToneBank();
-          };
-          pcmBankHdr.appendChild(pcmAllClrBtn);
-        }
-
-        // スロットUIを描画（DOM挿入後に実行）
-        renderPcmToneBank();
+        // PCM TONE BANK はメインタブ「PCM」パネルに表示。
+        // シーケンサータブでは、スタンドアロンパネルが表示中なら renderPcmToneBank() を呼んで同期する。
+        if (document.getElementById('pcmSlotGrid')) renderPcmToneBank();
 
         // ---- PCM シーケンサー部分（MMLモード時は非表示）----
         const seqSection = document.createElement('div');
@@ -5497,24 +5725,82 @@ G L16 %K R %S R %K %K %S R</textarea>
         for (let i = 0; i < len; i++) {
           const btn = document.createElement('div');
           const isTie = chData.tie && chData.tie[i];
-          // 前のステップと同じ音かどうかで色分け（タイ=青/スラー=橙）
+          const isOn = chData.on && chData.on[i];
+          // 色分け: ON+TIE=ポルタメント(青/橙), OFF+TIE=レガート(緑)
           const prevNote = i > 0 ? chData.notes[i - 1] : null;
           const sameNote = prevNote && prevNote === chData.notes[i];
-          btn.className = 'step-btn' + (isTie ? (sameNote ? ' tie' : ' tie-slur') : '');
-          btn.title = isTie ? (sameNote ? 'タイ (同音継続)' : 'スラー (異音継続)') : '';
+          const getTieClass = (tie, on, same) => {
+            if (!tie) return '';
+            if (!on) return ' tie-legato'; // レガート（延音）
+            return same ? ' tie' : ' tie-slur'; // ポルタメント
+          };
+          const getTieTitle = (tie, on, same) => {
+            if (!tie) return '';
+            if (!on) return 'レガート (前音を延長)';
+            return same ? 'タイ (同音ポルタ)' : 'スラー (異音ポルタ)';
+          };
+          btn.className = 'step-btn' + getTieClass(isTie, isOn, sameNote);
+          btn.title = getTieTitle(isTie, isOn, sameNote);
           if (i > 0 && i % 16 === 0) { btn.style.borderLeftColor = '#c33'; btn.style.borderLeftWidth = '2px'; } else if (i > 0 && i % 4 === 0) btn.style.borderLeftColor = '#555';
           btn.onclick = () => {
             if (!chData.tie) chData.tie = Array(32).fill(false);
             chData.tie[i] = !chData.tie[i];
             const isNowTie = chData.tie[i];
+            const isNowOn = chData.on && chData.on[i];
             const prev = i > 0 ? chData.notes[i - 1] : null;
             const same = prev && prev === chData.notes[i];
-            btn.className = 'step-btn' + (isNowTie ? (same ? ' tie' : ' tie-slur') : '');
-            btn.title = isNowTie ? (same ? 'タイ (同音継続)' : 'スラー (異音継続)') : '';
+            btn.className = 'step-btn' + getTieClass(isNowTie, isNowOn, same);
+            btn.title = getTieTitle(isNowTie, isNowOn, same);
           };
           tieRow.appendChild(btn);
         }
         content.appendChild(tieRow);
+
+        // PORTA row (チャンネル別ポルタメント時間: ステップ共通でチャンネル単位)
+        {
+          const portaRow = document.createElement('div');
+          portaRow.className = gridClass;
+          // ラベル
+          const portaLbl = document.createElement('div');
+          portaLbl.className = 'seq-label';
+          portaLbl.style.cssText = 'color:#68a;font-size:8px';
+          portaLbl.textContent = 'PORTA';
+          portaRow.appendChild(portaLbl);
+
+          // チャンネルキー (sub/fm1〜6/psg1〜3)
+          const portaCh = tab; // 現在表示中チャンネル
+
+          // 最初のセルだけスライダー+値表示、残りはグレー塗りで統一感を出す
+          // → 全ステップ幅で1つの大きなスライダーセルを作る
+          const portaCell = document.createElement('div');
+          portaCell.style.cssText = 'display:flex;align-items:center;gap:6px;flex:1;min-width:0;background:#181824;border:1px solid #334;border-radius:2px;padding:2px 6px;height:24px';
+
+          const currentVal = state.portaTimes?.[portaCh] ?? 80;
+
+          const portaSlider = document.createElement('input');
+          portaSlider.type = 'range';
+          portaSlider.min = 0;
+          portaSlider.max = 500;
+          portaSlider.step = 5;
+          portaSlider.value = currentVal;
+          portaSlider.style.cssText = 'flex:1;accent-color:#68a;cursor:pointer;height:6px';
+
+          const portaValSpan = document.createElement('span');
+          portaValSpan.style.cssText = 'color:#9cf;font-size:8px;min-width:34px;text-align:right;font-family:monospace';
+          portaValSpan.textContent = currentVal + 'ms';
+
+          portaSlider.oninput = () => {
+            const v = parseInt(portaSlider.value);
+            if (!state.portaTimes) state.portaTimes = {};
+            state.portaTimes[portaCh] = v;
+            portaValSpan.textContent = v + 'ms';
+          };
+
+          portaCell.appendChild(portaSlider);
+          portaCell.appendChild(portaValSpan);
+          portaRow.appendChild(portaCell);
+          content.appendChild(portaRow);
+        }
 
         // PAN row
         const panOpts = [-100, -75, -50, -25, -10, 0, 10, 25, 50, 75, 100];
@@ -6280,6 +6566,65 @@ G L16 %K R %S R %K %K %S R</textarea>
     }
 
     // PCM TONE BANKスロットUI描画
+    // PCM TONE BANK スタンドアロンパネルを構築（メインタブ PCM から呼ばれる）
+    function buildPcmBankStandalonePanel() {
+      const container = document.getElementById('pcmBankStandaloneContent');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const bankPanel = document.createElement('div');
+      bankPanel.className = 'pcm-bank-panel';
+      bankPanel.innerHTML = `
+        <div class="pcm-bank-header" id="pcmBankHeader">
+          <span class="pcm-bank-title">PCM TONE BANK</span>
+          <span style="font-size:7px;color:#6a4820">タップ=選択（橙枠）　長押し=設定メニュー</span>
+        </div>
+        <div class="pcm-slot-grid" id="pcmSlotGrid"></div>`;
+      container.appendChild(bankPanel);
+
+      const pcmBankHdr = document.getElementById('pcmBankHeader');
+      if (pcmBankHdr) {
+        const pcmSaveBtn = document.createElement('button');
+        pcmSaveBtn.className = 'btn';
+        pcmSaveBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#6a4010;color:#c08040;margin-left:4px';
+        pcmSaveBtn.textContent = 'SAVE';
+        pcmSaveBtn.title = 'PCM TONEBANKを.hpcmbファイルに保存';
+        pcmSaveBtn.onclick = () => savePcmToneBank();
+        pcmBankHdr.appendChild(pcmSaveBtn);
+
+        const pcmLoadBtn = document.createElement('button');
+        pcmLoadBtn.className = 'btn';
+        pcmLoadBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#6a4010;color:#c08040;margin-left:2px';
+        pcmLoadBtn.textContent = 'LOAD';
+        pcmLoadBtn.title = 'PCM TONEBANKを.hpcmbファイルから読込';
+        pcmLoadBtn.onclick = () => loadPcmToneBank();
+        pcmBankHdr.appendChild(pcmLoadBtn);
+
+        const pcmMucomBtn = document.createElement('button');
+        pcmMucomBtn.className = 'btn';
+        pcmMucomBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#2a6a8a;color:#5ac0e8;margin-left:4px';
+        pcmMucomBtn.textContent = 'MUCOM BIN';
+        pcmMucomBtn.title = 'MUCOM88 PCMバイナリ(.bin)を読み込む';
+        pcmMucomBtn.onclick = () => openMucomPcmBinDialog(-1);
+        pcmBankHdr.appendChild(pcmMucomBtn);
+
+        const pcmAllClrBtn = document.createElement('button');
+        pcmAllClrBtn.className = 'btn';
+        pcmAllClrBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#733;color:#d55;margin-left:4px';
+        pcmAllClrBtn.textContent = 'ALLCLR';
+        pcmAllClrBtn.title = 'PCM TONE BANK を全スロット初期化（クリア）';
+        pcmAllClrBtn.onclick = async () => {
+          if (!await mobileConfirm('PCM TONE BANK を全スロット消去します。\nロード済みのPCMバッファもすべて解放されます。よろしいですか？')) return;
+          releaseAllPcmSlots();
+          state.pcmActiveToneSlot = -1;
+          renderPcmToneBank();
+        };
+        pcmBankHdr.appendChild(pcmAllClrBtn);
+      }
+
+      renderPcmToneBank();
+    }
+
     function renderPcmToneBank() {
       const grid = document.getElementById('pcmSlotGrid');
       if (!grid) return;
@@ -7973,6 +8318,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         _version: 1,
         bpm: state.bpm,
         masterGain: parseInt(document.getElementById('masterGain').value),
+        portaTimes: { ...(state.portaTimes ?? {}) },
         mode: state.mode,
         currentBank: state.currentBank,
         currentSeqTab: state.currentSeqTab,
@@ -8064,6 +8410,15 @@ G L16 %K R %S R %K %K %S R</textarea>
       const mg = cfg.masterGain ?? 30;
       document.getElementById('masterGain').value = mg;
       if (masterGainNode) masterGainNode.gain.value = mg / 100;
+
+      // Portamento (チャンネル別)
+      if (cfg.portaTimes) {
+        Object.assign(state.portaTimes, cfg.portaTimes);
+      } else if (cfg.portaTime != null) {
+        // 旧フォーマット互換: 全チャンネルに同じ値を設定
+        const v = cfg.portaTime;
+        Object.keys(state.portaTimes).forEach(k => { state.portaTimes[k] = v; });
+      }
 
       // Banks
       if (cfg.banks) {
@@ -8388,8 +8743,8 @@ G L16 %K R %S R %K %K %S R</textarea>
         ssgAllClrBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#733;color:#d55;margin-left:4px';
         ssgAllClrBtn.textContent = 'ALLCLR';
         ssgAllClrBtn.title = 'SSG TONE BANK を全スロット初期化（クリア）';
-        ssgAllClrBtn.onclick = () => {
-          if (!confirm('SSG TONE BANK を全スロット消去します。よろしいですか？')) return;
+        ssgAllClrBtn.onclick = async () => {
+          if (!await mobileConfirm('SSG TONE BANK を全スロット消去します。よろしいですか？')) return;
           state.ssgToneBank.fill(null);
           state.ssgActiveTone.fill(-1);
           for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
