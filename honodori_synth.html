@@ -1273,7 +1273,7 @@
           <span style="color:#9cf">D</span>=SSG/PSG1 &nbsp;<span style="color:#9cf">E</span>=SSG/PSG2 &nbsp;<span style="color:#9cf">F</span>=SSG/PSG3<br>
           <span style="color:#fca">G</span>=リズム(ドラム) &nbsp;<span style="color:#fca">K</span>=ADPCM/PCM &nbsp;&nbsp;SUBは <span style="color:#9cf">@0</span> で使用可<br>
           <b style="color:#668">音符:</b> <span style="color:#9cf">C D E F G A B R</span>　<b style="color:#668">音長:</b> <span style="color:#9cf">4 8 16 .</span>　<b style="color:#668">オクターブ:</b> <span style="color:#9cf">O4 &lt; &gt;</span><br>
-          <b style="color:#668">テンポ:</b> <span style="color:#9cf">T120</span>　<b style="color:#668">音量:</b> <span style="color:#9cf">V8</span>　<b style="color:#668">音色:</b> <span style="color:#9cf">@0〜@9</span> (0=SUB/1-6=FM/7-9=PSG)　<b style="color:#668">タイ:</b> <span style="color:#9cf">&amp;</span><br>
+          <b style="color:#668">テンポ:</b> <span style="color:#9cf">T120</span>　<b style="color:#668">音量:</b> <span style="color:#9cf">V8</span>　<b style="color:#668">音色:</b> <span style="color:#9cf">@0〜@9</span> (0=SUB/1-6=FM/7-9=PSG)　<b style="color:#668">スラー:</b> <span style="color:#9cf">&amp;</span> <b style="color:#668">ポルタメント速度:</b> <span style="color:#9cf">_n</span> (n=0:OFF/1〜:速度)<br>
           <b style="color:#668">ゲート:</b> <span style="color:#9cf">C80</span>　<b style="color:#668">デチューン:</b> <span style="color:#9cf">D-5</span>　<b style="color:#668">パン:</b> <span style="color:#9cf">p3</span> (0=消音/1=右/2=左/3=中央)　<b style="color:#668">コメント:</b> <span style="color:#9cf">; ...</span><br>
           <b style="color:#6da">SUBトーンバンク:</b> <span style="color:#8fa">@200〜@249</span>=スロット0〜49参照 (@0チャンネル使用時) 例: <span style="color:#8fa">A @0 @205 O4 C8 D8 E4</span><br>
           <b style="color:#6da">SUBパラメータ直接指定(MML):</b> <span style="color:#8fa">$W{sine|sq|saw|tri}</span> <span style="color:#8fa">$F{Hz}</span>=フィルタ周波数 <span style="color:#8fa">$Q{val}</span>=Q/Res <span style="color:#8fa">$T{lpf|hpf}</span>=フィルタ種別 <span style="color:#8fa">$A{ms}</span>=Attack <span style="color:#8fa">$D{ms}</span>=Decay <span style="color:#8fa">$S{%}</span>=Sustain <span style="color:#8fa">$R{ms}</span>=Release <span style="color:#8fa">$L{ms}</span>=Length 例: <span style="color:#8fa">A @0 $Wsaw $F2000 $Q8 $A5 $D200 $S50 $R300 O4 L8 C D E F</span><br>
@@ -2030,7 +2030,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       } catch(e) {}
     }
 
-    function playSubtractive(freq, vol, when, tie, dur) {
+    function playSubtractive(freq, vol, when, tie, dur, portaMs, slur) {
       if (!audioCtx) return;
       const p = state.subParams;
       const A = p.envA / 1000, D = p.envD / 1000, S = p.envS / 100, R = p.envR / 1000;
@@ -2039,12 +2039,20 @@ G L16 %K R %S R %K %K %S R</textarea>
       const noteLen = (dur != null) ? Math.max(dur - R, 0.01) : p.length / 1000;
 
       if (tie && activeNodes.sub) {
-        // ポルタメント: 前の音から次の音へ portaTime ms かけてスライド
+        // portaMs指定あり → その時間でスライド
+        // portaMs=0 または slur=true → 即時周波数変更（スラー）
+        // portaMs=undefined → state.portaTimes.sub を使用（シーケンサー互換）
         try {
-          const portaSec = Math.max(0.005, (state.portaTimes?.sub ?? 80) / 1000);
+          const resolvedPortaMs = portaMs !== undefined ? portaMs
+            : (state.portaTimes?.sub ?? 80);
+          const portaSec = Math.max(resolvedPortaMs === 0 ? 0 : 0.005, resolvedPortaMs / 1000);
           activeNodes.sub.osc.frequency.cancelScheduledValues(when);
           activeNodes.sub.osc.frequency.setValueAtTime(activeNodes.sub.osc.frequency.value, when);
-          activeNodes.sub.osc.frequency.exponentialRampToValueAtTime(Math.max(1, freq), when + portaSec);
+          if (portaSec > 0) {
+            activeNodes.sub.osc.frequency.exponentialRampToValueAtTime(Math.max(1, freq), when + portaSec);
+          } else {
+            activeNodes.sub.osc.frequency.setValueAtTime(Math.max(1, freq), when);
+          }
           // ゲインスケジュールをリセットして新しいノート長で再スケジュール
           activeNodes.sub.gn.gain.cancelScheduledValues(when);
           activeNodes.sub.gn.gain.setValueAtTime(activeNodes.sub.sustainGain ?? (v * S), when);
@@ -2110,7 +2118,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       { mod: [], car: [0, 1, 2, 3] },
     ];
 
-    function playFM(fmIdx, freq, vol, when, tie, dur) {
+    function playFM(fmIdx, freq, vol, when, tie, dur, portaMs, slur) {
       if (!audioCtx) return;
       const ch = ['fm1', 'fm2', 'fm3', 'fm4', 'fm5', 'fm6'][fmIdx];
       const p = state.fmParams[fmIdx];
@@ -2118,15 +2126,21 @@ G L16 %K R %S R %K %K %S R</textarea>
       const masterV = (vol / 100) * (mixVol / 100);
       const noteLen = (dur != null) ? Math.max(dur - 0.01, 0.01) : 0.3;
 
-      // タイ処理（ポルタメント）
+      // タイ処理（ポルタメント / スラー）
       if (tie && activeNodes[ch]) {
         try {
-          const portaSec = Math.max(0.005, (state.portaTimes?.[ch] ?? 80) / 1000);
+          const resolvedPortaMs = portaMs !== undefined ? portaMs
+            : (state.portaTimes?.[ch] ?? 80);
+          const portaSec = Math.max(resolvedPortaMs === 0 ? 0 : 0.005, resolvedPortaMs / 1000);
           activeNodes[ch].oscs.forEach((osc, oi) => {
             const mul = p.ops[oi].mul === 0 ? 0.5 : p.ops[oi].mul;
             osc.frequency.cancelScheduledValues(when);
             osc.frequency.setValueAtTime(osc.frequency.value, when);
-            osc.frequency.exponentialRampToValueAtTime(Math.max(1, freq * mul), when + portaSec);
+            if (portaSec > 0) {
+              osc.frequency.exponentialRampToValueAtTime(Math.max(1, freq * mul), when + portaSec);
+            } else {
+              osc.frequency.setValueAtTime(Math.max(1, freq * mul), when);
+            }
           });
           // ゲインエンベロープをnoteLen分延長してreleaseAtを更新
           const sg = activeNodes[ch].sustainGains ?? [];
@@ -2308,7 +2322,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       activeNodes[ch] = { oscs, envs, dest, lfoNodes, sustainGains, releaseAt: when + noteLen };
     }
 
-    function playPSG(psgIdx, freq, vol, when, tie, dur) {
+    function playPSG(psgIdx, freq, vol, when, tie, dur, portaMs, slur) {
       if (!audioCtx) return;
       const ch = ['psg1', 'psg2', 'psg3'][psgIdx];
       const p = state.psgParams[psgIdx];
@@ -2363,15 +2377,21 @@ G L16 %K R %S R %K %K %S R</textarea>
         }
       }
 
-      // タイ処理（ポルタメント）
+      // タイ処理（ポルタメント / スラー）
       if (tie && activeNodes[ch]) {
         try {
-          const portaSec = Math.max(0.005, (state.portaTimes?.[ch] ?? 80) / 1000);
+          const resolvedPortaMs = portaMs !== undefined ? portaMs
+            : (state.portaTimes?.[ch] ?? 80);
+          const portaSec = Math.max(resolvedPortaMs === 0 ? 0 : 0.005, resolvedPortaMs / 1000);
           const detunedFreq = freq * Math.pow(2, (p.detune ?? 0) / 1200);
           if (activeNodes[ch].osc) {
             activeNodes[ch].osc.frequency.cancelScheduledValues(when);
             activeNodes[ch].osc.frequency.setValueAtTime(activeNodes[ch].osc.frequency.value, when);
-            activeNodes[ch].osc.frequency.exponentialRampToValueAtTime(Math.max(1, detunedFreq), when + portaSec);
+            if (portaSec > 0) {
+              activeNodes[ch].osc.frequency.exponentialRampToValueAtTime(Math.max(1, detunedFreq), when + portaSec);
+            } else {
+              activeNodes[ch].osc.frequency.setValueAtTime(Math.max(1, detunedFreq), when);
+            }
           }
           // PSGはstop前倒し不可なので、stop時刻を延長方向にのみ更新
           const stopAt = when + noteLen + 0.1;
@@ -5736,8 +5756,8 @@ G L16 %K R %S R %K %K %S R</textarea>
           };
           const getTieTitle = (tie, on, same) => {
             if (!tie) return '';
-            if (!on) return 'レガート (前音を延長)';
-            return same ? 'タイ (同音ポルタ)' : 'スラー (異音ポルタ)';
+            if (!on) return 'レガート/延音 (MML: & または q0)';
+            return same ? 'タイ+ポルタメント (MML: & ＋ portaTime)' : 'スラー+ポルタメント (MML: & または _n)';
           };
           btn.className = 'step-btn' + getTieClass(isTie, isOn, sameNote);
           btn.title = getTieTitle(isTie, isOn, sameNote);
@@ -5765,6 +5785,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           portaLbl.className = 'seq-label';
           portaLbl.style.cssText = 'color:#68a;font-size:8px';
           portaLbl.textContent = 'PORTA';
+          portaLbl.title = 'ポルタメント時間(ms)。ON+TIEのとき前音からこの時間かけてスライド。\nMML: &=スラー(即時), _n=速度指定ポルタメント(この値は&のみに適用)';
           portaRow.appendChild(portaLbl);
 
           // チャンネルキー (sub/fm1〜6/psg1〜3)
@@ -7208,6 +7229,8 @@ G L16 %K R %S R %K %K %S R</textarea>
         let oct = 4, defLen = 4, vel = 10, bpm = tempo || state.bpm;
         let t = 0;
         let tieNext = false;
+        let tieSlur = false;   // &スラーフラグ: trueのとき音量継続（ポルタメントなし）
+        let portaSpeed = -1;   // _n ポルタメント速度(セント/クロック, -1=portaTime使用)
         let timbre = defaultTimbre; // チャンネルのデフォルト音色（@コマンドで上書き可）
         let detune = 0;    // Dn: デチューン（MUCOM88: -32768〜32767）
         let keyTrans = 0;  // Kn: 半音単位トランスポーズ
@@ -7389,8 +7412,21 @@ G L16 %K R %S R %K %K %S R</textarea>
             }
             continue;
           }
-          // タイ
-          if (ch === '&') { tieNext = true; pos++; continue; }
+          // &スラー: MUCOM88では音量エンベロープを切らず次音へ連続（レガート）
+          // portaSpeed=0 をセットして「周波数即時切り替え＋エンベロープ継続」とする
+          if (ch === '&') { tieNext = true; tieSlur = true; pos++; continue; }
+
+          // _n ポルタメント速度: MUCOM88 _n (n=0〜255, 0=OFF)
+          // n>0 のとき次の音符でポルタメントを有効化する。速度は n セント/クロック相当。
+          // portaTime(ms) に変換: 1クロック≒1/tempo*4/clockDiv秒、n=0でポルタOFF(即時)
+          if (ch === '_') {
+            pos++;
+            const n = readInt();
+            if (n !== null && n >= 0) {
+              portaSpeed = n; // 0=OFF(即時切替), 1〜=ポルタメント有効
+            }
+            continue;
+          }
 
           // SUBパラメータ直接指定 $X{...}
           // $Wsine|sq|saw|tri  $Flpf|hpf  $F{Hz}  $Q{res}  $A{ms}  $D{ms}  $S{%}  $R{ms}  $L{ms}
@@ -7675,6 +7711,7 @@ G L16 %K R %S R %K %K %S R</textarea>
                 t += extDur;
               }
               tieNext = false;
+              tieSlur = false;
             }
             continue;
           }
@@ -7701,6 +7738,7 @@ G L16 %K R %S R %K %K %S R</textarea>
             }
             t += dur;
             tieNext = false;
+            tieSlur = false;
             continue;
           }
 
@@ -7750,8 +7788,26 @@ G L16 %K R %S R %K %K %S R</textarea>
 
             // q0はtieNextを強制（キーオフなし）
             const forceTie = qgate === 0;
-            events.push({ time: t, freq, vol, dur, timbre, tie: tieNext || forceTie, pan: panVal });
+            // portaSpeedが設定されていればmsに変換してイベントへ渡す
+            // _n: nセント/クロック。1クロック=beatSec()*4/clockDiv秒
+            // 半音(100cent)を渡すのに必要な秒数 = 100/(n) クロック * 1クロック秒
+            let portaMsEv = undefined;
+            if (tieNext || forceTie) {
+              if (portaSpeed > 0) {
+                // 前音→次音の周波数差(セント)を計算
+                const prevEv = events.length > 0 ? events[events.length - 1] : null;
+                const prevFreq = prevEv ? prevEv.freq : freq;
+                const centDiff = Math.abs(1200 * Math.log2(freq / Math.max(1, prevFreq)));
+                const clkPerSec = clockDiv / (beatSec() * 4);
+                portaMsEv = Math.max(5, Math.round(centDiff / portaSpeed / clkPerSec * 1000));
+              } else if (portaSpeed === 0 || tieSlur) {
+                portaMsEv = 0; // 即時（スラー: エンベロープ継続、周波数は即変更）
+              }
+              // portaSpeed=-1ならグローバルportaTimeを使用（=undefined）
+            }
+            events.push({ time: t, freq, vol, dur, timbre, tie: tieNext || forceTie, slur: tieSlur, portaMs: portaMsEv, pan: panVal });
             tieNext = false;
+            tieSlur = false;
             t += fullDur; // 次音符の開始はgateではなくfullDurで進める
             continue;
           }
@@ -8132,22 +8188,22 @@ G L16 %K R %S R %K %K %S R</textarea>
                 const pct = Math.round(ev.time / maxEnd * 100);
                 document.getElementById('mmlStatus').textContent = `▶ DRUM:${ev.drum}  ${pct}%`;
               } else {
-                const { freq, vol, dur, timbre, tie, pan } = ev;
+                const { freq, vol, dur, timbre, tie, slur, portaMs, pan } = ev;
                 // pコマンドによるパン一時適用
                 const panKeys = ['panSub', 'panFm1', 'panFm2', 'panFm3', 'panFm4', 'panFm5', 'panFm6', 'panPsg1', 'panPsg2', 'panPsg3'];
                 if (pan !== undefined) state.mix[panKeys[timbre]] = pan;
                 // 音色に応じた発音 @0=SUB @1-6=FM1-6 @7-9=PSG1-3
                 switch (timbre) {
-                  case 0: playSubtractive(freq, vol, when, tie, dur); break;
-                  case 1: playFM(0, freq, vol, when, tie, dur); break;
-                  case 2: playFM(1, freq, vol, when, tie, dur); break;
-                  case 3: playFM(2, freq, vol, when, tie, dur); break;
-                  case 4: playFM(3, freq, vol, when, tie, dur); break;
-                  case 5: playFM(4, freq, vol, when, tie, dur); break;
-                  case 6: playFM(5, freq, vol, when, tie, dur); break;
-                  case 7: playPSG(0, freq, vol, when, tie, dur); break;
-                  case 8: playPSG(1, freq, vol, when, tie, dur); break;
-                  case 9: playPSG(2, freq, vol, when, tie, dur); break;
+                  case 0: playSubtractive(freq, vol, when, tie, dur, portaMs, slur); break;
+                  case 1: playFM(0, freq, vol, when, tie, dur, portaMs, slur); break;
+                  case 2: playFM(1, freq, vol, when, tie, dur, portaMs, slur); break;
+                  case 3: playFM(2, freq, vol, when, tie, dur, portaMs, slur); break;
+                  case 4: playFM(3, freq, vol, when, tie, dur, portaMs, slur); break;
+                  case 5: playFM(4, freq, vol, when, tie, dur, portaMs, slur); break;
+                  case 6: playFM(5, freq, vol, when, tie, dur, portaMs, slur); break;
+                  case 7: playPSG(0, freq, vol, when, tie, dur, portaMs, slur); break;
+                  case 8: playPSG(1, freq, vol, when, tie, dur, portaMs, slur); break;
+                  case 9: playPSG(2, freq, vol, when, tie, dur, portaMs, slur); break;
                 }
                 const pct = Math.round(ev.time / maxEnd * 100);
                 document.getElementById('mmlStatus').textContent =
