@@ -220,7 +220,7 @@
       color: #ddd;
       font-family: monospace;
       font-size: 11px;
-      width: 36px;
+      width: 52px;
       text-align: center;
       padding: 2px;
     }
@@ -1047,7 +1047,7 @@
         padding: 0;
         border-radius: 2px;
         min-height: 32px;
-        width: 36px;
+        width: 52px;
       }
 
       /* タブ */
@@ -1133,7 +1133,7 @@
 
       /* ソンググリッド */
       .song-slot, .song-add {
-        width: 36px;
+        width: 52px;
         height: 32px;
         font-size: 10px;
       }
@@ -1144,7 +1144,7 @@
 
       /* トーンスロット */
       .tone-slot {
-        width: 36px;
+        width: 52px;
         height: 30px;
         font-size: 10px;
       }
@@ -1309,7 +1309,7 @@
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
         <div class="small-title" style="margin-bottom:0">SONG SEQUENCE</div>
         <button class="song-loop-btn" id="songLoopBtn">LOOP OFF</button>
-        <button class="btn" id="songClearBtn">CLEAR ALL</button>
+        <button class="btn" id="songClearBtn">CLRA</button>
         <span class="song-info" id="songInfo">0 / 160 steps</span>
         <span style="font-size:8px;color:#446;margin-left:4px">← バンクボタンをクリックでステップ追加</span>
       </div>
@@ -1662,8 +1662,8 @@ G L16 %K R %S R %K %K %S R</textarea>
           <span id="beatGroupTotal" style="font-size:8px;color:#555;margin-left:4px"></span>
         </div>
         <button class="btn" id="clearPartBtn" title="現在のパートをすべてクリア"
-          style="margin-left:6px;border-color:#733;color:#d55">CLR PART</button>
-        <button class="btn" id="clearAllPartsBtn" title="全パートを一括クリア（確認あり）" style="border-color:#933;color:#f66;font-weight:bold">ALL CLR</button>
+          style="margin-left:6px;border-color:#733;color:#d55;padding:2px 5px;font-size:8px">CLR</button>
+        <button class="btn" id="clearAllPartsBtn" title="全パートを一括クリア（確認あり）" style="border-color:#933;color:#f66;font-weight:bold;padding:2px 5px;font-size:8px">CLRA</button>
       </div>
       <div id="seqTabBar" style="margin-top:4px;margin-bottom:0">
         <div class="tab-bar" style="margin-bottom:0;flex-wrap:nowrap">
@@ -3591,7 +3591,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       const fmAllClrBtn = document.createElement('button');
       fmAllClrBtn.className = 'btn';
       fmAllClrBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#733;color:#d55;margin-left:4px';
-      fmAllClrBtn.textContent = 'ALLCLR';
+      fmAllClrBtn.textContent = 'CLRA';
       fmAllClrBtn.title = 'FM TONE BANK を全スロット初期化（クリア）';
       fmAllClrBtn.onclick = async () => {
         if (!await mobileConfirm('FM TONE BANK を全スロット消去します。よろしいですか？')) return;
@@ -5187,7 +5187,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       const subAllClrBtn = document.createElement('button');
       subAllClrBtn.className = 'btn';
       subAllClrBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#733;color:#d55;margin-left:4px';
-      subAllClrBtn.textContent = 'ALLCLR';
+      subAllClrBtn.textContent = 'CLRA';
       subAllClrBtn.title = 'SUB TONE BANK を全スロット初期化（クリア）';
       subAllClrBtn.onclick = async () => {
         if (!await mobileConfirm('SUB TONE BANK を全スロット消去します。よろしいですか？')) return;
@@ -5735,7 +5735,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         const clearBtn = document.createElement('button');
         clearBtn.className = 'btn';
         clearBtn.style.cssText = 'font-size:8px;border-color:#733;color:#d55';
-        clearBtn.textContent = 'CLEAR ALL';
+        clearBtn.textContent = 'CLRA';
         clearBtn.onclick = () => {
           bank.bpmTrack.fill(null);
           renderSeq();
@@ -6910,7 +6910,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         const pcmAllClrBtn = document.createElement('button');
         pcmAllClrBtn.className = 'btn';
         pcmAllClrBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#733;color:#d55;margin-left:4px';
-        pcmAllClrBtn.textContent = 'ALLCLR';
+        pcmAllClrBtn.textContent = 'CLRA';
         pcmAllClrBtn.title = 'PCM TONE BANK を全スロット初期化（クリア）';
         pcmAllClrBtn.onclick = async () => {
           if (!await mobileConfirm('PCM TONE BANK を全スロット消去します。\nロード済みのPCMバッファもすべて解放されます。よろしいですか？')) return;
@@ -9116,7 +9116,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         const ssgAllClrBtn = document.createElement('button');
         ssgAllClrBtn.className = 'btn';
         ssgAllClrBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#733;color:#d55;margin-left:4px';
-        ssgAllClrBtn.textContent = 'ALLCLR';
+        ssgAllClrBtn.textContent = 'CLRA';
         ssgAllClrBtn.title = 'SSG TONE BANK を全スロット初期化（クリア）';
         ssgAllClrBtn.onclick = async () => {
           if (!await mobileConfirm('SSG TONE BANK を全スロット消去します。よろしいですか？')) return;
