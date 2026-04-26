@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes">
-  <title>honodori — FM+PSG Extended Synth v4.1.0</title>
+  <title>honodori — FM+PSG Extended Synth v4.0.0</title>
   <style>
     * {
       box-sizing: border-box;
@@ -4229,12 +4229,12 @@ G L16 %K R %S R %K %K %S R</textarea>
     // [PSG/SSG音色 flag=0x00]
     // [0]=0x00 マーカー
     // [1]    = ノイズ周期 (0-31)
-    // [2]    = AR raw (0-31 → 0-255スケール)
+    // [2]    = AR raw (0-31)
     // [3]    = DR raw
     // [4]    = SL raw
     // [5]    = SR raw
     // [6]    = RR raw
-    // [7]    = AL raw (0-31 → 0-127スケール)
+    // [7]    = AL raw (0-31)
     // [8]    = LFO delay
     // [9]    = LFO clock
     // [10]   = LFO amp (符号付き)
@@ -4251,7 +4251,6 @@ G L16 %K R %S R %K %K %S R</textarea>
       const slRaw = u8[base + 4] & 0x1F;
       const srRaw = u8[base + 5] & 0x1F;
       const rrRaw = u8[base + 6] & 0x1F;
-      // 0-31 → 0-255 / 0-127 にスケール (MUCOM88 Eコマンド互換)
       const ar = Math.round(arRaw * 255 / 31);
       const dr = Math.round(drRaw * 255 / 31);
       const sl = Math.round(slRaw * 255 / 31);
@@ -4270,7 +4269,6 @@ G L16 %K R %S R %K %K %S R</textarea>
       const hasNoise  = (mixerByte & 0x02) !== 0 || (u8[base + 1] > 0);
       const noiseMode = hasTone && hasNoise ? 3 : hasNoise ? 2 : 1;
       const noiseMix  = noiseMode === 2 ? 100 : noiseMode === 3 ? 50 : 0;
-      // ssgPresetToParams と同じ変換ロジックで envType/envTime を決定
       const _r2s = (rate) => rate >= 255 ? 0.005 : rate <= 0 ? 99 : (256 - rate) * 0.012;
       const slNorm = sl / 255;
       let envType, envTime;
@@ -4294,7 +4292,6 @@ G L16 %K R %S R %K %K %S R</textarea>
         envTime = 500;
       }
       envTime = Math.max(30, Math.min(2000, envTime));
-      // LFO変換
       let lfo = { type: 'none', rate: 4, depth: 0, dest: 'pitch' };
       if (lfoDelay > 0 && lfoClk > 0 && Math.abs(lfoAmp) > 0) {
         const rateHz = Math.min(20, Math.max(0.3, lfoClk / 10));
@@ -7648,6 +7645,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         this.timers.forEach(id => clearTimeout(id));
         this.timers = [];
         this.running = false;
+        this._globalLoopStart = null;
         Object.keys(activeNodes).forEach(ch => releaseNode(ch));
         document.getElementById('mmlStatus').textContent = '';
       },
@@ -7826,6 +7824,8 @@ G L16 %K R %S R %K %K %S R</textarea>
         // ボリュームリスト対応 (v61,31,21,...) - 各ノートで順繰りに使用
         let velList = [];
         let velListIdx = 0;
+        // グローバルループ開始時刻（L コマンドで設定、null=未設定）
+        let loopStart = null;
         // ループスタック: { start, count, elapsed, skipPos }
         // skipPos: '/'が現れた位置（最終ループ時にここへジャンプしてループ内を抜ける）
         const loopStack = [];
@@ -7866,31 +7866,37 @@ G L16 %K R %S R %K %K %S R</textarea>
           return vel;
         };
 
+        // 音符マップ（小文字のみ: MUCOM88は音符が小文字）
         const noteMap = {
-          'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11
+          'c': 0, 'd': 2, 'e': 4, 'f': 5, 'g': 7, 'a': 9, 'b': 11
         };
 
         // 前処理（コメント除去・マクロ展開・#タグ除去）
         const preprocessed = this.preprocess(text);
         // | はループ区切りとしてスペースに置換
         // @"..."の名前付き音色参照を @999(ダミー)に変換してパース継続できるようにする
+        // ★ toUpperCase() を廃止: MUCOM88は大文字小文字を厳密に区別する
+        //   c/d/e/f/g/a/b = 音符(小文字), C = クロック分解能(大文字)
+        //   l = デフォルト音長(小文字), L = グローバルループ開始(大文字)
+        //   t = テンポ(小文字), o = オクターブ(小文字), v = ベロシティ(小文字)
+        //   q = ゲートタイム(小文字), r = 休符(小文字)
         const s = preprocessed
           .replace(/@"[^"]*"/g, '@999')  // @"名前" → @999
-          .replace(/\|/g, ' ').replace(/\s+/g, '').toUpperCase();
+          .replace(/\|/g, ' ').replace(/\s+/g, '');
         pos = 0;
 
         while (pos < s.length) {
           const ch = s[pos];
 
-          // テンポ T
-          if (ch === 'T') {
+          // テンポ t（小文字） / T（大文字）両対応
+          if (ch === 't' || ch === 'T') {
             pos++;
             const n = readInt();
             if (n !== null) bpm = n;
             continue;
           }
-          // オクターブ O
-          if (ch === 'O') {
+          // オクターブ o（小文字） / O（大文字）両対応
+          if (ch === 'o' || ch === 'O') {
             pos++;
             const n = readInt();
             if (n !== null) oct = Math.max(1, Math.min(8, n));
@@ -7901,15 +7907,31 @@ G L16 %K R %S R %K %K %S R</textarea>
           // FMP7:    < = 上げ、> = 下げ  ← 逆
           if (ch === '<') { oct = isFMP7 ? Math.min(8, oct + 1) : Math.max(1, oct - 1); pos++; continue; }
           if (ch === '>') { oct = isFMP7 ? Math.max(1, oct - 1) : Math.min(8, oct + 1); pos++; continue; }
-          // デフォルト音長 L
-          if (ch === 'L') {
+          // デフォルト音長 l（小文字のみ）
+          // 大文字 L = MUCOM88グローバルループ開始マーカー（後述）
+          if (ch === 'l') {
             pos++;
             const n = readInt();
             if (n !== null && n > 0) defLen = n;
             continue;
           }
-          // ベロシティ V（MUCOM88: V0-15 単値 or V61,31,21,... カンマ区切りリスト）
-          if (ch === 'V') {
+          // グローバルループ開始 L（大文字）: MUCOM88の無限ループ折返し点
+          // L の後に数字が続く場合は旧来の l コマンド互換（デフォルト音長）
+          // 数字がない場合はグローバルループ開始マーカーとして時刻を記録
+          if (ch === 'L') {
+            pos++;
+            const n = readInt();
+            if (n !== null && n > 0) {
+              defLen = n; // 旧 l コマンド互換（大文字Lで音長指定するケース）
+            } else {
+              // MUCOM88グローバルループ開始マーカー：現在の時刻を記録
+              // 初回のみ記録（二重登録防止）
+              if (loopStart === null) loopStart = t;
+            }
+            continue;
+          }
+          // ベロシティ v（小文字）/ V（大文字）両対応
+          if (ch === 'v' || ch === 'V') {
             pos++;
             // カンマ区切りリストの確認（数値の後にカンマがあるかチェック）
             const firstVal = readInt();
@@ -8054,14 +8076,14 @@ G L16 %K R %S R %K %K %S R</textarea>
           // SUBチャンネル以外の $ はスキップ
           if (ch === '$') { pos++; while (pos < s.length && s[pos] !== ' ') pos++; continue; }
 
-          // パン P
+          // パン p（小文字）/ P（大文字）両対応
           // MUCOM88: 0=発音なし 1=右 2=左 3=中央
           // FMP7絶対指定: 1〜255 (1=左 128=中央 255=右)
           // FMP7方向指定: PL n=左 PR n=右 PC=中央
-          if (ch === 'P') {
+          if (ch === 'p' || ch === 'P') {
             pos++;
-            // FMP7の PL/PR/PC 形式チェック
-            if (isFMP7 && pos < s.length) {
+            // FMP7の PL/PR/PC 形式チェック（大文字P時のみ）
+            if (isFMP7 && ch === 'P' && pos < s.length) {
               if (s[pos] === 'L') {
                 pos++;
                 const n = readInt() ?? 127;
@@ -8093,9 +8115,9 @@ G L16 %K R %S R %K %K %S R</textarea>
             }
             continue;
           }
-          // デチューン D（MUCOM88: -127〜127、1単位≒3.125セント相当）
-          // D20+ = 相対加算, D-10+ = 相対減算 (+付きは相対指定として扱う)
-          if (ch === 'D') {
+          // デチューン d（小文字）/ D（大文字）両対応（MUCOM88: -127〜127）
+          // d20+ = 相対加算, d-10+ = 相対減算 (+付きは相対指定として扱う)
+          if (ch === 'd' || ch === 'D') {
             pos++;
             const n = readInt();
             if (n !== null) {
@@ -8104,22 +8126,21 @@ G L16 %K R %S R %K %K %S R</textarea>
                 pos++;
                 detune = detune + n * 3.125;
               } else {
-                detune = n * 3.125; // セントに変換（D0でリセット含む）
+                detune = n * 3.125; // セントに変換（d0でリセット含む）
               }
             }
             continue;
           }
-          // キートランスポーズ K（半音単位）
-          if (ch === 'K') {
+          // キートランスポーズ k（小文字）/ K（大文字）両対応（半音単位）
+          if (ch === 'k' || ch === 'K') {
             pos++;
             const n = readInt();
             if (n !== null) keyTrans = n;
             continue;
           }
-          // ゲートタイム q（MUCOM88: qn = クロック数でキーオフ）
+          // ゲートタイム q（小文字）/ Q（大文字）両対応
           // q0=タイと同等（キーオフなし）、q1〜q8 = n/8 の比率
-          // 実際には q/clockDiv クロック分早くキーオフする = gate比率として近似
-          if (ch === 'Q') {
+          if (ch === 'q' || ch === 'Q') {
             pos++;
             const n = readInt();
             if (n !== null) qgate = Math.max(0, Math.min(8, n));
@@ -8137,10 +8158,10 @@ G L16 %K R %S R %K %K %S R</textarea>
           // チャンネル修飾子なし、またはD/E/F指定時: SSG LFOとして解釈
           // delay: 変化開始クロック数, speed: 変化間隔クロック数,
           // rate: 1ステップの変化量(SSGは±160≒半音), depth: 折返し回数
-          if (ch === 'M') {
+          if (ch === 'm' || ch === 'M') {
             pos++;
             // MF0/MF1: FM LFO 強制ON/OFF
-            if (pos < s.length && s[pos] === 'F') {
+            if (pos < s.length && (s[pos] === 'F' || s[pos] === 'f')) {
               pos++;
               const n = readInt();
               // MF0 = LFO OFF, MF1 = LFO ON → スキップ（再生には影響しない）
@@ -8216,8 +8237,8 @@ G L16 %K R %S R %K %K %S R</textarea>
             }
             continue;
           }
-          // [SSG] Eコマンド: E AL,AR,DR,SL,SR,RR → SSGエンベロープをリアルタイム適用
-          if (ch === 'E') {
+          // [SSG] e/Eコマンド: e AL,AR,DR,SL,SR,RR → SSGエンベロープをリアルタイム適用
+          if (ch === 'e' || ch === 'E') {
             pos++;
             const vals = readInts(6);
             if (isSSGCh) {
@@ -8237,26 +8258,13 @@ G L16 %K R %S R %K %K %S R</textarea>
             // 非SSGチャンネルでは引数を消費してスキップ
             continue;
           }
-          // [SSG] Pコマンド: Pn 1=tone 2=noise 3=tone+noise
-          if (ch === 'P' && isSSGCh && s[pos+1] >= '1' && s[pos+1] <= '3') {
-            pos++;
-            const n = readInt();
-            if (n !== null) {
-              const p = state.psgParams[ssgPsgIdx];
-              if (n === 1) { p.noiseMix = 0; }
-              else if (n === 2) { p.noiseMix = 100; }
-              else if (n === 3) { p.noiseMix = 50; }
-            }
-            continue;
-          }
-          // [SSG] Wコマンド: Wn ノイズ周波数(0〜31)
-          if (ch === 'W' && isSSGCh) {
+          // [SSG] w/Wコマンド: wn ノイズ周波数(0〜31)
+          if ((ch === 'w' || ch === 'W') && isSSGCh) {
             pos++;
             const n = readInt();
             if (n !== null) state.psgParams[ssgPsgIdx].noisePeriod = Math.max(1, Math.min(31, n));
             continue;
           }
-          // ゲートタイム2 Q（Cの別名として上で処理済み）
           // ループ開始 [
           if (ch === '[') {
             pos++;
@@ -8341,8 +8349,8 @@ G L16 %K R %S R %K %K %S R</textarea>
             continue;
           }
 
-          // 休符 R
-          if (ch === 'R') {
+          // 休符 r（小文字）/ R（大文字）両対応
+          if (ch === 'r' || ch === 'R') {
             pos++;
             // %n 形式: 絶対クロック指定 (clockDiv クロック = 全音符)
             let dur = 0;
@@ -8367,17 +8375,19 @@ G L16 %K R %S R %K %K %S R</textarea>
             continue;
           }
 
-          // 音符 C D E F G A B
-          // ※ 'C' は MUCOM88クロック分解能コマンド(C128等)と音符Cの両方に使われる
-          //   → 'C'の直後が数字ならclockDiv設定、それ以外は音符として処理
+          // クロック分解能 C（大文字のみ）: MUCOM88 C96, C48, C128 等
+          // ★ toUpperCase廃止により、大文字Cのみを分解能コマンドとして処理
+          //    小文字cは下の音符処理へ落ちる
+          if (ch === 'C' && pos + 1 < s.length && s[pos + 1] >= '0' && s[pos + 1] <= '9') {
+            pos++; // 'C'を消費
+            const n = readInt();
+            if (n !== null && n > 0) clockDiv = n;
+            continue;
+          }
+
+          // 音符 c d e f g a b（小文字のみ）
+          // ★ 大文字C=clockDiv、大文字D/E=デチューン/エンベロープとして上で処理済み
           if (noteMap[ch] !== undefined) {
-            // 'C' + 数字 = クロック分解能指定 (C128, C112 等)
-            if (ch === 'C' && pos + 1 < s.length && s[pos + 1] >= '0' && s[pos + 1] <= '9') {
-              pos++; // 'C'を消費
-              const n = readInt();
-              if (n !== null && n > 0) clockDiv = n;
-              continue;
-            }
             pos++;
             let semi = noteMap[ch];
             // シャープ/フラット
@@ -8440,7 +8450,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           pos++; // 未知文字はスキップ
         }
 
-        return { events, totalTime: t };
+        return { events, totalTime: t, loopStart };
       },
 
       // Kチャンネル(ADPCM/PCM)用パーサー
@@ -8464,7 +8474,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         let clockDiv = 128; // Cコマンドのクロック分解能
         let qgate = 8;      // Qコマンドのゲートタイム
         const loopStack = [];
-        const noteMap = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+        const noteMap = { c:0, d:2, e:4, f:5, g:7, a:9, b:11 };
         const beatSec = () => 60 / bpm;
         const lenSec = (n, dot) => {
           const base = beatSec() * 4 / n;
@@ -8476,25 +8486,25 @@ G L16 %K R %S R %K %K %S R</textarea>
           const midiNote = (baseOct + 1) * 12 + semi;
           return 440 * Math.pow(2, (midiNote - 69) / 12);
         };
-        const s = this.preprocess(text).replace(/@"[^"]*"/g, '@999').replace(/\|/g, ' ').replace(/\s+/g, '').toUpperCase();
+        const s = this.preprocess(text).replace(/@"[^"]*"/g, '@999').replace(/\|/g, ' ').replace(/\s+/g, '');
         while (pos < s.length) {
           const ch = s[pos];
-          if (ch === 'T') {
+          if (ch === 't' || ch === 'T') {
             pos++; let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
             bpm = parseInt(n) || bpm; continue;
           }
-          if (ch === 'L') {
+          if (ch === 'l' || ch === 'L') {
             pos++; let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
             defLen = parseInt(n) || defLen; continue;
           }
-          if (ch === 'O') {
+          if (ch === 'o' || ch === 'O') {
             pos++; let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
             oct = parseInt(n) || oct; continue;
           }
-          if (ch === 'Q') {
+          if (ch === 'q' || ch === 'Q') {
             pos++; let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
             qgate = Math.max(0, Math.min(8, parseInt(n) || 8)); continue;
@@ -8504,12 +8514,12 @@ G L16 %K R %S R %K %K %S R</textarea>
           if (ch === '(') { vol = Math.max(0, vol - 16); pos++; continue; }
           if (ch === ')') { vol = Math.min(255, vol + 16); pos++; continue; }
           if (ch === '&') { pos++; continue; } // タイ（ADPCMでは概ね無視）
-          if (ch === 'M') { // MFn等のコマンドをスキップ
+          if (ch === 'm' || ch === 'M') { // MFn等のコマンドをスキップ
             pos++;
-            if (pos < s.length && s[pos] === 'F') { pos++; while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') pos++; }
+            if (pos < s.length && (s[pos] === 'F' || s[pos] === 'f')) { pos++; while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') pos++; }
             continue;
           }
-          if (ch === 'V') {
+          if (ch === 'v' || ch === 'V') {
             pos++; let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
             vol = Math.min(255, parseInt(n) || vol); continue;
@@ -8557,22 +8567,24 @@ G L16 %K R %S R %K %K %S R</textarea>
             }
             continue;
           }
-          if (ch === 'R') {
+          // 休符 r（小文字）
+          if (ch === 'r') {
             pos++; let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
             const dot = s[pos] === '.' ? (pos++, true) : false;
             t += lenSec(parseInt(n) || defLen, dot); continue;
           }
+          // クロック分解能 C（大文字のみ）: C96 等
+          if (ch === 'C' && pos + 1 < s.length && s[pos + 1] >= '0' && s[pos + 1] <= '9') {
+            pos++;
+            let n = '';
+            while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+            const cv = parseInt(n);
+            if (cv > 0) clockDiv = cv;
+            continue;
+          }
+          // 音符 c d e f g a b（小文字のみ）
           if (noteMap[ch] !== undefined) {
-            // C+数字 = clockDiv
-            if (ch === 'C' && pos + 1 < s.length && s[pos + 1] >= '0' && s[pos + 1] <= '9') {
-              pos++;
-              let n = '';
-              while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
-              const cv = parseInt(n);
-              if (cv > 0) clockDiv = cv;
-              continue;
-            }
             pos++;
             let semi = noteMap[ch];
             if (s[pos] === '+' || s[pos] === '#') { semi++; pos++; }
@@ -8614,29 +8626,36 @@ G L16 %K R %S R %K %K %S R</textarea>
           'OH': 'openhh', 'CH': 'closehh', 'P': 'pcm'
         };
 
-        const s = this.preprocess(text).replace(/\|/g, ' ').replace(/\s+/g, '').toUpperCase();
+        const s = this.preprocess(text).replace(/\|/g, ' ').replace(/\s+/g, '');
 
         while (pos < s.length) {
           const ch = s[pos];
 
-          // テンポ
-          if (ch === 'T') {
+          // テンポ t/T
+          if (ch === 't' || ch === 'T') {
             pos++;
             let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
             bpm = parseInt(n) || bpm;
             continue;
           }
-          // デフォルト音長
-          if (ch === 'L') {
+          // デフォルト音長 l（小文字）
+          if (ch === 'l') {
             pos++;
             let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
             defLen = parseInt(n) || defLen;
             continue;
           }
-          // 休符
-          if (ch === 'R') {
+          // グローバルループ L（大文字）はドラムチャンネルでもスキップ
+          if (ch === 'L') {
+            pos++;
+            let n = '';
+            while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
+            continue;
+          }
+          // 休符 r/R
+          if (ch === 'r' || ch === 'R') {
             pos++;
             let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
@@ -8644,15 +8663,18 @@ G L16 %K R %S R %K %K %S R</textarea>
             t += lenSec(parseInt(n) || defLen, dot);
             continue;
           }
-          // ドラムイベント %XX
+          // ドラムイベント %XX（大文字キーそのまま）
           if (ch === '%') {
             pos++;
             // 2文字キーを先に試す（TH/TM/TL/OH/CH）
             let key = '';
-            if (pos + 1 < s.length && drumMap[s[pos] + s[pos + 1]]) {
-              key = s[pos] + s[pos + 1]; pos += 2;
-            } else if (drumMap[s[pos]]) {
-              key = s[pos]; pos++;
+            const twoChar = (s[pos] ?? '') + (s[pos + 1] ?? '');
+            const twoUpper = twoChar.toUpperCase();
+            const oneUpper = (s[pos] ?? '').toUpperCase();
+            if (pos + 1 < s.length && drumMap[twoUpper]) {
+              key = twoUpper; pos += 2;
+            } else if (drumMap[oneUpper]) {
+              key = oneUpper; pos++;
             } else {
               continue; // 未知のドラムはスキップ
             }
@@ -8741,6 +8763,39 @@ G L16 %K R %S R %K %K %S R</textarea>
               }
             }
           });
+          // ── 事前BPMスキャン ──────────────────────────────────
+          // 全チャンネルのMMLを先読みして t コマンドの値を取得し
+          // state.bpm を更新してから各チャンネルをパースする。
+          // こうすることで「Dチャンネルだけt197を持つ」場合でも
+          // E/Fチャンネルが正しいBPMで動作する。
+          {
+            // スペース除去済み文字列から先頭の t 値を探す
+            const scanBpm = (mmlStr) => {
+              const s = mmlStr.replace(/\s+/g, '');
+              // 先頭付近（300文字以内）の t/T + 数字を探す
+              const m = s.slice(0, 300).match(/[tT](\d+)/);
+              return m ? parseInt(m[1]) : null;
+            };
+            const allMml = [...TONE_CHANNELS, 'G', 'K']
+              .map(ch => chMml[ch])
+              .filter(s => s.trim());
+            for (const mml of allMml) {
+              const bpmVal = scanBpm(mml);
+              if (bpmVal !== null && bpmVal >= 20 && bpmVal <= 400) {
+                state.bpm = bpmVal;
+                // UI表示も更新
+                const bpmEl = document.getElementById('bpmInput');
+                if (bpmEl) bpmEl.value = bpmVal;
+                break; // 最初に見つかった値を採用
+              }
+            }
+          }
+
+          // ── 各チャンネルをパースしてイベント＋グローバルループ時刻を収集 ──
+          // グローバルループ時刻: 各チャンネルの L マーカー位置の最大値を使う
+          // （チャンネルごとにイントロ長が違う場合は最も長いものに合わせる）
+          let globalLoopStart = null; // null = グローバルループなし
+
           // 音程チャンネル (A〜F, H〜J)
           TONE_CHANNELS.forEach(chName => {
             const mmlStr = chMml[chName].trim();
@@ -8748,8 +8803,14 @@ G L16 %K R %S R %K %K %S R</textarea>
             const defaultTimbre = CH_TIMBRE[chName];
             const isSSG = chName in SSG_PSG_IDX;
             const ssgIdx = SSG_PSG_IDX[chName] ?? 0;
-            const { events } = this.parse(mmlStr, state.bpm, defaultTimbre, isSSG, ssgIdx, isFMP7);
+            const { events, loopStart } = this.parse(mmlStr, state.bpm, defaultTimbre, isSSG, ssgIdx, isFMP7);
             events.forEach(ev => allEvents.push({ ...ev, mmlCh: chName }));
+            // チャンネルのループ開始時刻を記録（最大値を採用）
+            if (loopStart !== null) {
+              globalLoopStart = (globalLoopStart === null)
+                ? loopStart
+                : Math.max(globalLoopStart, loopStart);
+            }
           });
           // G: リズム（ドラム）チャンネル
           const gStr = chMml['G'].trim();
@@ -8763,6 +8824,9 @@ G L16 %K R %S R %K %K %S R</textarea>
             const { events } = this.parseK(kStr, state.bpm);
             events.forEach(ev => allEvents.push({ ...ev, mmlCh: 'K' }));
           }
+
+          // グローバルループ情報をplayに渡す
+          this._globalLoopStart = globalLoopStart;
         }
 
         // 時刻順にソート（複数チャンネル混在時に必要）
@@ -8781,7 +8845,12 @@ G L16 %K R %S R %K %K %S R</textarea>
           let maxEnd = 0;
           allEvents.forEach(ev => { maxEnd = Math.max(maxEnd, ev.time + ev.dur); });
 
+          // グローバルループ情報
+          const gLoopStart = this._globalLoopStart; // null = グローバルループなし
+
           allEvents.forEach(ev => {
+            // グローバルループが有効な場合、ループ区間（loopStart以降）のイベントのみスケジュール
+            // イントロ（loopStart以前）は offsetTime==startTime の初回のみ再生
             const absWhen = offsetTime + ev.time;
             const delay = (absWhen - audioCtx.currentTime) * 1000;
             if (delay < -100) return; // 過去のイベントはスキップ
@@ -8791,13 +8860,13 @@ G L16 %K R %S R %K %K %S R</textarea>
               const when = audioCtx.currentTime + 0.02;
 
               if (ev.pcmNote) {
-                // K チャンネル (ADPCM/PCM) — スロット指定＋ピッチ制御
                 const resolvedSlot = ev.slot >= 0 ? ev.slot : state.pcmActiveToneSlot;
                 playPCM(when, ev.vol, null, null, ev.freq, resolvedSlot >= 0 ? resolvedSlot : undefined);
-                const pct = Math.round(ev.time / maxEnd * 100);
+                const pct = gLoopStart !== null
+                  ? Math.round((ev.time - gLoopStart) / (maxEnd - gLoopStart) * 100)
+                  : Math.round(ev.time / maxEnd * 100);
                 document.getElementById('mmlStatus').textContent = `▶ PCM:S${resolvedSlot + 1}  ${pct}%`;
               } else if (ev.drum) {
-                // ドラムチャンネルD
                 const dg = state.drumsGain;
                 switch (ev.drum) {
                   case 'kick': playKick(when, dg.kick); break;
@@ -8810,14 +8879,14 @@ G L16 %K R %S R %K %K %S R</textarea>
                   case 'closehh': playCloseHH(when, dg.closehh); break;
                   case 'pcm': playPCM(when, dg.pcm / 100); break;
                 }
-                const pct = Math.round(ev.time / maxEnd * 100);
+                const pct = gLoopStart !== null
+                  ? Math.round((ev.time - gLoopStart) / (maxEnd - gLoopStart) * 100)
+                  : Math.round(ev.time / maxEnd * 100);
                 document.getElementById('mmlStatus').textContent = `▶ DRUM:${ev.drum}  ${pct}%`;
               } else {
                 const { freq, vol, dur, timbre, tie, slur, portaMs, pan } = ev;
-                // pコマンドによるパン一時適用
                 const panKeys = ['panSub', 'panFm1', 'panFm2', 'panFm3', 'panFm4', 'panFm5', 'panFm6', 'panPsg1', 'panPsg2', 'panPsg3'];
                 if (pan !== undefined) state.mix[panKeys[timbre]] = pan;
-                // 音色に応じた発音 @0=SUB @1-6=FM1-6 @7-9=PSG1-3
                 switch (timbre) {
                   case 0: playSubtractive(freq, vol, when, tie, dur, portaMs, slur); break;
                   case 1: playFM(0, freq, vol, when, tie, dur, portaMs, slur); break;
@@ -8830,7 +8899,9 @@ G L16 %K R %S R %K %K %S R</textarea>
                   case 8: playPSG(1, freq, vol, when, tie, dur, portaMs, slur); break;
                   case 9: playPSG(2, freq, vol, when, tie, dur, portaMs, slur); break;
                 }
-                const pct = Math.round(ev.time / maxEnd * 100);
+                const pct = gLoopStart !== null
+                  ? Math.round((ev.time - gLoopStart) / (maxEnd - gLoopStart) * 100)
+                  : Math.round(ev.time / maxEnd * 100);
                 document.getElementById('mmlStatus').textContent =
                   `▶ ${['SUB', 'FM1', 'FM2', 'FM3', 'FM4', 'FM5', 'FM6', 'PSG1', 'PSG2', 'PSG3'][timbre]}  ${pct}%`;
               }
@@ -8838,15 +8909,86 @@ G L16 %K R %S R %K %K %S R</textarea>
             this.timers.push(id);
           });
 
-          // ループ or 終了
+          // ── ループ or 終了の判定 ──────────────────────────────────
+          // グローバルループ（Lマーカー）がある場合:
+          //   楽曲終端に達したら loopStart 時刻のイベントから再スケジュール
+          // グローバルループなしで MML LOOPボタンがON の場合:
+          //   先頭から全体を繰り返す
           const loopDelay = (offsetTime + maxEnd - audioCtx.currentTime) * 1000;
           const endId = setTimeout(() => {
             if (!this.running) return;
-            if (this.loop) {
-              // ループ折り返し前に実行済みIDをクリア（timers配列肥大化防止）
+            if (gLoopStart !== null) {
+              // MUCOM88グローバルループ: loopStart以降のイベントだけを再スケジュール
+              this.timers = [];
+              const loopOffset = audioCtx.currentTime + 0.05;
+              // ループ区間のイベント（time >= gLoopStart）のみ time をずらして再生
+              const loopEvents = allEvents.filter(ev => ev.time >= gLoopStart);
+              const loopDur = maxEnd - gLoopStart;
+              // scheduleEventsLoopセクション: ループ区間だけを繰り返す内部関数
+              const scheduleLoop = (loopOffsetTime) => {
+                loopEvents.forEach(ev => {
+                  const evRelTime = ev.time - gLoopStart; // ループ先頭からの相対時刻
+                  const absWhen = loopOffsetTime + evRelTime;
+                  const delay = (absWhen - audioCtx.currentTime) * 1000;
+                  if (delay < -100) return;
+                  const id = setTimeout(() => {
+                    if (!this.running) return;
+                    const when = audioCtx.currentTime + 0.02;
+                    if (ev.pcmNote) {
+                      const resolvedSlot = ev.slot >= 0 ? ev.slot : state.pcmActiveToneSlot;
+                      playPCM(when, ev.vol, null, null, ev.freq, resolvedSlot >= 0 ? resolvedSlot : undefined);
+                    } else if (ev.drum) {
+                      const dg = state.drumsGain;
+                      switch (ev.drum) {
+                        case 'kick': playKick(when, dg.kick); break;
+                        case 'snare': playSnare(when, dg.snare); break;
+                        case 'hat': playHat(when, dg.hat); break;
+                        case 'tomhi': playTomHi(when, dg.tomhi); break;
+                        case 'tommid': playTomMid(when, dg.tommid); break;
+                        case 'tomlo': playTomLo(when, dg.tomlo); break;
+                        case 'openhh': playOpenHH(when, dg.openhh); break;
+                        case 'closehh': playCloseHH(when, dg.closehh); break;
+                        case 'pcm': playPCM(when, dg.pcm / 100); break;
+                      }
+                    } else {
+                      const { freq, vol, dur, timbre, tie, slur, portaMs, pan } = ev;
+                      const panKeys = ['panSub', 'panFm1', 'panFm2', 'panFm3', 'panFm4', 'panFm5', 'panFm6', 'panPsg1', 'panPsg2', 'panPsg3'];
+                      if (pan !== undefined) state.mix[panKeys[timbre]] = pan;
+                      switch (timbre) {
+                        case 0: playSubtractive(freq, vol, when, tie, dur, portaMs, slur); break;
+                        case 1: playFM(0, freq, vol, when, tie, dur, portaMs, slur); break;
+                        case 2: playFM(1, freq, vol, when, tie, dur, portaMs, slur); break;
+                        case 3: playFM(2, freq, vol, when, tie, dur, portaMs, slur); break;
+                        case 4: playFM(3, freq, vol, when, tie, dur, portaMs, slur); break;
+                        case 5: playFM(4, freq, vol, when, tie, dur, portaMs, slur); break;
+                        case 6: playFM(5, freq, vol, when, tie, dur, portaMs, slur); break;
+                        case 7: playPSG(0, freq, vol, when, tie, dur, portaMs, slur); break;
+                        case 8: playPSG(1, freq, vol, when, tie, dur, portaMs, slur); break;
+                        case 9: playPSG(2, freq, vol, when, tie, dur, portaMs, slur); break;
+                      }
+                      const pct = Math.round(evRelTime / loopDur * 100);
+                      document.getElementById('mmlStatus').textContent =
+                        `▶ ${['SUB','FM1','FM2','FM3','FM4','FM5','FM6','PSG1','PSG2','PSG3'][timbre]}  ${pct}%`;
+                    }
+                  }, Math.max(0, delay));
+                  this.timers.push(id);
+                });
+                // 次のループをスケジュール
+                const nextDelay = (loopOffsetTime + loopDur - audioCtx.currentTime) * 1000;
+                const nextId = setTimeout(() => {
+                  if (!this.running) return;
+                  this.timers = [];
+                  scheduleLoop(audioCtx.currentTime + 0.05);
+                }, Math.max(0, nextDelay));
+                this.timers.push(nextId);
+              };
+              scheduleLoop(loopOffset);
+            } else if (this.loop) {
+              // MML LOOPボタンによる全体ループ
               this.timers = [];
               scheduleEvents(audioCtx.currentTime + 0.05);
             } else {
+              // 再生終了
               this.running = false;
               state.playing = false;
               document.getElementById('playBtn').style.opacity = '1';
@@ -9405,6 +9547,14 @@ G L16 %K R %S R %K %K %S R</textarea>
         // ヘッダーに順序通り追加: タイトル → STORE → PRESET → SAVE/LOAD → スロット情報
         ssgBankHdr.appendChild(ssgStoreBtn);
         ssgBankHdr.appendChild(ssgPreBtn);
+        // DAT LOADボタン（voice.dat PSG音色読込）
+        const ssgDatLoadBtn = document.createElement('button');
+        ssgDatLoadBtn.className = 'btn';
+        ssgDatLoadBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#446;color:#68a;margin-left:4px';
+        ssgDatLoadBtn.textContent = 'DAT LOAD';
+        ssgDatLoadBtn.title = 'MUCOM88 voice.dat のPSG音色をSSG TONE BANKに読込（FM音色も同時にFM TONE BANKへ）';
+        ssgDatLoadBtn.onclick = () => loadVoiceDat();
+        ssgBankHdr.appendChild(ssgDatLoadBtn);
         // SAVE/LOADボタン（全SSGチャンネルに表示）
         const ssgSaveBtn = document.createElement('button');
         ssgSaveBtn.className = 'btn';
@@ -9421,15 +9571,6 @@ G L16 %K R %S R %K %K %S R</textarea>
         ssgLoadBtn.title = 'PSG TONEBANKをhonodori_psg.jsonから読込';
         ssgLoadBtn.onclick = () => loadPsgToneBank();
         ssgBankHdr.appendChild(ssgLoadBtn);
-
-        // DAT LOADボタン（voice.dat PSG音色読込）
-        const ssgDatLoadBtn = document.createElement('button');
-        ssgDatLoadBtn.className = 'btn';
-        ssgDatLoadBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#446;color:#68a;margin-left:4px';
-        ssgDatLoadBtn.textContent = 'DAT LOAD';
-        ssgDatLoadBtn.title = 'MUCOM88 voice.dat のPSG音色をSSG TONE BANKに読込（FM音色も同時にFM TONE BANKへ）';
-        ssgDatLoadBtn.onclick = () => loadVoiceDat();
-        ssgBankHdr.appendChild(ssgDatLoadBtn);
 
         // ALLCLR ボタン（SSG TONE BANK 全消去）
         const ssgAllClrBtn = document.createElement('button');
