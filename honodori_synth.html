@@ -3,8 +3,8 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>honodori — FM+PSG Extended Synth v16.2</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes">
+  <title>honodori — FM+PSG Extended Synth v4.0.0</title>
   <style>
     * {
       box-sizing: border-box;
@@ -1268,10 +1268,47 @@
       color: #aaa;
     }
     #customConfirmCancel:active { background: #2a2a2a; }
+
+    /* ===== トースト通知 ===== */
+    #toastContainer {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99998;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+    }
+    .toast {
+      background: #1e1e1e;
+      border: 1px solid #444;
+      border-radius: 6px;
+      color: #ddd;
+      font-family: monospace;
+      font-size: 11px;
+      padding: 8px 16px;
+      max-width: 80vw;
+      text-align: center;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.7);
+      opacity: 0;
+      animation: toastIn 0.2s forwards;
+      pointer-events: none;
+      line-height: 1.5;
+    }
+    .toast.toast-error { border-color: #933; color: #f88; background: #1e0a0a; }
+    .toast.toast-ok    { border-color: #3a6; color: #5d5; background: #0a1e0a; }
+    .toast.toast-warn  { border-color: #883; color: #db8; background: #1a1600; }
+    .toast.toast-out { animation: toastOut 0.3s forwards; }
+    @keyframes toastIn  { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes toastOut { from { opacity:1; } to { opacity:0; transform:translateY(6px); } }
   </style>
 </head>
 
 <body>
+  <div id="toastContainer"></div>
   <div class="app">
 
     <!-- Transport -->
@@ -1710,6 +1747,26 @@ G L16 %K R %S R %K %K %S R</textarea>
   </div>
 
   <script>
+    // =============================================
+    // トースト通知 (alert()代替・スマートフォン対応)
+    // type: 'ok' | 'error' | 'warn' | ''
+    // =============================================
+    function showToast(msg, type, durationMs) {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const el = document.createElement('div');
+      el.className = 'toast' + (type ? ' toast-' + type : '');
+      el.textContent = msg;
+      container.appendChild(el);
+      const dur = durationMs ?? (type === 'error' ? 4000 : 2800);
+      setTimeout(() => {
+        el.classList.add('toast-out');
+        el.addEventListener('animationend', () => {
+          el.remove();
+        }, { once: true });
+      }, dur);
+    }
+
     // confirm() のスマートフォン対応版（Promiseベース）
     function mobileConfirm(msg) {
       return new Promise((resolve) => {
@@ -1732,6 +1789,49 @@ G L16 %K R %S R %K %K %S R</textarea>
         okBtn.addEventListener('click', onOk);
         cancelBtn.addEventListener('click', onCancel);
         overlay.addEventListener('click', onOverlay);
+      });
+    }
+
+    // prompt() のスマートフォン対応版（Promiseベース）
+    function mobilePrompt(msg, defaultVal) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('customConfirmOverlay');
+        const msgEl   = document.getElementById('customConfirmMsg');
+        const okBtn   = document.getElementById('customConfirmOk');
+        const cancelBtn = document.getElementById('customConfirmCancel');
+
+        // input欄を一時追加
+        let inp = document.getElementById('customPromptInput');
+        if (!inp) {
+          inp = document.createElement('input');
+          inp.id = 'customPromptInput';
+          inp.style.cssText = 'width:100%;background:#111;border:1px solid #555;color:#ddd;font-family:monospace;font-size:13px;padding:5px 8px;border-radius:3px;margin-bottom:10px;box-sizing:border-box';
+          msgEl.parentNode.insertBefore(inp, msgEl.nextSibling);
+        }
+        inp.style.display = 'block';
+        inp.value = defaultVal ?? '';
+        msgEl.textContent = msg;
+        overlay.classList.add('visible');
+        // フォーカスを遅延（iOS対策）
+        setTimeout(() => inp.focus(), 100);
+
+        const cleanup = (result) => {
+          overlay.classList.remove('visible');
+          inp.style.display = 'none';
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          overlay.removeEventListener('click', onOverlay);
+          inp.removeEventListener('keydown', onKey);
+          resolve(result);
+        };
+        const onOk     = () => cleanup(inp.value);
+        const onCancel = () => cleanup(null);
+        const onOverlay = (e) => { if (e.target === overlay) cleanup(null); };
+        const onKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); cleanup(inp.value); } };
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        overlay.addEventListener('click', onOverlay);
+        inp.addEventListener('keydown', onKey);
       });
     }
 
@@ -2027,6 +2127,23 @@ G L16 %K R %S R %K %K %S R</textarea>
     }
 
     function getSeqData() { return state.banks[state.currentBank].seqData; }
+
+    // ページ離脱時にAudioContextとPCMバッファを解放（メモリリーク対策）
+    window.addEventListener('pagehide', () => {
+      try {
+        releaseAllPcmSlots();
+        if (audioCtx && audioCtx.state !== 'closed') audioCtx.close();
+      } catch (e) {}
+    });
+    // visibilitychange: バックグラウンド時はAudioContextをsuspend
+    document.addEventListener('visibilitychange', () => {
+      if (!audioCtx) return;
+      if (document.hidden) {
+        audioCtx.suspend().catch(() => {});
+      } else {
+        audioCtx.resume().catch(() => {});
+      }
+    });
     function getStepLen() { return state.banks[state.currentBank].stepLen; }
 
     // 現在bankのbeatGroupsを取得（未設定時は全体を4刻みに自動分割）
@@ -2714,7 +2831,7 @@ G L16 %K R %S R %K %K %S R</textarea>
     } // 量子化済みバッファ（再生用）
     let pcmRawBuffer = null; // 元バッファ（bits変更時に再量子化）
     let pcmBits = 6;
-    let pcmSampleRate = 6000; // YM2608 ADPCM相当 ダウンサンプリング周波数 2k〜16kHz
+    let pcmSampleRate = 16000; // デフォルト16kHz (SMPL標準)
     // pcmDefaultPlayFreq: null = 元WAVと同じピッチ (playbackRate=1.0)
     // 数値を指定するとピッチシフト: playbackRate = pcmDefaultPlayFreq / pcmSampleRate
     let pcmDefaultPlayFreq = null;
@@ -3556,7 +3673,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       storeBtn.onclick = () => {
         const active = state.fmActiveTone[idx];
         const targetSlot = active >= 0 ? active : state.fmToneBank.findIndex(s => s === null);
-        if (targetSlot < 0) { alert('トーンバンクが満杯です (最大400)'); return; }
+        if (targetSlot < 0) { showToast('トーンバンクが満杯です (最大400)', 'warn'); return; }
         state.fmToneBank[targetSlot] = JSON.parse(JSON.stringify(state.fmParams[idx]));
         state.fmActiveTone[idx] = targetSlot;
         // 全FMパネルのバンクUI更新（共有バンクのため）
@@ -4137,7 +4254,7 @@ G L16 %K R %S R %K %K %S R</textarea>
             valid.push({ base, slotHint: i });
           }
 
-          if (valid.length === 0) { alert('有効な音色データが見つかりませんでした。'); return; }
+          if (valid.length === 0) { showToast('有効な音色データが見つかりませんでした。', 'warn'); return; }
           if (!await mobileConfirm(`MUCOM88 voice.dat から ${valid.length} 音色をスロット0〜${valid.length-1}に読込みます。よろしいですか？`)) return;
 
           // 物理OP順→論理OP順の変換テーブル
@@ -4185,7 +4302,6 @@ G L16 %K R %S R %K %K %S R</textarea>
           });
 
           for (let i = 0; i < 6; i++) updateToneBankUI(i);
-          alert(`voice.dat: ${loaded}音色を読込みました。`);
         };
         reader.readAsArrayBuffer(file);
       };
@@ -4296,7 +4412,7 @@ G L16 %K R %S R %K %K %S R</textarea>
 
           for (let i = 0; i < 6; i++) updateToneBankUI(i);
           if (loaded === 0 && skipped === 0) {
-            alert('音色定義が見つかりませんでした。\nMUCOM88: @n{ FB,AL, AR,DR,SR,RR,SL,TL,KS,ML,DT ×4op }\nFMP7: \'@ FA No → \'@ AR,DR,...×4op → \'@ AL,FB');
+            showToast('音色定義が見つかりませんでした。MUCOM88/@FMP7形式を確認してください。', 'warn');
           } else {
           }
         };
@@ -4366,7 +4482,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           try {
             const data = JSON.parse(ev.target.result);
             if (!data || data._app !== 'honodori') {
-              alert('このファイルはhonodori用のFM TONEBANKファイルではありません。');
+              showToast('FM TONEBANKファイルではありません。', 'error');
               return;
             }
             let fmLoaded = 0;
@@ -4379,7 +4495,7 @@ G L16 %K R %S R %K %K %S R</textarea>
               for (let i = 0; i < 6; i++) updateToneBankUI(i);
             }
           } catch (err) {
-            alert('ファイルの読み込みに失敗しました: ' + err.message);
+            showToast('読込失敗: ' + err.message, 'error');
           }
         };
         reader.readAsText(file);
@@ -4402,7 +4518,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           try {
             const data = JSON.parse(ev.target.result);
             if (!data || data._app !== 'honodori') {
-              alert('このファイルはhonodori用のPSG TONEBANKファイルではありません。');
+              showToast('PSG TONEBANKファイルではありません。', 'error');
               return;
             }
             let ssgLoaded = 0;
@@ -4415,7 +4531,7 @@ G L16 %K R %S R %K %K %S R</textarea>
               for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
             }
           } catch (err) {
-            alert('ファイルの読み込みに失敗しました: ' + err.message);
+            showToast('読込失敗: ' + err.message, 'error');
           }
         };
         reader.readAsText(file);
@@ -5098,8 +5214,8 @@ G L16 %K R %S R %K %K %S R</textarea>
           updateSubToneBankUI();
           if (state.currentSeqTab === 'sub') renderSeq();
         }},
-        stored ? { label:'✏ Rename', action:() => {
-          const nm = prompt('名前:', state.subToneBank[si]._name || '');
+        stored ? { label:'✏ Rename', action:async () => {
+          const nm = await mobilePrompt('名前:', state.subToneBank[si]._name || '');
           if (nm !== null) { state.subToneBank[si]._name = nm.slice(0,8); updateSubToneBankUI(); }
         }} : null,
         stored ? { label:'📋 Copy', action:() => { subSlotClipboard = JSON.parse(JSON.stringify(state.subToneBank[si])); } } : null,
@@ -5149,10 +5265,10 @@ G L16 %K R %S R %K %K %S R</textarea>
         file.text().then(text => {
           try {
             const data = JSON.parse(text);
-            if (!data || data._app !== 'honodori' || data._type !== 'subToneBank') { alert('SUBトーンバンクファイルではありません'); return; }
+            if (!data || data._app !== 'honodori' || data._type !== 'subToneBank') { showToast('SUBトーンバンクファイルではありません', 'error'); return; }
             data.slots.forEach((s, i) => { if (i < 50) state.subToneBank[i] = s; });
             updateSubToneBankUI();
-          } catch(err) { alert('読込エラー: ' + err.message); }
+          } catch(err) { showToast('読込エラー: ' + err.message, 'error'); }
         });
       };
       document.body.appendChild(input); input.click(); document.body.removeChild(input);
@@ -5178,7 +5294,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       storeBtn.onclick = () => {
         const active = state.subActiveTone;
         const targetSlot = active >= 0 ? active : state.subToneBank.findIndex(s => s === null);
-        if (targetSlot < 0) { alert('SUBバンクが満杯です (最大50)'); return; }
+        if (targetSlot < 0) { showToast('SUBバンクが満杯です (最大50)', 'warn'); return; }
         state.subToneBank[targetSlot] = { ...JSON.parse(JSON.stringify(state.subParams)), _name: `slot${targetSlot}` };
         state.subActiveTone = targetSlot;
         updateSubToneBankUI();
@@ -5621,7 +5737,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         fillFreqBtn.title = 'STEP1の周波数を全STEPに書き込む';
         fillFreqBtn.onclick = () => {
           const firstVal = ps.freq[0];
-          if (firstVal == null) { alert('STEP1に周波数を入力してください'); return; }
+          if (firstVal == null) { showToast('STEP1に周波数を入力してください', 'warn'); return; }
           for (let i = 0; i < len; i++) ps.freq[i] = firstVal;
           renderSeq();
         };
@@ -5631,9 +5747,9 @@ G L16 %K R %S R %K %K %S R</textarea>
         rampFreqBtn.style.cssText = 'font-size:8px;border-color:#6a5020;color:#d4a060';
         rampFreqBtn.textContent = 'RAMP FREQ';
         rampFreqBtn.title = '先頭→末尾にかけて周波数をリニア補間';
-        rampFreqBtn.onclick = () => {
-          const fromF = parseFloat(prompt('開始周波数(Hz):', ps.freq[0] ?? pcmDefaultPlayFreq));
-          const toF = parseFloat(prompt('終了周波数(Hz):', ps.freq[len - 1] ?? pcmDefaultPlayFreq));
+        rampFreqBtn.onclick = async () => {
+          const fromF = parseFloat(await mobilePrompt('開始周波数(Hz):', String(ps.freq[0] ?? pcmDefaultPlayFreq ?? 16000)));
+          const toF = parseFloat(await mobilePrompt('終了周波数(Hz):', String(ps.freq[len - 1] ?? pcmDefaultPlayFreq ?? 16000)));
           if (isNaN(fromF) || isNaN(toF)) return;
           for (let i = 0; i < len; i++) {
             ps.freq[i] = Math.round(Math.max(2000, Math.min(55500, fromF + (toF - fromF) * (i / (len - 1)))));
@@ -5775,7 +5891,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         fillBtn.title = 'STEP1に入力したBPMを全STEPに書き込む';
         fillBtn.onclick = () => {
           const firstVal = bank.bpmTrack[0];
-          if (firstVal == null) { alert('STEP1にBPMを入力してください'); return; }
+          if (firstVal == null) { showToast('STEP1にBPMを入力してください', 'warn'); return; }
           for (let i = 0; i < len; i++) bank.bpmTrack[i] = firstVal;
           renderSeq();
         };
@@ -5785,9 +5901,9 @@ G L16 %K R %S R %K %K %S R</textarea>
         rampBtn.style.cssText = 'font-size:8px;border-color:#446;color:#68a';
         rampBtn.textContent = 'RAMP';
         rampBtn.title = '先頭→末尾にかけてBPMをリニア補間';
-        rampBtn.onclick = () => {
-          const fromBpm = parseFloat(prompt('開始BPM:', bank.bpmTrack[0] ?? state.bpm));
-          const toBpm = parseFloat(prompt('終了BPM:', bank.bpmTrack[len - 1] ?? state.bpm));
+        rampBtn.onclick = async () => {
+          const fromBpm = parseFloat(await mobilePrompt('開始BPM:', String(bank.bpmTrack[0] ?? state.bpm)));
+          const toBpm = parseFloat(await mobilePrompt('終了BPM:', String(bank.bpmTrack[len - 1] ?? state.bpm)));
           if (isNaN(fromBpm) || isNaN(toBpm)) return;
           for (let i = 0; i < len; i++) {
             bank.bpmTrack[i] = Math.round(fromBpm + (toBpm - fromBpm) * (i / (len - 1)));
@@ -6366,7 +6482,7 @@ G L16 %K R %S R %K %K %S R</textarea>
               const shortName = file.name.replace(/\.[^.]+$/, '').slice(0, 10);
               const prev = state.pcmToneBank[si];
               const prevBits = prev ? prev.bits : 6;
-              const prevSR   = prev ? prev.sampleRate : 6000;
+              const prevSR   = prev ? prev.sampleRate : 16000;
               const prevGain = prev ? prev.gain : 100;
               if (prev) releasePcmSlot(si);
               state.pcmToneBank[si] = {
@@ -6381,7 +6497,7 @@ G L16 %K R %S R %K %K %S R</textarea>
               applyPcmSlotBits(si);
               renderPcmToneBank();
               if (state.currentSeqTab === 'pcmseq') renderSeq();
-            }).catch(err => { alert('PCM読み込みエラー: ' + err.message); });
+            }).catch(err => { showToast('PCM読み込みエラー: ' + err.message, 'error'); });
           };
           reader.readAsArrayBuffer(file);
         };
@@ -6579,7 +6695,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       initAudio();
       const { entries, u8 } = parseMucomPcmBin(arrayBuffer);
       if (entries.length === 0) {
-        alert('MUCOM88 PCMエントリが見つかりませんでした。\n(ファイル形式が正しいか確認してください)');
+        showToast('MUCOM88 PCMエントリが見つかりませんでした。ファイル形式を確認してください。', 'error');
         return 0;
       }
 
@@ -6629,15 +6745,15 @@ G L16 %K R %S R %K %K %S R</textarea>
       ].join(';');
 
       const SR_OPTIONS = [
-        { hz: 8000,  label: '8kHz (標準)' },
+        { hz: 16000, label: '16kHz (標準)' },
+        { hz: 8000,  label: '8kHz' },
         { hz: 11025, label: '11kHz' },
-        { hz: 16000, label: '16kHz' },
         { hz: 6000,  label: '6kHz (低品質)' },
         { hz: 4000,  label: '4kHz' },
       ];
 
       let selectedFile = null;
-      let selectedSR   = 8000;
+      let selectedSR   = 16000;
       let selectedSlot = (targetSlot != null && targetSlot >= 0) ? targetSlot : 0;
 
       dlg.innerHTML = `
@@ -6727,7 +6843,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           const n = await loadMucomPcmBin(ab, selectedSlot, selectedSR);
           dlg.remove();
         } catch (err) {
-          alert('読込エラー: ' + err.message);
+          showToast('読込エラー: ' + err.message, 'error');
           dlg.querySelector('#mucomBinLoad').textContent = '読込';
           dlg.querySelector('#mucomBinLoad').disabled = false;
         }
@@ -6744,7 +6860,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       const usedSlots = state.pcmToneBank
         .map((slot, i) => slot && slot.rawBuffer ? { i, slot } : null)
         .filter(Boolean);
-      if (usedSlots.length === 0) { alert('保存できるPCMスロットがありません。'); return; }
+      if (usedSlots.length === 0) { showToast('保存できるPCMスロットがありません。', 'warn'); return; }
 
       const slots = new Array(32).fill(null);
       let done = 0, failed = 0;
@@ -6799,11 +6915,11 @@ G L16 %K R %S R %K %K %S R</textarea>
           const text = await file.text();
           const data = JSON.parse(text);
           if (!data || data._app !== 'honodori' || data._type !== 'pcmToneBank') {
-            alert('このファイルはhonodori用PCM TONEBANKファイルではありません。');
+            showToast('PCM TONEBANKファイルではありません。', 'error');
             return;
           }
           const validSlots = (data.slots || []).filter(s => s && s.slot != null && s.wav);
-          if (validSlots.length === 0) { alert('有効なPCMスロットデータが見つかりません。'); return; }
+          if (validSlots.length === 0) { showToast('有効なPCMスロットデータが見つかりません。', 'warn'); return; }
 
           initAudio();
           let loaded = 0, failed = 0;
@@ -6819,7 +6935,7 @@ G L16 %K R %S R %K %K %S R</textarea>
                 rawBuffer: buf,
                 buffer: null,
                 bits: s.bits || 6,
-                sampleRate: s.sampleRate || 6000,
+                sampleRate: s.sampleRate || 16000,
                 name: s.name || `S${si+1}`,
                 gain: s.gain || 100,
               };
@@ -6833,7 +6949,7 @@ G L16 %K R %S R %K %K %S R</textarea>
             }
           }
         } catch (err) {
-          alert('ファイルの読み込みに失敗しました: ' + err.message);
+          showToast('読込失敗: ' + err.message, 'error');
         }
       };
       document.body.appendChild(input);
@@ -8873,7 +8989,7 @@ G L16 %K R %S R %K %K %S R</textarea>
     }
 
     function applyConfig(cfg) {
-      if (!cfg || cfg._version !== 1) { alert('非対応のコンフィグファイルです'); return; }
+      if (!cfg || cfg._version !== 1) { showToast('非対応のコンフィグファイルです', 'error'); return; }
       stopPlay();
       // PCMバッファを全スロット解放してからコンフィグ適用（メモリリーク防止）
       releaseAllPcmSlots();
@@ -9174,7 +9290,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         ssgStoreBtn.onclick = () => {
           const active = state.ssgActiveTone[pi];
           const targetSlot = active >= 0 ? active : state.ssgToneBank.findIndex(s => s === null);
-          if (targetSlot < 0) { alert('SSGバンクが満杯です (最大50)'); return; }
+          if (targetSlot < 0) { showToast('SSGバンクが満杯です (最大50)', 'warn'); return; }
           state.ssgToneBank[targetSlot] = { ...JSON.parse(JSON.stringify(state.psgParams[pi])), _name: `slot${targetSlot}` };
           state.ssgActiveTone[pi] = targetSlot;
           for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
@@ -9384,7 +9500,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           const cfg = JSON.parse(ev.target.result);
           applyConfig(cfg);
         } catch (err) {
-          alert('読み込みエラー: ' + err.message);
+          showToast('読み込みエラー: ' + err.message, 'error');
         }
       };
       reader.readAsText(file);
