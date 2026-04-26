@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes">
-  <title>honodori — FM+PSG Extended Synth v4.0.0</title>
+  <title>honodori — FM+PSG Extended Synth v4.1.0</title>
   <style>
     * {
       box-sizing: border-box;
@@ -4212,6 +4212,8 @@ G L16 %K R %S R %K %K %S R</textarea>
     // =============================================
     // voice.dat LOAD
     // MUCOM88 voice.dat: 1音色32バイト固定長バイナリ
+    //
+    // [FM音色 flag=0xFF]
     // [0]=0xFF マーカー
     // [1-4]  = DT/ML  × 4op (レジスタ順: OP1/OP3/OP2/OP4)
     // [5-8]  = TL     × 4op
@@ -4222,13 +4224,88 @@ G L16 %K R %S R %K %K %S R</textarea>
     // [25]   = ALG | (FB << 3)
     // [26-31]= 名前(ASCII 6バイト)
     //
-    // YM2608レジスタ物理順: OP1(ch0), OP3(ch2), OP2(ch1), OP4(ch3)
-    // → 論理順 ops[0]=OP1, ops[1]=OP2, ops[2]=OP3, ops[3]=OP4 へ変換:
-    //   物理p=0 → 論理op=0(OP1)
-    //   物理p=1 → 論理op=2(OP3)
-    //   物理p=2 → 論理op=1(OP2)
-    //   物理p=3 → 論理op=3(OP4)
+    // YM2608レジスタ物理順: OP1(ch0),OP3(ch2),OP2(ch1),OP4(ch3)
+    //
+    // [PSG/SSG音色 flag=0x00]
+    // [0]=0x00 マーカー
+    // [1]    = ノイズ周期 (0-31)
+    // [2]    = AR raw (0-31 → 0-255スケール)
+    // [3]    = DR raw
+    // [4]    = SL raw
+    // [5]    = SR raw
+    // [6]    = RR raw
+    // [7]    = AL raw (0-31 → 0-127スケール)
+    // [8]    = LFO delay
+    // [9]    = LFO clock
+    // [10]   = LFO amp (符号付き)
+    // [11]   = LFO shape
+    // [25]   = mixer mode bits
+    // [26-31]= 名前(ASCII 6バイト)
     // =============================================
+
+    // PSG voice.dat バイト列 → SSG psgParams 互換オブジェクトに変換
+    function parsePsgVoiceDatEntry(u8, base) {
+      const noisePeriod = Math.max(1, Math.min(31, u8[base + 1] & 0x1F));
+      const arRaw = u8[base + 2] & 0x1F;
+      const drRaw = u8[base + 3] & 0x1F;
+      const slRaw = u8[base + 4] & 0x1F;
+      const srRaw = u8[base + 5] & 0x1F;
+      const rrRaw = u8[base + 6] & 0x1F;
+      // 0-31 → 0-255 / 0-127 にスケール (MUCOM88 Eコマンド互換)
+      const ar = Math.round(arRaw * 255 / 31);
+      const dr = Math.round(drRaw * 255 / 31);
+      const sl = Math.round(slRaw * 255 / 31);
+      const sr = Math.round(srRaw * 255 / 31);
+      const rr = Math.round(rrRaw * 255 / 31);
+      // LFO params
+      const lfoDelay  = u8[base + 8];
+      const lfoClk    = u8[base + 9];
+      const lfoAmpRaw = u8[base + 10];
+      const lfoAmp    = lfoAmpRaw > 127 ? lfoAmpRaw - 256 : lfoAmpRaw;
+      const lfoShapeR = u8[base + 11];
+      const lfoShape  = lfoShapeR > 127 ? lfoShapeR - 256 : lfoShapeR;
+      // mixer: bit0=tone, bit1=noise
+      const mixerByte = u8[base + 25];
+      const hasTone   = (mixerByte & 0x01) !== 0 || noisePeriod === 0;
+      const hasNoise  = (mixerByte & 0x02) !== 0 || (u8[base + 1] > 0);
+      const noiseMode = hasTone && hasNoise ? 3 : hasNoise ? 2 : 1;
+      const noiseMix  = noiseMode === 2 ? 100 : noiseMode === 3 ? 50 : 0;
+      // ssgPresetToParams と同じ変換ロジックで envType/envTime を決定
+      const _r2s = (rate) => rate >= 255 ? 0.005 : rate <= 0 ? 99 : (256 - rate) * 0.012;
+      const slNorm = sl / 255;
+      let envType, envTime;
+      if (ar < 200) {
+        envType = 'attack';
+        envTime = Math.round(_r2s(ar) * 1000);
+      } else if (sl < 30 && sr >= 200) {
+        envType = 'decay';
+        envTime = Math.round(_r2s(dr) * 1000);
+      } else if (sr > 0 && rr < 30) {
+        envType = 'decay';
+        envTime = Math.round(100 + slNorm * 500 + _r2s(sr) * 200);
+      } else if (rr < 30) {
+        envType = 'decay';
+        envTime = Math.round(100 + slNorm * 600);
+      } else if (sr > 0 && slNorm < 0.9) {
+        envType = 'decay';
+        envTime = Math.round(_r2s(sr) * 800 * (0.3 + slNorm * 0.7));
+      } else {
+        envType = 'none';
+        envTime = 500;
+      }
+      envTime = Math.max(30, Math.min(2000, envTime));
+      // LFO変換
+      let lfo = { type: 'none', rate: 4, depth: 0, dest: 'pitch' };
+      if (lfoDelay > 0 && lfoClk > 0 && Math.abs(lfoAmp) > 0) {
+        const rateHz = Math.min(20, Math.max(0.3, lfoClk / 10));
+        const depth  = Math.min(100, Math.round(Math.abs(lfoAmp) / 3));
+        const wave   = (lfoShape === -1 || lfoShape === 1) ? 'saw' : 'sine';
+        const dest   = (lfoShape > 0 && Math.abs(lfoAmp) < 30) ? 'volume' : 'pitch';
+        lfo = { type: wave, rate: parseFloat(rateHz.toFixed(1)), depth, dest };
+      }
+      return { wave: 'square', detune: 0, noise: hasNoise, noiseMix, noisePeriod, envType, envTime, lfo };
+    }
+
     function loadVoiceDat() {
       const input = document.createElement('input');
       input.type = 'file';
@@ -4240,57 +4317,53 @@ G L16 %K R %S R %K %K %S R</textarea>
         reader.onload = async (ev) => {
           const ab = ev.target.result;
           const u8 = new Uint8Array(ab);
-
           const ENTRY_SIZE = 32;
           const totalEntries = Math.floor(u8.length / ENTRY_SIZE);
-
-          // 有効エントリ(0xFFマーカー＋AR>0)を収集
-          const valid = [];
+          // FM有効エントリ(0xFFマーカー＋AR>0)
+          const fmValid = [];
+          // PSG有効エントリ(0x00マーカー＋非ゼロデータ)
+          const psgValid = [];
           for (let i = 0; i < totalEntries; i++) {
             const base = i * ENTRY_SIZE;
-            if (u8[base] !== 0xFF) continue;
-            const allZero = [9,10,11,12].every(o => (u8[base+o] & 0x1F) === 0);
-            if (allZero) continue;
-            valid.push({ base, slotHint: i });
+            const flag = u8[base];
+            if (flag === 0xFF) {
+              const allZero = [9,10,11,12].every(o => (u8[base+o] & 0x1F) === 0);
+              if (!allZero) fmValid.push({ base, idx: i });
+            } else if (flag === 0x00) {
+              const hasData = Array.from({length: 25}, (_, k) => u8[base + 1 + k]).some(b => b !== 0);
+              if (hasData) psgValid.push({ base, idx: i });
+            }
           }
+          if (fmValid.length === 0 && psgValid.length === 0) {
+            showToast('有効な音色データが見つかりませんでした。', 'warn'); return;
+          }
+          const msg = `MUCOM88 voice.dat\nFM: ${fmValid.length}音色 → FM TONE BANK\nPSG: ${psgValid.length}音色 → SSG TONE BANK\n読込みます。よろしいですか？`;
+          if (!await mobileConfirm(msg)) return;
 
-          if (valid.length === 0) { showToast('有効な音色データが見つかりませんでした。', 'warn'); return; }
-          if (!await mobileConfirm(`MUCOM88 voice.dat から ${valid.length} 音色をスロット0〜${valid.length-1}に読込みます。よろしいですか？`)) return;
-
-          // 物理OP順→論理OP順の変換テーブル
-          // 物理p(0-3) に対して、論理ops配列のインデックス
-          const PHYS_TO_LOGICAL = [0, 2, 1, 3]; // OP1→0, OP3→2, OP2→1, OP4→3
-
-          let loaded = 0;
-          valid.forEach((entry, slotIdx) => {
+          // ===== FM音色の読込 =====
+          const PHYS_TO_LOGICAL = [0, 2, 1, 3];
+          let fmLoaded = 0;
+          fmValid.forEach((entry, slotIdx) => {
             if (slotIdx >= state.fmToneBank.length) return;
             const { base } = entry;
-            // 先にops配列を論理順で確保
             const ops = [null, null, null, null];
             for (let p = 0; p < 4; p++) {
-              const logicalIdx = PHYS_TO_LOGICAL[p];
+              const li = PHYS_TO_LOGICAL[p];
               const dtMl = u8[base + 1 + p];
               const tl   = u8[base + 5 + p] & 0x7F;
               const ksAr = u8[base + 9 + p];
               const amDr = u8[base + 13 + p];
               const sr   = u8[base + 17 + p] & 0x1F;
               const slRr = u8[base + 21 + p];
-              ops[logicalIdx] = {
-                dt:  (dtMl >> 4) & 0x07,
-                mul: dtMl & 0x0F,
-                tl,
-                ks:  (ksAr >> 6) & 0x03,
-                ar:  ksAr & 0x1F,
-                dr:  amDr & 0x1F,
-                sr,
-                sl:  (slRr >> 4) & 0x0F,
-                rr:  slRr & 0x0F,
+              ops[li] = {
+                dt: (dtMl >> 4) & 0x07, mul: dtMl & 0x0F, tl,
+                ks: (ksAr >> 6) & 0x03, ar: ksAr & 0x1F,
+                dr: amDr & 0x1F, sr,
+                sl: (slRr >> 4) & 0x0F, rr: slRr & 0x0F,
               };
             }
             const algFb = u8[base + 25];
-            const algo  = algFb & 0x07;
-            const fb    = (algFb >> 3) & 0x07;
-            // 名前: ASCII 6バイト
+            const algo = algFb & 0x07, fb = (algFb >> 3) & 0x07;
             let name = '';
             for (let n = 26; n < 32; n++) {
               const c = u8[base + n];
@@ -4298,10 +4371,28 @@ G L16 %K R %S R %K %K %S R</textarea>
             }
             name = name.trim() || `v${slotIdx}`;
             state.fmToneBank[slotIdx] = { algo, fb, ops, _name: name };
-            loaded++;
+            fmLoaded++;
+          });
+
+          // ===== PSG/SSG音色の読込 =====
+          let psgLoaded = 0;
+          psgValid.forEach((entry, slotIdx) => {
+            if (slotIdx >= state.ssgToneBank.length) return;
+            const { base } = entry;
+            const params = parsePsgVoiceDatEntry(u8, base);
+            let name = '';
+            for (let n = 26; n < 32; n++) {
+              const c = u8[base + n];
+              if (c >= 32 && c < 127) name += String.fromCharCode(c);
+            }
+            name = name.trim() || `psg${slotIdx}`;
+            state.ssgToneBank[slotIdx] = { ...params, _name: name };
+            psgLoaded++;
           });
 
           for (let i = 0; i < 6; i++) updateToneBankUI(i);
+          for (let i = 0; i < 3; i++) updateSSGToneBankUI(i);
+          showToast(`DAT読込完了 — FM:${fmLoaded}  PSG:${psgLoaded}`, 'ok');
         };
         reader.readAsArrayBuffer(file);
       };
@@ -9330,6 +9421,15 @@ G L16 %K R %S R %K %K %S R</textarea>
         ssgLoadBtn.title = 'PSG TONEBANKをhonodori_psg.jsonから読込';
         ssgLoadBtn.onclick = () => loadPsgToneBank();
         ssgBankHdr.appendChild(ssgLoadBtn);
+
+        // DAT LOADボタン（voice.dat PSG音色読込）
+        const ssgDatLoadBtn = document.createElement('button');
+        ssgDatLoadBtn.className = 'btn';
+        ssgDatLoadBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#446;color:#68a;margin-left:4px';
+        ssgDatLoadBtn.textContent = 'DAT LOAD';
+        ssgDatLoadBtn.title = 'MUCOM88 voice.dat のPSG音色をSSG TONE BANKに読込（FM音色も同時にFM TONE BANKへ）';
+        ssgDatLoadBtn.onclick = () => loadVoiceDat();
+        ssgBankHdr.appendChild(ssgDatLoadBtn);
 
         // ALLCLR ボタン（SSG TONE BANK 全消去）
         const ssgAllClrBtn = document.createElement('button');
