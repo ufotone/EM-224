@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>honodori — FM+PSG Extended Synth v16</title>
+  <title>honodori — FM+PSG Extended Synth v16.2</title>
   <style>
     * {
       box-sizing: border-box;
@@ -336,9 +336,9 @@
 
     .bank-btns {
       display: grid;
-      grid-template-columns: repeat(8, 1fr);
+      grid-template-columns: repeat(16, 1fr);
       gap: 2px;
-      width: 220px
+      width: 440px
     }
 
     .bank-btn {
@@ -1038,16 +1038,17 @@
 
       /* バンクボタン */
       .bank-btns {
-        grid-template-columns: repeat(8, 1fr);
+        grid-template-columns: repeat(16, 1fr);
         width: auto;
         gap: 2px;
       }
       .bank-btn {
-        font-size: 9px;
+        font-size: 8px;
         padding: 0;
         border-radius: 2px;
-        min-height: 32px;
-        width: 52px;
+        min-height: 28px;
+        width: auto;
+        min-width: 28px;
       }
 
       /* タブ */
@@ -1274,32 +1275,36 @@
   <div class="app">
 
     <!-- Transport -->
-    <div class="panel">
-      <div class="row" id="transportBar" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <div style="display:flex;gap:2px">
-            <button class="mode-btn active" id="modePattern">PATTERN</button>
-            <button class="mode-btn" id="modeSong">SONG</button>
-            <button class="mode-btn" id="modeMML">MML</button>
-          </div>
-          <div class="bank-btns" id="banks"></div>
+    <div class="panel" style="padding:6px 8px">
+      <!-- 行1: PLAY STOP BPM GAIN SAVE LOAD -->
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px">
+        <button class="play-btn" id="playBtn">▶ PLAY</button>
+        <button class="stop-btn" id="stopBtn">■ STOP</button>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+          <div class="knob-label">BPM</div>
+          <input type="number" class="bpm-input" id="bpmInput" min="40" max="300" value="120">
         </div>
-        <div class="row" style="gap:8px;align-items:center">
-          <button class="play-btn" id="playBtn">▶ PLAY</button>
-          <button class="stop-btn" id="stopBtn">■ STOP</button>
-          <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
-            <div class="knob-label">BPM</div>
-            <input type="number" class="bpm-input" id="bpmInput" min="40" max="300" value="120">
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
-            <div class="knob-label">GAIN</div>
-            <input type="range" min="0" max="100" value="30" id="masterGain" style="width:70px">
-          </div>
-          <div style="display:flex;gap:2px">
-            <button class="btn" id="saveConfigBtn" title="設定をJSONファイルに保存">💾 SAVE</button>
-            <button class="btn" id="loadConfigBtn" title="設定をJSONファイルから読み込み">📂 LOAD</button>
-            <input type="file" id="loadConfigInput" accept=".json" style="display:none">
-          </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+          <div class="knob-label">GAIN</div>
+          <input type="range" min="0" max="100" value="30" id="masterGain" style="width:70px">
+        </div>
+        <div style="display:flex;gap:2px">
+          <button class="btn" id="saveConfigBtn" title="設定をJSONファイルに保存">💾 SAVE</button>
+          <button class="btn" id="loadConfigBtn" title="設定をJSONファイルから読み込み">📂 LOAD</button>
+          <input type="file" id="loadConfigInput" accept=".json" style="display:none">
+        </div>
+      </div>
+      <!-- 行2: PATTERN SONG MML → バンクボタン -->
+      <div style="display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap">
+        <div style="display:flex;gap:2px;align-self:flex-start;padding-top:2px">
+          <button class="mode-btn active" id="modePattern">PATTERN</button>
+          <button class="mode-btn" id="modeSong">SONG</button>
+          <button class="mode-btn" id="modeMML">MML</button>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:3px">
+          <div class="bank-btns" id="banks"></div>
+          <button class="btn" id="bankAllClearBtn" title="現在のパターンを全クリア（確認あり）"
+            style="border-color:#733;color:#c44;font-size:7px;padding:2px 3px;letter-spacing:0;align-self:flex-start;margin-top:0">CLRA</button>
         </div>
       </div>
     </div>
@@ -1344,7 +1349,8 @@
           <b style="color:#668">SSG音色:</b> <span style="color:#adf">@0〜@15</span>=プリセット　<b style="color:#668">SSGエンベロープ:</b> <span style="color:#adf">E AL,AR,DR,SL,SR,RR</span>　<b style="color:#668">SSGミキサー:</b> <span style="color:#adf">P1</span>=tone <span style="color:#adf">P2</span>=noise <span style="color:#adf">P3</span>=mix<br>
           <b style="color:#668">ループ:</b> <span style="color:#9cf">[...]2</span>=2回繰り返し　<span style="color:#9cf">/</span>=最終ループスキップ区切り　<b style="color:#668">ベロシティ増減:</b> <span style="color:#9cf">(</span>=+1 <span style="color:#9cf">)</span>=-1<br>
           <b style="color:#fca">リズム(G):</b> <span style="color:#fca">%K</span>=KICK　<span style="color:#fca">%S</span>=SNARE　<span style="color:#fca">%H</span>=HAT　<span style="color:#fca">%OH</span>=OpenHH　<span style="color:#fca">%P</span>=PCM　例: <span style="color:#fca">%K8</span><br>
-          <b style="color:#8cf">LFO(OPNA):</b> <span style="color:#8cf">M{ch}H delay,freq,pms,ams[,sync]</span>　ch=A〜C/H〜J　delay=遅延音長　freq=周波数(0〜7)　pms=ビブラート(0〜7)　ams=トレモロ(0〜3)　例: <span style="color:#8cf">MAH8,3,6,0</span><br>
+          <b style="color:#8cf">LFO(OPNA/FM):</b> <span style="color:#8cf">M{ch}H delay,freq,pms,ams[,sync]</span>　ch=A〜C/H〜J　delay=遅延音長　freq=周波数(0〜7)　pms=ビブラート(0〜7)　ams=トレモロ(0〜3)　例: <span style="color:#8cf">MAH8,3,6,0</span><br>
+          <b style="color:#8cf">LFO(SSG/ビブラート):</b> SSGチャンネル(D/E/F)内で <span style="color:#8cf">M delay,speed,rate,depth</span> または <span style="color:#8cf">MD0</span>/<span style="color:#8cf">ME0</span>/<span style="color:#8cf">MF0</span> で対象指定　delay=遅延クロック　speed=変化間隔クロック　rate=変化量(±160≒半音,負=下降開始)　depth=折返し回数(0=OFF)　例: <span style="color:#8cf">D M8,30,160,4 O4 L4 C D E F</span><br>
           <br>
           <b style="color:#aa8">【FMP7形式】</b>（自動判別 — <code style="color:#adf">'A0</code>で始まるチャンネル行があればFMP7モード）<br>
           <b style="color:#668">チャンネル宣言:</b> <span style="color:#adf">'A0 cdefg</span>　<span style="color:#adf">'B0 ...</span>　（A0=FM1 B0=FM2 C0=FM3 H0=FM4 I0=FM5 J0=FM6 D0=SSG1 E0=SSG2 F0=SSG3 G0=リズム）<br>
@@ -1355,7 +1361,8 @@
           &nbsp;&nbsp;<span style="color:#adf">'@ AR,DR,SR,RR,SL,TL,KS,ML,DT,AM</span>　× 4op<br>
           &nbsp;&nbsp;<span style="color:#adf">'@ AL,FB</span>　→ アルゴリズム・フィードバック<br>
           <b style="color:#668">音色定義(互換):</b> <span style="color:#adf">'@ F No</span> → AR,DR,SR,RR,SL,TL,KS,ML,DT × 4op + AL,FB<br>
-          <b style="color:#668">LFO(OPNA):</b> <span style="color:#8cf">MPH delay,freq,pms,ams[,sync]</span>　ch=P/Q/R/S　例: <span style="color:#8cf">MPH8,3,6,0</span>
+          <b style="color:#668">LFO(OPNA/FM):</b> <span style="color:#8cf">MPH delay,freq,pms,ams[,sync]</span>　ch=P/Q/R/S　例: <span style="color:#8cf">MPH8,3,6,0</span><br>
+          <b style="color:#668">LFO(SSG/ビブラート):</b> SSGチャンネル内で <span style="color:#8cf">M delay,speed,rate,depth</span>　MUCOM88ソフトウェアLFO互換
         </div>
       </details>
       <!-- MMLエディタ -->
@@ -1755,7 +1762,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         cursor: -1,           // 再生中のsongステップ位置
         loop: false,
       },
-      banks: Array(32).fill(null).map(() => ({
+      banks: Array(64).fill(null).map(() => ({
         stepLen: 16,
         beatGroups: [4, 4, 4, 4], // 拍グループ定義（合計=stepLen）
         bpmTrack: Array(32).fill(null), // null=グローバルBPM, 数値=STEPごとBPM
@@ -2093,6 +2100,9 @@ G L16 %K R %S R %K %K %S R</textarea>
           });
           oscs.forEach(osc => { try { osc.stop(now + 0.2); } catch (e) { } });
           if (n.lfoNodes) n.lfoNodes.forEach(l => { try { l.stop(now + 0.2); } catch (e) { } });
+          // modGains/fbNodes を明示的にdisconnect（GCを確実に促す）
+          if (n.modGains) n.modGains.forEach(g => { try { g.disconnect(); } catch (e) { } });
+          if (n.fbNodes)  n.fbNodes.forEach(g => { try { g.disconnect(); } catch (e) { } });
         } else {
           if (n.osc) { try { n.osc.stop(now + 0.05); } catch (e) { } }
           if (n.noise) { try { n.noise.stop(now + 0.05); } catch (e) { } }
@@ -2339,6 +2349,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       });
 
       // フィードバック（OP1のセルフFB）
+      const fbNodes = []; // disconnect用に収集
       if (fb > 0) {
         const fbAmt = Math.pow(2, fb - 1) / 512; // OPN2近似
         const fbDelay = audioCtx.createDelay(0.001);
@@ -2348,15 +2359,18 @@ G L16 %K R %S R %K %K %S R</textarea>
         envs[0].connect(fbDelay);
         fbDelay.connect(fbGain);
         fbGain.connect(oscs[0].frequency); // FM変調として周波数加算
+        fbNodes.push(fbDelay, fbGain);
       }
 
       // アルゴリズム接続
+      const modGains = []; // disconnect用に収集
       algoMap.mod.forEach(([from, to]) => {
         // モジュレーター→キャリアのFM変調: envをoscのFrequencyに接続
         const modGain = audioCtx.createGain();
         modGain.gain.value = freq * (p.ops[to].mul === 0 ? 0.5 : (p.ops[to].mul ?? 1));
         envs[from].connect(modGain);
         modGain.connect(oscs[to].frequency);
+        modGains.push(modGain);
       });
       algoMap.car.forEach(ci => {
         envs[ci].connect(dest);
@@ -2443,7 +2457,31 @@ G L16 %K R %S R %K %K %S R</textarea>
         const SL = 1 - (op.sl ?? 0) / 15;
         return tlGain * SL;
       });
-      activeNodes[ch] = { oscs, envs, dest, lfoNodes, sustainGains, releaseAt: when + noteLen };
+      activeNodes[ch] = { oscs, envs, dest, lfoNodes, modGains, fbNodes, sustainGains, releaseAt: when + noteLen };
+    }
+
+    // PSGノイズバッファキャッシュ: noisePeriod(1〜31)をキーに最大31エントリ保持
+    // 毎ノートごとのバッファ生成（44100サンプル×float32）を防ぐ
+    const _noiseBufferCache = new Map();
+    function getNoiseBuffer(period) {
+      if (_noiseBufferCache.has(period)) return _noiseBufferCache.get(period);
+      const sampRate = audioCtx.sampleRate;
+      const bufLen = sampRate; // 1秒分
+      const noiseBuf = audioCtx.createBuffer(1, bufLen, sampRate);
+      const data = noiseBuf.getChannelData(0);
+      const noiseHz = 62500 / Math.max(1, Math.min(31, period));
+      const samplesPerCycle = Math.max(1, Math.round(sampRate / noiseHz));
+      let lfsr = 0xFFFF, val = 1;
+      for (let i = 0; i < bufLen; i++) {
+        if (i % samplesPerCycle === 0) {
+          const bit = ((lfsr >> 0) ^ (lfsr >> 3)) & 1;
+          lfsr = (lfsr >> 1) | (bit << 16);
+          val = (lfsr & 1) ? 1 : -1;
+        }
+        data[i] = val;
+      }
+      _noiseBufferCache.set(period, noiseBuf);
+      return noiseBuf;
     }
 
     function playPSG(psgIdx, freq, vol, when, tie, dur, portaMs, slur) {
@@ -2584,26 +2622,9 @@ G L16 %K R %S R %K %K %S R</textarea>
       // ---- ノイズ部 ----
       let noiseNode = null;
       if (noiseMix > 0) {
-        // ノイズ周期からバッファ長を決定（AY-3-8910のR6: 1〜31）
+        // キャッシュ済みバッファを使用（毎ノート生成を回避）
         const period = Math.max(1, Math.min(31, p.noisePeriod ?? 16));
-        // クロック 1MHz相当 / (16 * period) でノイズ周波数算出→バッファ生成
-        const noiseHz = 62500 / period;
-        const sampRate = audioCtx.sampleRate;
-        // 1秒分のノイズバッファ（LFSR風: シフトレジスタで疑似乱数）
-        const bufLen = sampRate;
-        const noiseBuf = audioCtx.createBuffer(1, bufLen, sampRate);
-        const data = noiseBuf.getChannelData(0);
-        const samplesPerCycle = Math.max(1, Math.round(sampRate / noiseHz));
-        let lfsr = 0xFFFF, val = 1;
-        for (let i = 0; i < bufLen; i++) {
-          if (i % samplesPerCycle === 0) {
-            // 17bit LFSR (AY-3-8910相当)
-            const bit = ((lfsr >> 0) ^ (lfsr >> 3)) & 1;
-            lfsr = (lfsr >> 1) | (bit << 16);
-            val = (lfsr & 1) ? 1 : -1;
-          }
-          data[i] = val;
-        }
+        const noiseBuf = getNoiseBuffer(period);
         const noiseSrc = audioCtx.createBufferSource();
         const noiseGn = audioCtx.createGain();
         const noisePan = audioCtx.createStereoPanner();
@@ -2641,9 +2662,7 @@ G L16 %K R %S R %K %K %S R</textarea>
     function playSnare(when, vol) {
       if (!audioCtx) return;
       const v = (vol ?? 100) / 100;
-      const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.2, audioCtx.sampleRate);
-      const data = buf.getChannelData(0);
-      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1);
+      const buf = getDrumNoiseBuffer(0.2);
       const src = audioCtx.createBufferSource();
       const gn = audioCtx.createGain();
       const filt = audioCtx.createBiquadFilter();
@@ -2656,9 +2675,7 @@ G L16 %K R %S R %K %K %S R</textarea>
     function playHat(when, vol) {
       if (!audioCtx) return;
       const v = (vol ?? 100) / 100;
-      const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.08, audioCtx.sampleRate);
-      const data = buf.getChannelData(0);
-      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1);
+      const buf = getDrumNoiseBuffer(0.08);
       const src = audioCtx.createBufferSource();
       const gn = audioCtx.createGain();
       const filt = audioCtx.createBiquadFilter();
@@ -2683,8 +2700,18 @@ G L16 %K R %S R %K %K %S R</textarea>
     function playTomMid(when, vol) { _playTom(180, 0.35, 0.65 * ((vol ?? 100) / 100), when); }
     function playTomLo(when, vol) { _playTom(100, 0.55, 0.7 * ((vol ?? 100) / 100), when); }
 
-    // PCM
-    let pcmBuffer = null; // 量子化済みバッファ（再生用）
+    // ドラム用ホワイトノイズバッファキャッシュ（長さごとに1回だけ生成）
+    const _drumBufferCache = {};
+    function getDrumNoiseBuffer(lenSec) {
+      const key = lenSec.toFixed(3);
+      if (_drumBufferCache[key]) return _drumBufferCache[key];
+      const sr = audioCtx.sampleRate;
+      const buf = audioCtx.createBuffer(1, Math.ceil(sr * lenSec), sr);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1);
+      _drumBufferCache[key] = buf;
+      return buf;
+    } // 量子化済みバッファ（再生用）
     let pcmRawBuffer = null; // 元バッファ（bits変更時に再量子化）
     let pcmBits = 6;
     let pcmSampleRate = 6000; // YM2608 ADPCM相当 ダウンサンプリング周波数 2k〜16kHz
@@ -3344,7 +3371,7 @@ G L16 %K R %S R %K %K %S R</textarea>
     }
 
     const bankBar = document.getElementById('banks');
-    for (let i = 0; i < 32; i++) {
+    for (let i = 0; i < 64; i++) {
       const b = document.createElement('button');
       b.className = 'bank-btn' + (i === 0 ? ' active' : '');
       b.textContent = i + 1;
@@ -7216,6 +7243,36 @@ G L16 %K R %S R %K %K %S R</textarea>
 
 
     // ALL CLR: 現在バンクの全パートを一括クリア
+    document.getElementById('bankAllClearBtn').onclick = async () => {
+      const ok = await mobileConfirm(`バンク ${state.currentBank + 1} の全パートをクリアしますか？`);
+      if (!ok) return;
+      {
+        const seq = getSeqData();
+        ['sub','fm1','fm2','fm3','fm4','fm5','fm6','psg1','psg2','psg3'].forEach(ch => {
+          if (!seq[ch]) return;
+          seq[ch].on.fill(false);
+          seq[ch].tie.fill(false);
+          seq[ch].notes.fill('A3');
+          seq[ch].vols.fill(80);
+          if (seq[ch].pan) seq[ch].pan.fill(0);
+        });
+        if (seq.fmTone) seq.fmTone.forEach(ft => { if (ft) { ft.on.fill(false); ft.slot.fill(-1); } });
+        if (seq.psgTone) seq.psgTone.forEach(pt => { if (pt) { pt.on.fill(false); pt.slot.fill(-1); } });
+        if (seq.subTone) { seq.subTone.on.fill(false); seq.subTone.slot.fill(-1); }
+        ['kick','snare','hat','tomhi','tommid','tomlo','openhh','closehh'].forEach(k => {
+          if (seq.drums[k]) seq.drums[k].fill(false);
+        });
+        if (seq.pcmSeq) {
+          seq.pcmSeq.on.fill(false);
+          seq.pcmSeq.freq.fill(null);
+          seq.pcmSeq.vol.fill(null);
+          if (seq.pcmSeq.slot) seq.pcmSeq.slot.fill(null);
+        }
+        if (seq.fxSeq) Object.values(seq.fxSeq).forEach(ch => ch.on.fill(false));
+        renderSeq();
+      }
+    };
+
     document.getElementById('clearAllPartsBtn').onclick = async () => {
       const ok = await mobileConfirm('現在バンクの全パートをクリアしますか？');
       if (!ok) return;
@@ -7869,6 +7926,10 @@ G L16 %K R %S R %K %K %S R</textarea>
           // MF{n} = 全FMチャンネルのLFOをON(1)/OFF(0)
           // ch: P=FM1/A, Q=FM2/B, R=FM3/C, S=FM4/H (MUCOM88チャンネル対応)
           // 書式: MAH8,3,6,0 → FM1チャンネルにLFO設定
+          // SSG LFO (MUCOM88ソフトウェアLFO): SSGチャンネル内で M delay,speed,rate,depth
+          // チャンネル修飾子なし、またはD/E/F指定時: SSG LFOとして解釈
+          // delay: 変化開始クロック数, speed: 変化間隔クロック数,
+          // rate: 1ステップの変化量(SSGは±160≒半音), depth: 折返し回数
           if (ch === 'M') {
             pos++;
             // MF0/MF1: FM LFO 強制ON/OFF
@@ -7882,17 +7943,22 @@ G L16 %K R %S R %K %K %S R</textarea>
             const lfoChMap = { P: 0, Q: 1, R: 2, S: 3, T: 4, U: 5 };
             // MUCOM88チャンネル文字 → FM index
             const mucChMap = { A: 0, B: 1, C: 2, H: 3, I: 4, J: 5 };
+            // SSGチャンネル文字 → PSG index
+            const ssgChMap = { D: 0, E: 1, F: 2 };
             let fmLfoIdx = -1;
+            let ssgLfoIdx = -1;
             if (pos < s.length) {
               const nc = s[pos];
               if (nc in lfoChMap) { fmLfoIdx = lfoChMap[nc]; pos++; }
               else if (nc in mucChMap) { fmLfoIdx = mucChMap[nc]; pos++; }
+              else if (nc in ssgChMap) { ssgLfoIdx = ssgChMap[nc]; pos++; }
             }
-            // 次文字が 'H' なら消費
+            // 次文字が 'H' なら消費（FMのOPNA形式）
             if (pos < s.length && s[pos] === 'H') pos++;
-            // delay,freq,pms,ams[,sync] を読む
-            const lfoVals = readInts(5);
+
             if (fmLfoIdx >= 0 && fmLfoIdx < 6) {
+              // FM LFO: delay,freq,pms,ams[,sync]
+              const lfoVals = readInts(5);
               const [ldelay, lfreq, lpms, lams, lsync] = lfoVals;
               const lp = state.fmParams[fmLfoIdx].lfo ?? {};
               state.fmParams[fmLfoIdx].lfo = {
@@ -7903,8 +7969,43 @@ G L16 %K R %S R %K %K %S R</textarea>
                 ams: Math.max(0, Math.min(3, lams ?? 0)),
                 sync: lsync === undefined ? true : lsync !== 0,
               };
-              // UIを即時更新 (FMパネルが開いていれば再ビルド)
               buildFMPanel(fmLfoIdx);
+            } else if (ssgLfoIdx >= 0 || (fmLfoIdx < 0 && isSSGCh)) {
+              // SSG LFO (MUCOM88ソフトウェアLFO): delay,speed,rate,depth
+              // チャンネル修飾子なし＆SSGチャンネル内ならカレントPSGに適用
+              const targetIdx = ssgLfoIdx >= 0 ? ssgLfoIdx : ssgPsgIdx;
+              const lfoVals = readInts(4);
+              const [ldelay, lspeed, lrate, ldepth] = lfoVals;
+              const delay  = Math.max(0, ldelay  ?? 0);
+              const speed  = Math.max(1, lspeed  ?? 30);  // クロック/ステップ
+              const rate   = lrate  ?? 160;  // 変化量（SSG: ±160≒半音）
+              const depth  = Math.max(0, ldepth ?? 4);    // 折返し回数
+
+              // speed(クロック/ステップ) → Hz変換
+              // 1クロック≒beatSec()*4/clockDiv 秒
+              const clockSec = beatSec() * 4 / clockDiv;
+              const stepSec  = speed * clockSec;
+              const rateHz   = Math.min(20, Math.max(0.1, 1 / (stepSec * Math.max(1, depth))));
+
+              // depth=0 は LFO OFF
+              const absRate = Math.abs(rate);
+              const lfoDepth = depth === 0 ? 0 : Math.min(100, Math.round(absRate / 16));
+
+              // 波形: rateが負=下降のこぎり、正=上昇のこぎり、depthが偶数=三角波(sine近似)
+              let lfoType = 'sine'; // depthが偶数=三角波っぽいのでsine
+              if (depth % 2 !== 0) lfoType = rate < 0 ? 'saw' : 'saw';
+
+              // dest: 現状はピッチ変調のみ（SSGにAMSはない）
+              const p = state.psgParams[targetIdx];
+              if (!p.lfo) p.lfo = { type: 'none', rate: 4, depth: 0, dest: 'pitch' };
+              p.lfo = {
+                type:  lfoDepth > 0 ? lfoType : 'none',
+                rate:  parseFloat(rateHz.toFixed(1)),
+                depth: lfoDepth,
+                dest:  'pitch',
+              };
+              // UIを即時更新
+              buildPSGPanels();
             }
             continue;
           }
@@ -8535,6 +8636,8 @@ G L16 %K R %S R %K %K %S R</textarea>
           const endId = setTimeout(() => {
             if (!this.running) return;
             if (this.loop) {
+              // ループ折り返し前に実行済みIDをクリア（timers配列肥大化防止）
+              this.timers = [];
               scheduleEvents(audioCtx.currentTime + 0.05);
             } else {
               this.running = false;
