@@ -36,7 +36,7 @@ It is designed for chiptune creators, sound designers, and anyone exploring retr
   - 1 PCM channel  
   - PCM supports WAV/MP3 loading (6‑bit lo‑fi conversion)
   - Inspired by the ADPCM of the YM2608
-  - Sampling rate 2kHz to 16kHz (6kHz is the default value)
+  - Sampling rate 2kHz to 16kHz (16kHz is the default value)
 
 ---
 
