@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes">
-  <title>honodori — FM+PSG Extended Synth v4.0.0</title>
+  <title>honodori — FM+PSG Extended Synth v4.2.0</title>
   <style>
     * {
       box-sizing: border-box;
@@ -4229,12 +4229,12 @@ G L16 %K R %S R %K %K %S R</textarea>
     // [PSG/SSG音色 flag=0x00]
     // [0]=0x00 マーカー
     // [1]    = ノイズ周期 (0-31)
-    // [2]    = AR raw (0-31)
+    // [2]    = AR raw (0-31 → 0-255スケール)
     // [3]    = DR raw
     // [4]    = SL raw
     // [5]    = SR raw
     // [6]    = RR raw
-    // [7]    = AL raw (0-31)
+    // [7]    = AL raw (0-31 → 0-127スケール)
     // [8]    = LFO delay
     // [9]    = LFO clock
     // [10]   = LFO amp (符号付き)
@@ -4251,6 +4251,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       const slRaw = u8[base + 4] & 0x1F;
       const srRaw = u8[base + 5] & 0x1F;
       const rrRaw = u8[base + 6] & 0x1F;
+      // 0-31 → 0-255 / 0-127 にスケール (MUCOM88 Eコマンド互換)
       const ar = Math.round(arRaw * 255 / 31);
       const dr = Math.round(drRaw * 255 / 31);
       const sl = Math.round(slRaw * 255 / 31);
@@ -4269,6 +4270,7 @@ G L16 %K R %S R %K %K %S R</textarea>
       const hasNoise  = (mixerByte & 0x02) !== 0 || (u8[base + 1] > 0);
       const noiseMode = hasTone && hasNoise ? 3 : hasNoise ? 2 : 1;
       const noiseMix  = noiseMode === 2 ? 100 : noiseMode === 3 ? 50 : 0;
+      // ssgPresetToParams と同じ変換ロジックで envType/envTime を決定
       const _r2s = (rate) => rate >= 255 ? 0.005 : rate <= 0 ? 99 : (256 - rate) * 0.012;
       const slNorm = sl / 255;
       let envType, envTime;
@@ -4292,6 +4294,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         envTime = 500;
       }
       envTime = Math.max(30, Math.min(2000, envTime));
+      // LFO変換
       let lfo = { type: 'none', rate: 4, depth: 0, dest: 'pitch' };
       if (lfoDelay > 0 && lfoClk > 0 && Math.abs(lfoAmp) > 0) {
         const rateHz = Math.min(20, Math.max(0.3, lfoClk / 10));
@@ -7645,7 +7648,6 @@ G L16 %K R %S R %K %K %S R</textarea>
         this.timers.forEach(id => clearTimeout(id));
         this.timers = [];
         this.running = false;
-        this._globalLoopStart = null;
         Object.keys(activeNodes).forEach(ch => releaseNode(ch));
         document.getElementById('mmlStatus').textContent = '';
       },
@@ -7824,8 +7826,6 @@ G L16 %K R %S R %K %K %S R</textarea>
         // ボリュームリスト対応 (v61,31,21,...) - 各ノートで順繰りに使用
         let velList = [];
         let velListIdx = 0;
-        // グローバルループ開始時刻（L コマンドで設定、null=未設定）
-        let loopStart = null;
         // ループスタック: { start, count, elapsed, skipPos }
         // skipPos: '/'が現れた位置（最終ループ時にここへジャンプしてループ内を抜ける）
         const loopStack = [];
@@ -7866,10 +7866,12 @@ G L16 %K R %S R %K %K %S R</textarea>
           return vel;
         };
 
-        // 音符マップ（小文字のみ: MUCOM88は音符が小文字）
         const noteMap = {
           'c': 0, 'd': 2, 'e': 4, 'f': 5, 'g': 7, 'a': 9, 'b': 11
         };
+
+        // グローバルループ開始時刻（L コマンドで設定、null=未設定）
+        let loopStart = null;
 
         // 前処理（コメント除去・マクロ展開・#タグ除去）
         const preprocessed = this.preprocess(text);
@@ -8140,6 +8142,7 @@ G L16 %K R %S R %K %K %S R</textarea>
           }
           // ゲートタイム q（小文字）/ Q（大文字）両対応
           // q0=タイと同等（キーオフなし）、q1〜q8 = n/8 の比率
+          // 実際には q/clockDiv クロック分早くキーオフする = gate比率として近似
           if (ch === 'q' || ch === 'Q') {
             pos++;
             const n = readInt();
@@ -8265,6 +8268,7 @@ G L16 %K R %S R %K %K %S R</textarea>
             if (n !== null) state.psgParams[ssgPsgIdx].noisePeriod = Math.max(1, Math.min(31, n));
             continue;
           }
+          // ゲートタイム2 Q（Cの別名として上で処理済み）
           // ループ開始 [
           if (ch === '[') {
             pos++;
@@ -8388,7 +8392,6 @@ G L16 %K R %S R %K %K %S R</textarea>
           // 音符 c d e f g a b（小文字のみ）
           // ★ 大文字C=clockDiv、大文字D/E=デチューン/エンベロープとして上で処理済み
           if (noteMap[ch] !== undefined) {
-            pos++;
             let semi = noteMap[ch];
             // シャープ/フラット
             if (s[pos] === '+' || s[pos] === '#') { semi++; pos++; }
@@ -8567,7 +8570,6 @@ G L16 %K R %S R %K %K %S R</textarea>
             }
             continue;
           }
-          // 休符 r（小文字）
           if (ch === 'r') {
             pos++; let n = '';
             while (pos < s.length && s[pos] >= '0' && s[pos] <= '9') n += s[pos++];
@@ -8697,6 +8699,8 @@ G L16 %K R %S R %K %K %S R</textarea>
         if (!audioCtx) initAudio();
         this.stop();
         this.running = true;
+        // グローバルループ情報
+        this._globalLoopStart = null;
 
         const allEvents = [];
 
@@ -8849,8 +8853,6 @@ G L16 %K R %S R %K %K %S R</textarea>
           const gLoopStart = this._globalLoopStart; // null = グローバルループなし
 
           allEvents.forEach(ev => {
-            // グローバルループが有効な場合、ループ区間（loopStart以降）のイベントのみスケジュール
-            // イントロ（loopStart以前）は offsetTime==startTime の初回のみ再生
             const absWhen = offsetTime + ev.time;
             const delay = (absWhen - audioCtx.currentTime) * 1000;
             if (delay < -100) return; // 過去のイベントはスキップ
@@ -8903,7 +8905,7 @@ G L16 %K R %S R %K %K %S R</textarea>
                   ? Math.round((ev.time - gLoopStart) / (maxEnd - gLoopStart) * 100)
                   : Math.round(ev.time / maxEnd * 100);
                 document.getElementById('mmlStatus').textContent =
-                  `▶ ${['SUB', 'FM1', 'FM2', 'FM3', 'FM4', 'FM5', 'FM6', 'PSG1', 'PSG2', 'PSG3'][timbre]}  ${pct}%`;
+                  `▶ ${['SUB','FM1','FM2','FM3','FM4','FM5','FM6','PSG1','PSG2','PSG3'][timbre]}  ${pct}%`;
               }
             }, Math.max(0, delay));
             this.timers.push(id);
@@ -8985,6 +8987,7 @@ G L16 %K R %S R %K %K %S R</textarea>
               scheduleLoop(loopOffset);
             } else if (this.loop) {
               // MML LOOPボタンによる全体ループ
+              // ループ折り返し前に実行済みIDをクリア（timers配列肥大化防止）
               this.timers = [];
               scheduleEvents(audioCtx.currentTime + 0.05);
             } else {
@@ -9547,14 +9550,6 @@ G L16 %K R %S R %K %K %S R</textarea>
         // ヘッダーに順序通り追加: タイトル → STORE → PRESET → SAVE/LOAD → スロット情報
         ssgBankHdr.appendChild(ssgStoreBtn);
         ssgBankHdr.appendChild(ssgPreBtn);
-        // DAT LOADボタン（voice.dat PSG音色読込）
-        const ssgDatLoadBtn = document.createElement('button');
-        ssgDatLoadBtn.className = 'btn';
-        ssgDatLoadBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#446;color:#68a;margin-left:4px';
-        ssgDatLoadBtn.textContent = 'DAT LOAD';
-        ssgDatLoadBtn.title = 'MUCOM88 voice.dat のPSG音色をSSG TONE BANKに読込（FM音色も同時にFM TONE BANKへ）';
-        ssgDatLoadBtn.onclick = () => loadVoiceDat();
-        ssgBankHdr.appendChild(ssgDatLoadBtn);
         // SAVE/LOADボタン（全SSGチャンネルに表示）
         const ssgSaveBtn = document.createElement('button');
         ssgSaveBtn.className = 'btn';
@@ -9571,6 +9566,15 @@ G L16 %K R %S R %K %K %S R</textarea>
         ssgLoadBtn.title = 'PSG TONEBANKをhonodori_psg.jsonから読込';
         ssgLoadBtn.onclick = () => loadPsgToneBank();
         ssgBankHdr.appendChild(ssgLoadBtn);
+
+        // DAT LOADボタン（voice.dat PSG音色読込）
+        const ssgDatLoadBtn = document.createElement('button');
+        ssgDatLoadBtn.className = 'btn';
+        ssgDatLoadBtn.style.cssText = 'font-size:8px;padding:2px 7px;border-color:#446;color:#68a;margin-left:4px';
+        ssgDatLoadBtn.textContent = 'DAT LOAD';
+        ssgDatLoadBtn.title = 'MUCOM88 voice.dat のPSG音色をSSG TONE BANKに読込（FM音色も同時にFM TONE BANKへ）';
+        ssgDatLoadBtn.onclick = () => loadVoiceDat();
+        ssgBankHdr.appendChild(ssgDatLoadBtn);
 
         // ALLCLR ボタン（SSG TONE BANK 全消去）
         const ssgAllClrBtn = document.createElement('button');
