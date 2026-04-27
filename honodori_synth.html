@@ -1340,7 +1340,7 @@
         </div>
         <div style="display:flex;align-items:flex-start;gap:3px">
           <div class="bank-btns" id="banks"></div>
-          <button class="btn" id="bankAllClearBtn" title="現在のパターンを全クリア（確認あり）"
+          <button class="btn" id="bankAllClearBtn" title="全パターンスロット初期化（確認あり）"
             style="border-color:#733;color:#c44;font-size:7px;padding:2px 3px;letter-spacing:0;align-self:flex-start;margin-top:0">CLRA</button>
         </div>
       </div>
@@ -7451,10 +7451,9 @@ G L16 %K R %S R %K %K %S R</textarea>
 
     // ALL CLR: 現在バンクの全パートを一括クリア
     document.getElementById('bankAllClearBtn').onclick = async () => {
-      const ok = await mobileConfirm(`バンク ${state.currentBank + 1} の全パートをクリアしますか？`);
+      const ok = await mobileConfirm('全64パターンスロットを初期化します。\nすべてのパターンデータが消去されます。よろしいですか？');
       if (!ok) return;
-      {
-        const seq = getSeqData();
+      function resetSeq(seq) {
         ['sub','fm1','fm2','fm3','fm4','fm5','fm6','psg1','psg2','psg3'].forEach(ch => {
           if (!seq[ch]) return;
           seq[ch].on.fill(false);
@@ -7467,7 +7466,7 @@ G L16 %K R %S R %K %K %S R</textarea>
         if (seq.psgTone) seq.psgTone.forEach(pt => { if (pt) { pt.on.fill(false); pt.slot.fill(-1); } });
         if (seq.subTone) { seq.subTone.on.fill(false); seq.subTone.slot.fill(-1); }
         ['kick','snare','hat','tomhi','tommid','tomlo','openhh','closehh'].forEach(k => {
-          if (seq.drums[k]) seq.drums[k].fill(false);
+          if (seq.drums && seq.drums[k]) seq.drums[k].fill(false);
         });
         if (seq.pcmSeq) {
           seq.pcmSeq.on.fill(false);
@@ -7476,8 +7475,14 @@ G L16 %K R %S R %K %K %S R</textarea>
           if (seq.pcmSeq.slot) seq.pcmSeq.slot.fill(null);
         }
         if (seq.fxSeq) Object.values(seq.fxSeq).forEach(ch => ch.on.fill(false));
-        renderSeq();
       }
+      state.banks.forEach(bank => {
+        bank.stepLen = 16;
+        bank.beatGroups = [4, 4, 4, 4];
+        bank.bpmTrack.fill(null);
+        resetSeq(bank.seqData);
+      });
+      renderSeq();
     };
 
     document.getElementById('clearAllPartsBtn').onclick = async () => {
