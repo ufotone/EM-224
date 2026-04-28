@@ -1,0 +1,1652 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>honodori — 操作マニュアル</title>
+<style>
+:root {
+  --bg: #0e0e0e;
+  --bg2: #141414;
+  --bg3: #1a1a1a;
+  --panel: #1f1f1f;
+  --border: #2a2a2a;
+  --border2: #333;
+  --green: #4a7;
+  --green2: #5d5;
+  --green3: #2a4a2a;
+  --text: #ccc;
+  --text2: #888;
+  --text3: #555;
+  --blue: #68a;
+  --blue2: #9cf;
+  --orange: #e93;
+  --red: #c44;
+  --amber: #c96;
+  --accent: #3a6;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: monospace;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* ===== LAYOUT ===== */
+.wrapper { display: flex; min-height: 100vh; }
+
+/* サイドナビ */
+nav {
+  width: 200px;
+  min-width: 200px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  padding: 16px 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+nav .logo {
+  font-size: 18px;
+  color: var(--green2);
+  letter-spacing: 3px;
+  padding: 0 16px 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+nav .logo span { font-size: 9px; color: var(--text3); display: block; letter-spacing: 2px; }
+nav a {
+  display: block;
+  padding: 5px 16px;
+  color: var(--text2);
+  text-decoration: none;
+  font-size: 10px;
+  letter-spacing: 1px;
+  border-left: 2px solid transparent;
+  transition: all 0.1s;
+}
+nav a:hover { color: var(--green2); background: var(--bg3); }
+nav a.active { color: var(--green2); border-left-color: var(--green); background: var(--bg3); }
+nav .nav-sec {
+  font-size: 8px;
+  color: var(--text3);
+  letter-spacing: 2px;
+  padding: 12px 16px 4px;
+}
+
+/* メインコンテンツ */
+main {
+  flex: 1;
+  padding: 32px 40px;
+  max-width: 860px;
+  overflow-x: hidden;
+}
+
+/* ===== セクション ===== */
+section { margin-bottom: 56px; }
+h1 { font-size: 20px; color: var(--green2); letter-spacing: 3px; margin-bottom: 4px; }
+h2 {
+  font-size: 14px;
+  color: var(--green);
+  letter-spacing: 2px;
+  margin: 28px 0 10px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
+}
+h3 { font-size: 12px; color: var(--blue); letter-spacing: 2px; margin: 18px 0 8px; }
+p { color: var(--text); margin-bottom: 10px; font-size: 12px; }
+.lead { color: var(--text2); font-size: 11px; letter-spacing: 1px; margin-bottom: 20px; }
+
+/* ===== UI モック ===== */
+.ui-mock {
+  background: #111;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  padding: 10px;
+  margin: 14px 0;
+  font-size: 10px;
+  position: relative;
+}
+.ui-mock-label {
+  position: absolute;
+  top: -8px;
+  left: 10px;
+  background: #111;
+  color: var(--text3);
+  font-size: 8px;
+  letter-spacing: 2px;
+  padding: 0 6px;
+}
+.mock-panel {
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+.mock-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.mock-btn {
+  display: inline-block;
+  background: #222;
+  border: 1px solid #444;
+  color: #aaa;
+  font-family: monospace;
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 2px;
+  letter-spacing: 1px;
+}
+.mock-btn.green { background: #1a3a1a; border-color: #4a6; color: #6d6; }
+.mock-btn.red   { background: #3a1a1a; border-color: #733; color: #d55; }
+.mock-btn.active { background: #1a3a1a; border-color: var(--green); color: var(--green2); }
+.mock-btn.blue-a { background: #1a1a3a; border-color: #46a; color: #6af; }
+.mock-input {
+  background: #111;
+  border: 1px solid #444;
+  color: #ddd;
+  font-family: monospace;
+  font-size: 10px;
+  padding: 2px 4px;
+  width: 44px;
+  text-align: center;
+}
+.mock-slider {
+  width: 70px;
+  height: 4px;
+  background: #333;
+  border-radius: 2px;
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+}
+.mock-slider::after {
+  content: '';
+  position: absolute;
+  left: 40%;
+  top: -4px;
+  width: 12px;
+  height: 12px;
+  background: var(--green);
+  border-radius: 50%;
+}
+.mock-label { font-size: 8px; color: var(--text3); letter-spacing: 1px; }
+.mock-title { font-size: 8px; color: var(--text3); letter-spacing: 2px; margin-bottom: 5px; }
+.mock-tab-bar { display: flex; gap: 0; margin-bottom: 6px; }
+.mock-tab {
+  background: #111;
+  border: 1px solid #333;
+  border-bottom: none;
+  color: #666;
+  font-family: monospace;
+  font-size: 9px;
+  padding: 3px 8px;
+  cursor: default;
+  letter-spacing: 1px;
+}
+.mock-tab.active { background: var(--panel); color: var(--green2); border-color: var(--green); }
+.mock-tab.blue { border-color: #446; color: #68a; }
+.mock-tab.orange { border-color: #553a1a; color: #a8824a; }
+
+/* ステップグリッド */
+.step-grid {
+  display: flex;
+  gap: 2px;
+  margin: 6px 0;
+  align-items: center;
+}
+.step-label { font-size: 8px; color: #555; width: 26px; flex-shrink: 0; }
+.step-cell {
+  width: 22px;
+  height: 16px;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 2px;
+  display: inline-block;
+}
+.step-cell.on  { background: #2a4a2a; border-color: #4a7; }
+.step-cell.play{ border-color: #8f8 !important; box-shadow: 0 0 3px #4f4; }
+.step-cell.beat{ border-left-color: #b85 !important; border-left-width: 2px !important; }
+.step-cell.beat-s{ border-left-color: #e93 !important; border-left-width: 3px !important; }
+.step-cell.tie { background: #2a2a3a; border-color: #559; }
+.note-sel {
+  background: #111;
+  border: 1px solid #333;
+  color: #9d9;
+  font-family: monospace;
+  font-size: 8px;
+  padding: 1px;
+  width: 100%;
+  margin-top: 2px;
+}
+.step-col { display: flex; flex-direction: column; }
+
+/* FMオペレータ */
+.op-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.op-box {
+  background: #111;
+  border: 1px solid #2a3a2a;
+  border-radius: 3px;
+  padding: 6px;
+}
+.op-title { font-size: 8px; color: var(--green); letter-spacing: 1px; margin-bottom: 4px; }
+.param-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 3px;
+  font-size: 9px;
+  color: var(--text2);
+}
+.param-val { color: var(--text); margin-left: 2px; }
+.algo-grid { display: grid; grid-template-columns: repeat(8,1fr); gap: 2px; margin-bottom: 6px; }
+.algo-btn {
+  background: #111;
+  border: 1px solid #333;
+  color: #555;
+  font-size: 8px;
+  padding: 2px;
+  text-align: center;
+  border-radius: 2px;
+}
+.algo-btn.active { background: #1a2a1a; border-color: var(--green); color: #8d8; }
+
+/* PSGパネル */
+.psg-panel { display: flex; gap: 6px; flex-wrap: wrap; }
+.psg-ch {
+  background: #111;
+  border: 1px solid #2a2a3a;
+  border-radius: 3px;
+  padding: 6px;
+  flex: 1;
+  min-width: 100px;
+}
+.psg-title { font-size: 8px; color: var(--blue); letter-spacing: 1px; margin-bottom: 4px; }
+.wave-btns { display: flex; gap: 2px; margin-bottom: 4px; }
+.wave-btn {
+  background: #111;
+  border: 1px solid #444;
+  color: #666;
+  font-size: 8px;
+  padding: 2px 5px;
+  border-radius: 2px;
+}
+.wave-btn.active { background: #1a1a3a; border-color: var(--blue); color: var(--blue2); }
+
+/* FXパネル */
+.fx-section { margin-right: 16px; }
+.fx-section .mock-title { color: #55a; }
+
+/* バンクボタン */
+.bank-grid { display: flex; flex-wrap: wrap; gap: 2px; max-width: 420px; }
+.bank-btn {
+  background: #111;
+  border: 1px solid #333;
+  color: #555;
+  font-size: 8px;
+  padding: 2px 0;
+  border-radius: 2px;
+  width: 24px;
+  text-align: center;
+}
+.bank-btn.active { background: #1a2a1a; border-color: var(--green); color: var(--green2); }
+.bank-btn.filled { background: #12202a; border-color: #356; color: #6af; }
+
+/* ===== 注釈バルーン ===== */
+.callout-wrapper { position: relative; margin: 20px 0; }
+.callout {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: #141e14;
+  border: 1px solid #2a4a2a;
+  border-radius: 3px;
+  padding: 8px 10px;
+  margin: 8px 0;
+}
+.callout.info { background: #111a22; border-color: #2a3a5a; }
+.callout.warn { background: #1e1800; border-color: #4a3a00; }
+.callout-icon { font-size: 14px; line-height: 1.4; flex-shrink: 0; }
+.callout-text { font-size: 11px; color: var(--text2); }
+.callout-text strong { color: var(--text); }
+
+/* ===== テーブル ===== */
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 11px; }
+th { background: var(--bg3); color: var(--text2); text-align: left; padding: 6px 10px; font-weight: normal; letter-spacing: 1px; border-bottom: 1px solid var(--border2); }
+td { padding: 5px 10px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+td code { color: var(--green2); background: #1a1a1a; padding: 1px 4px; border-radius: 2px; font-size: 10px; }
+td:first-child { color: var(--amber); min-width: 120px; }
+
+/* ===== コードブロック ===== */
+pre {
+  background: #0a0a12;
+  border: 1px solid #334;
+  border-radius: 3px;
+  padding: 10px 14px;
+  margin: 10px 0;
+  overflow-x: auto;
+  font-size: 11px;
+  color: var(--blue2);
+  line-height: 1.8;
+}
+code { color: var(--green2); font-family: monospace; }
+
+/* ===== バッジ ===== */
+.badge {
+  display: inline-block;
+  font-size: 8px;
+  letter-spacing: 1px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  border: 1px solid;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+.badge-g { color: var(--green2); border-color: var(--green3); background: #0e1e0e; }
+.badge-b { color: var(--blue2); border-color: #224; background: #0a0a18; }
+.badge-o { color: var(--amber); border-color: #3a2000; background: #180e00; }
+
+/* ===== トーストサンプル ===== */
+.toast-demo {
+  display: inline-block;
+  background: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 10px;
+  color: #ddd;
+}
+.toast-ok  { border-color: var(--green); color: var(--green2); background: #0a1e0a; }
+.toast-err { border-color: var(--red); color: #f88; background: #1e0a0a; }
+.toast-warn{ border-color: #883; color: #db8; background: #1a1600; }
+
+/* ===== カラードット凡例 ===== */
+.legend { display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--text2); }
+.dot {
+  width: 12px; height: 12px;
+  border-radius: 2px;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+
+/* ===== セクション区切りタイトル ===== */
+.sec-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.sec-num { font-size: 28px; color: var(--border2); letter-spacing: 2px; line-height: 1; }
+
+/* スクロール先アンカー余白 */
+[id] { scroll-margin-top: 20px; }
+
+/* ===== レスポンシブ ===== */
+@media (max-width: 700px) {
+  nav { display: none; }
+  main { padding: 20px 16px; }
+  .op-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<!-- ===== サイドナビ ===== -->
+<nav id="sidenav">
+  <div class="logo">honodori<span>FM+PSG SYNTH v4.2</span></div>
+  <div class="nav-sec">はじめに</div>
+  <a href="#overview">概要</a>
+  <a href="#touch">スマートフォン操作</a>
+  <div class="nav-sec">基本操作</div>
+  <a href="#transport">トランスポート</a>
+  <a href="#mode">モード切り替え</a>
+  <a href="#bank">バンク（パターン）</a>
+  <div class="nav-sec">シーケンサー</div>
+  <a href="#seq">ステップシーケンサー</a>
+  <a href="#seq-tabs">シーケンサーのタブ</a>
+  <a href="#beatgroup">ビートグループ</a>
+  <a href="#song">SONG モード</a>
+  <div class="nav-sec">シンセサイザー</div>
+  <a href="#sub">SUB（サブトラクティブ）</a>
+  <a href="#fm">FM 合成</a>
+  <a href="#psg">PSG / SSG</a>
+  <a href="#drums">ドラム</a>
+  <a href="#pcm">PCM</a>
+  <a href="#fx">FX エフェクト</a>
+  <div class="nav-sec">上級機能</div>
+  <a href="#tonebank">トーンバンク</a>
+  <a href="#mml">MML モード</a>
+  <a href="#fxseq">FX / BPM シーケンス</a>
+  <a href="#save">セーブ / ロード</a>
+  <a href="#saveformat">セーブデータの形式</a>
+  <a href="#pcmsave">PCM バンクの保存</a>
+</nav>
+
+<!-- ===== メインコンテンツ ===== -->
+<main>
+
+<!-- ===== 概要 ===== -->
+<section id="overview">
+  <div class="sec-header">
+    <div class="sec-num">01</div>
+    <div>
+      <h1>honodori</h1>
+      <p class="lead">FM+PSG Extended Synth — ブラウザで動くマルチチャンネルシンセサイザー</p>
+    </div>
+  </div>
+
+  <p>honodoriはWeb Audio APIで動作するステップシーケンサー内蔵の統合シンセサイザーです。サブトラクティブ合成・FM合成・PSG合成・ドラムマシン・PCMサンプラーを1画面に集約しています。</p>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">SCREEN LAYOUT</span>
+    <div style="font-size:9px;color:var(--text3);margin-bottom:8px;letter-spacing:1px">画面は上から4つのエリアで構成されます</div>
+
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div class="mock-panel" style="border-color:#3a6">
+        <div class="mock-title" style="color:var(--green)">① トランスポートバー</div>
+        <div class="mock-row">
+          <span class="mock-btn green">▶ PLAY</span>
+          <span class="mock-btn red">■ STOP</span>
+          <span style="font-size:8px;color:var(--text3)">BPM</span>
+          <span class="mock-input">120</span>
+          <span style="font-size:8px;color:var(--text3)">GAIN</span>
+          <div class="mock-slider"></div>
+          <span class="mock-btn">💾 SAVE</span>
+          <span class="mock-btn">📂 LOAD</span>
+        </div>
+        <div class="mock-row" style="margin-top:4px">
+          <span class="mock-btn active">PATTERN</span>
+          <span class="mock-btn">SONG</span>
+          <span class="mock-btn">MML</span>
+          &nbsp;
+          <div class="bank-grid" style="max-width:280px">
+            <div class="bank-btn active">1</div><div class="bank-btn">2</div><div class="bank-btn">3</div><div class="bank-btn">4</div><div class="bank-btn filled">5</div><div class="bank-btn">6</div><div class="bank-btn">7</div><div class="bank-btn">8</div>
+          </div>
+          <span class="mock-btn" style="color:var(--red);border-color:#522;font-size:8px">CLRA</span>
+        </div>
+      </div>
+      <div class="mock-panel" style="border-color:#446">
+        <div class="mock-title" style="color:#68a">② ステップシーケンサー</div>
+        <div class="mock-tab-bar">
+          <div class="mock-tab active">SUB</div><div class="mock-tab">FM1</div><div class="mock-tab">FM2</div><div class="mock-tab">FM3</div><div class="mock-tab">FM4</div><div class="mock-tab">FM5</div><div class="mock-tab">FM6</div><div class="mock-tab">PS1</div><div class="mock-tab">PS2</div><div class="mock-tab">PS3</div>
+        </div>
+        <div class="mock-tab-bar">
+          <div class="mock-tab">DRM</div><div class="mock-tab orange">PCM</div><div class="mock-tab">FX</div><div class="mock-tab blue">BPM</div>
+        </div>
+        <div class="step-grid">
+          <div class="step-label">SUB</div>
+          <div class="step-cell on beat-s"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell beat"></div><div class="step-cell on play"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell beat"></div><div class="step-cell on"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell beat"></div><div class="step-cell on"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell"></div>
+        </div>
+      </div>
+      <div class="mock-panel" style="border-color:#2a3a4a">
+        <div class="mock-title" style="color:#56a">③ 音色エディタタブ</div>
+        <div class="mock-tab-bar">
+          <div class="mock-tab active">SUB</div><div class="mock-tab">FM1</div><div class="mock-tab">FM2</div><div class="mock-tab">FM3</div><div class="mock-tab">FM4</div><div class="mock-tab">FM5</div><div class="mock-tab">FM6</div><div class="mock-tab blue">PS1</div><div class="mock-tab blue">PS2</div><div class="mock-tab blue">PS3</div><div class="mock-tab">FX</div><div class="mock-tab orange">PCM</div>
+        </div>
+        <div style="font-size:9px;color:var(--text3);padding:4px">各タブに音色パラメータ（OSC / FILTER / ENVELOPE / ALGO / LFO など）が表示</div>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>チャンネル</th><th>種類</th><th>説明</th></tr>
+    <tr><td>SUB</td><td>サブトラクティブ</td><td>オシレータ + フィルタ + ADSR の基本構成</td></tr>
+    <tr><td>FM1〜FM6</td><td>FM合成</td><td>4オペレータ・8アルゴリズム、OPN2/YM2612相当</td></tr>
+    <tr><td>PS1〜PS3</td><td>PSG / SSG</td><td>矩形波・ノコギリ波・ノイズ、AY-3-8910相当</td></tr>
+    <tr><td>DRM</td><td>ドラム</td><td>KICK / SNARE / HAT / TOM など8パート</td></tr>
+    <tr><td>PCM</td><td>サンプラー</td><td>WAVファイル読み込み・ピッチ変換再生、32スロット</td></tr>
+  </table>
+</section>
+
+<!-- ===== スマートフォン操作 ===== -->
+<section id="touch">
+  <div class="sec-header">
+    <div class="sec-num">02</div>
+    <div><h1>スマートフォン操作</h1></div>
+  </div>
+
+  <h2>ピンチズーム</h2>
+  <p>2本指でピンチイン／アウトすることでUI全体をスケーリングできます（最大10倍）。細かいパラメータを操作したいときはズームインすると指が当たりやすくなります。デスクトップではホイールスクロールが同等の働きをします。</p>
+
+  <div class="callout">
+    <span class="callout-icon">📱</span>
+    <div class="callout-text">
+      <strong>タッチ操作のポイント</strong><br>
+      全ての操作はタップ1回のトグルで完結します。長押し・ダブルタップは不要です。スライダーはドラッグで連続変更できます。
+    </div>
+  </div>
+
+  <h2>通知（トースト）</h2>
+  <p>alert()の代わりに画面下部からトースト通知が表示されます。操作を妨げずに情報を伝えます。</p>
+  <div class="mock-row" style="margin:8px 0">
+    <div class="toast-demo toast-ok">✓ SAVED</div>
+    <div class="toast-demo toast-err">ERROR: 無効な値</div>
+    <div class="toast-demo toast-warn">⚠ バンクが空です</div>
+  </div>
+
+  <h2>確認ダイアログ</h2>
+  <p>削除・クリアなど不可逆な操作のみ、カスタムダイアログで確認が求められます（CLRAボタンなど）。それ以外の操作は即座に反映されます。</p>
+</section>
+
+<!-- ===== トランスポート ===== -->
+<section id="transport">
+  <div class="sec-header">
+    <div class="sec-num">03</div>
+    <div><h1>トランスポートコントロール</h1></div>
+  </div>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">TRANSPORT BAR</span>
+    <div class="mock-panel">
+      <div class="mock-row">
+        <span class="mock-btn green">▶ PLAY</span>
+        <span class="mock-btn red">■ STOP</span>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+          <span class="mock-label">BPM</span>
+          <span class="mock-input">120</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+          <span class="mock-label">GAIN</span>
+          <div class="mock-slider"></div>
+        </div>
+        <span class="mock-btn">💾 SAVE</span>
+        <span class="mock-btn">📂 LOAD</span>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>操作</th><th>動作</th></tr>
+    <tr><td><code>▶ PLAY</code></td><td>再生開始。再生中は緑でハイライト。再度タップで停止も可。</td></tr>
+    <tr><td><code>■ STOP</code></td><td>停止＆先頭に戻る（step 0へリセット）</td></tr>
+    <tr><td>BPM 入力欄</td><td>40〜300 BPM。入力してEnterまたはフォーカスを外すと即反映。再生中でも変更可。</td></tr>
+    <tr><td>GAIN スライダー</td><td>マスターボリューム（0〜100%）。デフォルト30%。</td></tr>
+    <tr><td><code>💾 SAVE</code></td><td>全設定をJSONファイルとしてダウンロード保存</td></tr>
+    <tr><td><code>📂 LOAD</code></td><td>保存したJSONファイルを読み込んで設定を復元</td></tr>
+  </table>
+</section>
+
+<!-- ===== モード切り替え ===== -->
+<section id="mode">
+  <div class="sec-header">
+    <div class="sec-num">04</div>
+    <div><h1>モード切り替え</h1></div>
+  </div>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">MODE SELECT</span>
+    <div class="mock-row">
+      <span class="mock-btn active">PATTERN</span>
+      <span class="mock-btn">SONG</span>
+      <span class="mock-btn">MML</span>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>モード</th><th>説明</th></tr>
+    <tr><td>PATTERN</td><td>デフォルト。ステップグリッドでフレーズを編集。最大64バンクを独立して保持。</td></tr>
+    <tr><td>SONG</td><td>複数パターンを順番に並べて楽曲を構成（最大160ステップ）。ループ再生対応。</td></tr>
+    <tr><td>MML</td><td>テキストベースの楽譜記述言語（MUCOM88 / FMP7互換）でシーケンスを入力。</td></tr>
+  </table>
+</section>
+
+<!-- ===== バンク ===== -->
+<section id="bank">
+  <div class="sec-header">
+    <div class="sec-num">05</div>
+    <div><h1>バンク（パターンスロット）</h1></div>
+  </div>
+
+  <p>最大16個のパターンスロット（バンク）を持ちます。各バンクはシーケンス・ステップ数・ビートグループ・BPMトラックを独立して保持します。</p>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">BANK BUTTONS</span>
+    <div class="bank-grid">
+      <div class="bank-btn active">1</div><div class="bank-btn">2</div><div class="bank-btn">3</div><div class="bank-btn filled">4</div><div class="bank-btn filled">5</div><div class="bank-btn">6</div><div class="bank-btn">7</div><div class="bank-btn">8</div><div class="bank-btn">9</div><div class="bank-btn">10</div><div class="bank-btn">11</div><div class="bank-btn">12</div><div class="bank-btn">13</div><div class="bank-btn">14</div><div class="bank-btn">15</div><div class="bank-btn">16</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="dot" style="background:#1a2a1a;border-color:var(--green)"></div>現在選択中のバンク</div>
+    <div class="legend-item"><div class="dot" style="background:#12202a;border-color:#356"></div>データが入っているバンク</div>
+    <div class="legend-item"><div class="dot" style="background:#111;border-color:#333"></div>空のバンク</div>
+    <div class="legend-item"><div class="dot" style="background:#1a1508;border-color:#a84"></div>コピーされたバンク</div>
+  </div>
+
+  <table>
+    <tr><th>操作</th><th>動作</th></tr>
+    <tr><td>タップ（空バンク）</td><td>そのバンクに切り替え</td></tr>
+    <tr><td>タップ（データあり）</td><td>そのバンクに切り替え（同じバンクを再タップで名前変更ダイアログ）</td></tr>
+    <tr><td>長押し（PC：右クリック）</td><td>コンテキストメニュー：コピー・ペースト・クリア</td></tr>
+    <tr><td><code>CLRA</code> ボタン</td><td>全バンクを初期化（確認ダイアログあり）</td></tr>
+  </table>
+</section>
+
+<!-- ===== シーケンサー ===== -->
+<section id="seq">
+  <div class="sec-header">
+    <div class="sec-num">06</div>
+    <div><h1>ステップシーケンサー</h1></div>
+  </div>
+
+  <p>各チャンネルに独立したステップグリッドがあります。ステップボタンをタップしてノートのON/OFFを切り替え、下のセレクトボックスで音高を選択します。</p>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">STEP SEQUENCER (16 STEPS)</span>
+    <div style="margin-bottom:6px">
+      <span style="font-size:8px;color:var(--text3)">STEPS: </span>
+      <span class="mock-btn">7</span><span class="mock-btn">8</span><span class="mock-btn">10</span><span class="mock-btn">12</span><span class="mock-btn active">16</span><span class="mock-btn">24</span><span class="mock-btn">28</span><span class="mock-btn">32</span>
+      <span class="mock-input" style="width:36px;font-size:9px">?</span>
+    </div>
+    <div style="margin-bottom:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <span style="font-size:8px;color:var(--text3)">BEAT:</span>
+      <span class="mock-btn active" style="color:var(--orange);border-color:#a85">4</span>
+      <span class="mock-btn active" style="color:var(--orange);border-color:#a85">4</span>
+      <span class="mock-btn active" style="color:var(--orange);border-color:#a85">4</span>
+      <span class="mock-btn active" style="color:var(--orange);border-color:#a85">4</span>
+      <span class="mock-btn" style="font-size:10px">+</span>
+      <span class="mock-btn" style="color:var(--red)">↺</span>
+    </div>
+
+    <!-- グリッド -->
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <div class="step-grid">
+        <div class="step-label">SUB</div>
+        <div class="step-col"><div class="step-cell on beat-s"></div><div class="note-sel">E2</div></div>
+        <div class="step-col"><div class="step-cell beat"></div><div class="note-sel">A3</div></div>
+        <div class="step-col"><div class="step-cell"></div><div class="note-sel">A3</div></div>
+        <div class="step-col"><div class="step-cell beat"></div><div class="note-sel">A3</div></div>
+        <div class="step-col"><div class="step-cell on play beat-s"></div><div class="note-sel">F2</div></div>
+        <div class="step-col"><div class="step-cell beat"></div><div class="note-sel">E3</div></div>
+        <div class="step-col"><div class="step-cell"></div><div class="note-sel">E3</div></div>
+        <div class="step-col"><div class="step-cell beat"></div><div class="note-sel">E3</div></div>
+        <div class="step-col"><div class="step-cell on beat-s"></div><div class="note-sel">G2</div></div>
+        <div class="step-col"><div class="step-cell beat"></div><div class="note-sel">G3</div></div>
+        <div class="step-col"><div class="step-cell"></div><div class="note-sel">G3</div></div>
+        <div class="step-col"><div class="step-cell beat"></div><div class="note-sel">G3</div></div>
+        <div class="step-col"><div class="step-cell on beat-s"></div><div class="note-sel">E2</div></div>
+        <div class="step-col"><div class="step-cell beat"></div><div class="note-sel">D3</div></div>
+        <div class="step-col"><div class="step-cell"></div><div class="note-sel">D3</div></div>
+        <div class="step-col"><div class="step-cell"></div><div class="note-sel">D3</div></div>
+      </div>
+      <div class="step-grid">
+        <div class="step-label">FM1</div>
+        <div class="step-cell"></div><div class="step-cell"></div><div class="step-cell on beat"></div><div class="step-cell"></div>
+        <div class="step-cell beat-s"></div><div class="step-cell"></div><div class="step-cell beat"></div><div class="step-cell"></div>
+        <div class="step-cell beat-s"></div><div class="step-cell"></div><div class="step-cell beat"></div><div class="step-cell"></div>
+        <div class="step-cell beat-s"></div><div class="step-cell beat"></div><div class="step-cell"></div><div class="step-cell"></div>
+      </div>
+    </div>
+
+    <div class="mock-row" style="margin-top:8px">
+      <span class="mock-btn" style="color:var(--red);border-color:#522;font-size:8px">CLR</span>
+      <span class="mock-btn" style="color:#f66;border-color:#933;font-size:8px;font-weight:bold">CLRA</span>
+    </div>
+
+    <!-- LEDインジケータ -->
+    <div style="display:flex;gap:2px;margin-top:6px;padding-left:34px">
+      <div style="width:8px;height:8px;border-radius:50%;background:#1a2a1a;border:1px solid #333"></div>
+      <div style="width:8px;height:8px;border-radius:50%;background:#1a2a1a;border:1px solid #333"></div>
+      <div style="width:8px;height:8px;border-radius:50%;background:#1a2a1a;border:1px solid #333"></div>
+      <div style="width:8px;height:8px;border-radius:50%;background:#1a2a1a;border:1px solid #333"></div>
+      <div style="width:8px;height:8px;border-radius:50%;background:#4f4;border:1px solid #8f8"></div>
+      <div style="width:8px;height:8px;border-radius:50%;background:#1a2a1a;border:1px solid #333"></div>
+      <div style="width:8px;height:8px;border-radius:50%;background:#1a2a1a;border:1px solid #333"></div>
+      <div style="width:8px;height:8px;border-radius:50%;background:#1a2a1a;border:1px solid #333"></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="dot" style="background:#1a1a1a;border-color:#2a2a2a"></div>OFF（このステップは無音）</div>
+    <div class="legend-item"><div class="dot" style="background:#2a4a2a;border-color:#4a7"></div>ON（ノートが鳴る）</div>
+    <div class="legend-item"><div class="dot" style="background:#3a6a3a;border-color:#8f8"></div>再生中のステップ</div>
+    <div class="legend-item"><div class="dot" style="background:#2a2a3a;border-color:#559"></div>タイ（前ステップから延長）</div>
+    <div class="legend-item"><div class="dot" style="border-left-color:#e93;border-left-width:3px;border-radius:0;background:transparent;border-top:none;border-right:none;border-bottom:none;width:6px"></div>強拍の頭（ビートグループ先頭）</div>
+  </div>
+
+  <table>
+    <tr><th>操作</th><th>動作</th></tr>
+    <tr><td>ステップボタン タップ</td><td>ON / OFF のトグル切り替え</td></tr>
+    <tr><td>ノート選択ドロップダウン</td><td>C2〜D#5の範囲で音高を選択</td></tr>
+    <tr><td>VOL 列（表示時）</td><td>ステップごとの音量（0〜127）</td></tr>
+    <tr><td>TIE 列（表示時）</td><td>前ステップのノートを延長（スラー）</td></tr>
+    <tr><td>PAN 列（表示時）</td><td>L=−100 / C=0 / R=+100 のパン位置</td></tr>
+    <tr><td>PORTA 行（表示時）</td><td>ステップごとのポルタメント時間（ms）</td></tr>
+    <tr><td><code>CLR</code></td><td>現在のパートのみクリア</td></tr>
+    <tr><td><code>CLRA</code></td><td>全パートを一括クリア（確認あり）</td></tr>
+  </table>
+
+  <div class="callout info">
+    <span class="callout-icon">💡</span>
+    <div class="callout-text">
+      <strong>ステップ数プリセット</strong><br>
+      7, 8, 10, 12, 16, 24, 28, 32 からワンタップで変更。カスタム入力欄（?）に任意の1〜32を入力することもできます。ステップ数を増やすとグリッドが自動縮小します。
+    </div>
+  </div>
+</section>
+
+<!-- ===== シーケンサーのタブ ===== -->
+<section id="seq-tabs">
+  <div class="sec-header">
+    <div class="sec-num">07</div>
+    <div><h1>シーケンサーのタブ</h1></div>
+  </div>
+
+  <p>シーケンサー上部には2列のタブバーがあります。各タブを選択することでチャンネルのステップグリッドに切り替わります。</p>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">SEQ TAB BAR</span>
+    <div class="mock-tab-bar">
+      <div class="mock-tab active">SUB</div>
+      <div class="mock-tab">FM1</div><div class="mock-tab">FM2</div><div class="mock-tab">FM3</div>
+      <div class="mock-tab">FM4</div><div class="mock-tab">FM5</div><div class="mock-tab">FM6</div>
+      <div class="mock-tab">PS1</div><div class="mock-tab">PS2</div><div class="mock-tab">PS3</div>
+    </div>
+    <div class="mock-tab-bar">
+      <div class="mock-tab">DRM</div>
+      <div class="mock-tab orange">PCM</div>
+      <div class="mock-tab">FX</div>
+      <div class="mock-tab blue">BPM</div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>タブ</th><th>内容</th></tr>
+    <tr><td>SUB</td><td>サブトラクティブチャンネルのステップ（音高・音量・タイ・パン・ポルタメント）</td></tr>
+    <tr><td>FM1〜FM6</td><td>FMチャンネル各1〜6のステップ＋音色切替行</td></tr>
+    <tr><td>PS1〜PS3</td><td>PSGチャンネル各1〜3のステップ＋音色切替行</td></tr>
+    <tr><td>DRM</td><td>ドラムのKICK / SNARE / HAT / TOMhi / TOMmid / TOMlo / OpenHH / CloseHH / PCMを行ごとに編集</td></tr>
+    <tr><td>PCM <span class="badge badge-o">琥珀</span></td><td>PCMサンプラーのステップ（スロット番号・再生周波数・音量）</td></tr>
+    <tr><td>FX</td><td>Delay WET / FB・Chorus RATE / DEPTH / WET・DJ FILTER FREQを1ステップごとに自動化</td></tr>
+    <tr><td>BPM <span class="badge badge-b">青</span></td><td>ステップごとに独立したテンポを設定（nullで全体BPMを使用）</td></tr>
+  </table>
+</section>
+
+<!-- ===== ビートグループ ===== -->
+<section id="beatgroup">
+  <div class="sec-header">
+    <div class="sec-num">08</div>
+    <div><h1>ビートグループ</h1></div>
+  </div>
+
+  <p>ステップを「拍」単位にグループ化する機能です。グリッドに視覚的なビートマーカーが表示され、変拍子・ポリリズムを直感的に設定できます。</p>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">BEAT GROUP BAR</span>
+    <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+      <span style="font-size:8px;color:var(--text3)">BEAT:</span>
+      <span class="mock-btn" style="color:var(--orange);border-color:#8a4;background:#2a1a00">4</span>
+      <span class="mock-btn" style="color:var(--orange);border-color:#8a4;background:#2a1a00">3</span>
+      <span class="mock-btn" style="color:var(--orange);border-color:#8a4;background:#2a1a00">4</span>
+      <span class="mock-btn" style="color:var(--orange);border-color:#8a4;background:#2a1a00">5</span>
+      <span class="mock-btn" style="font-size:10px">+</span>
+      <span class="mock-btn" style="color:var(--red)">↺</span>
+      <span style="font-size:8px;color:var(--text3)">total: 16</span>
+    </div>
+    <div style="font-size:8px;color:var(--text3);margin-top:5px">グループチップをクリックすると値を変更できる（+1/−1 or 入力）</div>
+  </div>
+
+  <table>
+    <tr><th>操作</th><th>動作</th></tr>
+    <tr><td>グループチップ タップ</td><td>ダイアログでグループのステップ数を変更</td></tr>
+    <tr><td><code>+</code> ボタン</td><td>グループを1つ追加（残りステップ数を末尾に付与）</td></tr>
+    <tr><td><code>↺</code> ボタン</td><td>デフォルト（4拍×n）にリセット</td></tr>
+  </table>
+
+  <div class="callout warn">
+    <span class="callout-icon">⚠</span>
+    <div class="callout-text">
+      グループの合計ステップ数がステップ長と一致しない場合、末尾グループが自動調整されます。
+    </div>
+  </div>
+</section>
+
+<!-- ===== SONG モード ===== -->
+<section id="song">
+  <div class="sec-header">
+    <div class="sec-num">09</div>
+    <div><h1>SONG モード</h1></div>
+  </div>
+
+  <p>パターンバンクを順番に並べて長い楽曲を構成します。最大160スロットまで並べられます。</p>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">SONG PANEL</span>
+    <div class="mock-panel">
+      <div class="mock-row" style="margin-bottom:6px">
+        <span class="mock-btn blue-a">LOOP ON</span>
+        <span class="mock-btn" style="color:var(--red)">CLRA</span>
+        <span style="font-size:8px;color:var(--text3)">8 / 160 steps</span>
+        <span style="font-size:8px;color:#446">← バンクボタンをクリックでステップ追加</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px">
+        <div style="width:26px;height:22px;background:#1a2a3a;border:1px solid #356;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:8px;color:#6af">1</div>
+        <div style="width:26px;height:22px;background:#1a2a3a;border:2px solid #6af;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:8px;color:#9cf">1</div>
+        <div style="width:26px;height:22px;background:#1a2a3a;border:1px solid #356;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:8px;color:#6af">3</div>
+        <div style="width:26px;height:22px;background:#2a1a0a;border:1px solid #fa6;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fc9">5</div>
+        <div style="width:26px;height:22px;background:#1a2a3a;border:1px solid #356;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:8px;color:#6af">1</div>
+        <div style="width:26px;height:22px;background:#1a1a1a;border:1px dashed #333;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#444">+</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="dot" style="background:#12202a;border-color:#356"></div>登録済みスロット</div>
+    <div class="legend-item"><div class="dot" style="background:#1a2a3a;border-color:#6af;border-width:2px"></div>再生中スロット</div>
+    <div class="legend-item"><div class="dot" style="background:#2a1a0a;border-color:#fa6"></div>次に再生されるスロット（カーソル）</div>
+    <div class="legend-item"><div class="dot" style="background:#2a1010;border-color:#a44"></div>ホバー時（クリックで削除）</div>
+  </div>
+
+  <table>
+    <tr><th>操作</th><th>動作</th></tr>
+    <tr><td>バンクボタン タップ</td><td>そのバンクをSONGの末尾に追加</td></tr>
+    <tr><td>スロット タップ</td><td>そのスロットを削除（ホバーで赤くなる）</td></tr>
+    <tr><td>LOOP ON/OFF</td><td>楽曲末尾に達したら先頭に戻るかどうか</td></tr>
+    <tr><td><code>CLRA</code></td><td>SONGの全スロットを削除（確認あり）</td></tr>
+  </table>
+</section>
+
+<!-- ===== SUB ===== -->
+<section id="sub">
+  <div class="sec-header">
+    <div class="sec-num">10</div>
+    <div><h1>SUB — サブトラクティブ合成</h1></div>
+  </div>
+
+  <p>オシレータ → フィルタ → アンプリファイア（ADSR）という古典的な減算合成シンセシスです。最も扱いやすい音源で、ベース・パッド・リードなど幅広く使えます。</p>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">SUB PANEL</span>
+    <div class="mock-panel">
+      <div class="mock-row" style="gap:20px;flex-wrap:wrap">
+        <div>
+          <div class="mock-title">OSC</div>
+          <div class="wave-btns">
+            <div class="wave-btn active" style="border-color:var(--green);color:var(--green2);background:#1a2a1a">SINE</div>
+            <div class="wave-btn">SQ</div><div class="wave-btn">SAW</div><div class="wave-btn">TRI</div>
+          </div>
+          <div class="mock-row" style="margin-top:4px">
+            <span class="mock-label">LENGTH</span>
+            <div class="mock-slider"></div>
+            <span style="font-size:9px;color:var(--text)">300ms</span>
+          </div>
+        </div>
+        <div>
+          <div class="mock-title">FILTER</div>
+          <div class="wave-btns">
+            <div class="wave-btn active" style="border-color:var(--green);color:var(--green2);background:#1a2a1a">LPF</div>
+            <div class="wave-btn">HPF</div>
+          </div>
+          <div class="mock-row" style="margin-top:4px"><span class="mock-label">FREQ</span><div class="mock-slider"></div><span style="font-size:9px;color:var(--text)">8000</span></div>
+          <div class="mock-row"><span class="mock-label">RES</span><div class="mock-slider"></div><span style="font-size:9px;color:var(--text)">1.0</span></div>
+        </div>
+        <div>
+          <div class="mock-title">ENVELOPE</div>
+          <div class="param-row"><span>A</span><div class="mock-slider"></div><span class="param-val">10ms</span></div>
+          <div class="param-row"><span>D</span><div class="mock-slider"></div><span class="param-val">100ms</span></div>
+          <div class="param-row"><span>S</span><div class="mock-slider"></div><span class="param-val">60%</span></div>
+          <div class="param-row"><span>R</span><div class="mock-slider"></div><span class="param-val">200ms</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>パラメータ</th><th>範囲</th><th>説明</th></tr>
+    <tr><td>OSC 波形</td><td>SINE / SQ / SAW / TRI</td><td>オシレータ波形。SAWが最も倍音が豊か。</td></tr>
+    <tr><td>LENGTH</td><td>50〜2000ms</td><td>音符の最長発音時間</td></tr>
+    <tr><td>FILTER TYPE</td><td>LPF / HPF</td><td>ローパス（高域カット）／ハイパス（低域カット）</td></tr>
+    <tr><td>FILTER FREQ</td><td>100〜20000Hz</td><td>フィルターカットオフ周波数</td></tr>
+    <tr><td>RES</td><td>0.1〜20</td><td>共鳴（レゾナンス）。高いほど尖った音に。</td></tr>
+    <tr><td>A（Attack）</td><td>1〜500ms</td><td>鍵盤押下から最大音量までの時間</td></tr>
+    <tr><td>D（Decay）</td><td>1〜1000ms</td><td>ピーク → サスティンへの減衰時間</td></tr>
+    <tr><td>S（Sustain）</td><td>0〜100%</td><td>押し続けている間の音量レベル</td></tr>
+    <tr><td>R（Release）</td><td>10〜2000ms</td><td>音符終了後の余韻時間</td></tr>
+  </table>
+</section>
+
+<!-- ===== FM ===== -->
+<section id="fm">
+  <div class="sec-header">
+    <div class="sec-num">11</div>
+    <div><h1>FM 合成（FM1〜FM6）</h1></div>
+  </div>
+
+  <p>4オペレータ・8アルゴリズムのFM音源（OPN2/YM2612相当）です。オペレータの組み合わせ（アルゴリズム）と各オペレータのパラメータで音色を作ります。6チャンネル独立して設定できます。</p>
+
+  <h2>アルゴリズム</h2>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">FM PANEL (FM1)</span>
+    <div class="mock-panel">
+      <div class="mock-title">ALGORITHM</div>
+      <div class="algo-grid">
+        <div class="algo-btn">1</div><div class="algo-btn">2</div><div class="algo-btn">3</div>
+        <div class="algo-btn active">4</div>
+        <div class="algo-btn">5</div><div class="algo-btn">6</div><div class="algo-btn">7</div><div class="algo-btn">8</div>
+      </div>
+      <div style="font-size:8px;color:var(--text3);margin-bottom:8px">選択中: <span style="color:var(--green)">4: 2x2 par</span></div>
+      <div class="mock-title">LFO</div>
+      <div class="mock-row" style="margin-bottom:8px">
+        <span class="mock-btn">LFO OFF</span>
+        <span class="mock-label">FREQ</span><div class="mock-slider"></div>
+        <span class="mock-label">PMS</span><div class="mock-slider"></div>
+        <span class="mock-label">AMS</span><div class="mock-slider"></div>
+      </div>
+      <div class="op-grid">
+        <div class="op-box">
+          <div class="op-title">OP1 — CAR</div>
+          <div class="param-row">AR<div class="mock-slider" style="width:50px"></div><span class="param-val">31</span></div>
+          <div class="param-row">DR<div class="mock-slider" style="width:50px"></div><span class="param-val">8</span></div>
+          <div class="param-row">SR<div class="mock-slider" style="width:50px"></div><span class="param-val">0</span></div>
+          <div class="param-row">RR<div class="mock-slider" style="width:50px"></div><span class="param-val">4</span></div>
+          <div class="param-row">SL<div class="mock-slider" style="width:50px"></div><span class="param-val">1</span></div>
+          <div class="param-row">TL<div class="mock-slider" style="width:50px"></div><span class="param-val">20</span></div>
+          <div class="param-row">MUL<span style="color:var(--text);margin-left:4px">× 1</span></div>
+          <div class="param-row">DT <span style="color:var(--text);margin-left:4px">+3</span></div>
+        </div>
+        <div class="op-box">
+          <div class="op-title">OP2 — MOD</div>
+          <div class="param-row">AR<div class="mock-slider" style="width:50px"></div><span class="param-val">20</span></div>
+          <div class="param-row">DR<div class="mock-slider" style="width:50px"></div><span class="param-val">10</span></div>
+          <div class="param-row">SR<div class="mock-slider" style="width:50px"></div><span class="param-val">0</span></div>
+          <div class="param-row">RR<div class="mock-slider" style="width:50px"></div><span class="param-val">4</span></div>
+          <div class="param-row">SL<div class="mock-slider" style="width:50px"></div><span class="param-val">3</span></div>
+          <div class="param-row">TL<div class="mock-slider" style="width:50px"></div><span class="param-val">38</span></div>
+          <div class="param-row">MUL<span style="color:var(--text);margin-left:4px">× 6</span></div>
+          <div class="param-row">DT <span style="color:var(--text);margin-left:4px"> 0</span></div>
+        </div>
+        <div class="op-box">
+          <div class="op-title">OP3 — CAR</div>
+          <div class="param-row">AR<div class="mock-slider" style="width:50px"></div><span class="param-val">31</span></div>
+          <div class="param-row">TL<div class="mock-slider" style="width:50px"></div><span class="param-val">10</span></div>
+          <div class="param-row">MUL<span style="color:var(--text);margin-left:4px">× 1</span></div>
+        </div>
+        <div class="op-box">
+          <div class="op-title">OP4 — MOD</div>
+          <div class="param-row">AR<div class="mock-slider" style="width:50px"></div><span class="param-val">20</span></div>
+          <div class="param-row">TL<div class="mock-slider" style="width:50px"></div><span class="param-val">0</span></div>
+          <div class="param-row">MUL<span style="color:var(--text);margin-left:4px">× 3</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>パラメータ</th><th>範囲</th><th>説明</th></tr>
+    <tr><td>ALGO</td><td>1〜8</td><td>OP1〜4の接続構造。数字が大きいほど並列度が高い。</td></tr>
+    <tr><td>FB（Feedback）</td><td>0〜7</td><td>OP1の自己フィードバック量。大きいほど歪み・ノイズっぽくなる。</td></tr>
+    <tr><td>AR（Attack Rate）</td><td>0〜31</td><td>エンベロープの立ち上がり速度。31が最速。</td></tr>
+    <tr><td>DR（Decay Rate）</td><td>0〜31</td><td>ピーク→SLへの減衰速度</td></tr>
+    <tr><td>SR（Sustain Rate）</td><td>0〜31</td><td>SLレベル維持中のさらなる減衰速度（0=維持）</td></tr>
+    <tr><td>RR（Release Rate）</td><td>0〜15</td><td>キーオフ後の減衰速度</td></tr>
+    <tr><td>SL（Sustain Level）</td><td>0〜15</td><td>DR終了後のレベル。0=最大、15=ほぼ無音。</td></tr>
+    <tr><td>TL（Total Level）</td><td>0〜127</td><td>オペレータの最大出力レベル（音量）。0=最大、127=無音。</td></tr>
+    <tr><td>KS（Key Scale）</td><td>0〜3</td><td>音の高さによるエンベロープ速度の変化</td></tr>
+    <tr><td>MUL（Multiple）</td><td>0〜15</td><td>基本周波数への整数倍率（0=0.5倍）</td></tr>
+    <tr><td>DT（Detune）</td><td>0〜7</td><td>微小なデチューン量</td></tr>
+    <tr><td>LFO FREQ</td><td>0〜7</td><td>LFO発振周波数（FM全チャンネル共通）</td></tr>
+    <tr><td>PMS</td><td>0〜7</td><td>ピッチモジュレーション深さ（ビブラート）</td></tr>
+    <tr><td>AMS</td><td>0〜3</td><td>振幅モジュレーション深さ（トレモロ）</td></tr>
+  </table>
+
+  <div class="callout">
+    <span class="callout-icon">🎵</span>
+    <div class="callout-text">
+      <strong>FM音色作成のヒント</strong><br>
+      TL（Total Level）の大きいオペレータは「モジュレータ（変調源）」、小さいオペレータが「キャリア（出力源）」です。モジュレータのTLを下げるほど変調が強くなり倍音が豊かになります。アルゴリズム4（2x2並列）はベースや鐘系に向きます。
+    </div>
+  </div>
+</section>
+
+<!-- ===== PSG ===== -->
+<section id="psg">
+  <div class="sec-header">
+    <div class="sec-num">12</div>
+    <div><h1>PSG / SSG（PS1〜PS3）</h1></div>
+  </div>
+
+  <p>AY-3-8910相当の矩形波・ノイズ音源（PSG/SSG）を3チャンネル搭載。デチューン・ノイズミックス・LFOを持ちます。</p>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">PSG PANEL (PS1)</span>
+    <div class="mock-panel">
+      <div class="psg-panel">
+        <div class="psg-ch">
+          <div class="psg-title">PSG CH1</div>
+          <div class="wave-btns">
+            <div class="wave-btn">SINE</div>
+            <div class="wave-btn active" style="border-color:var(--blue);color:var(--blue2);background:#1a1a3a">SQ</div>
+            <div class="wave-btn">SAW</div><div class="wave-btn">TRI</div>
+          </div>
+          <div class="param-row" style="margin-top:4px">DETUNE<div class="mock-slider" style="width:50px"></div><span class="param-val">0</span></div>
+          <div class="param-row">NOISE<span class="mock-btn" style="margin-left:4px">OFF</span></div>
+          <div class="param-row">NOISE MIX<div class="mock-slider" style="width:40px"></div></div>
+          <div class="param-row">N.PERIOD<div class="mock-slider" style="width:40px"></div><span class="param-val">16</span></div>
+        </div>
+        <div class="psg-ch" style="min-width:130px">
+          <div class="psg-title">ENVELOPE</div>
+          <div style="font-size:8px;color:var(--text3);margin-bottom:4px">TYPE: none</div>
+          <div class="param-row">ENV TIME<div class="mock-slider" style="width:50px"></div><span class="param-val">500ms</span></div>
+          <div class="psg-title" style="margin-top:8px">LFO</div>
+          <div class="param-row">TYPE<span style="color:var(--text);margin-left:4px">none</span></div>
+          <div class="param-row">RATE<div class="mock-slider" style="width:40px"></div></div>
+          <div class="param-row">DEPTH<div class="mock-slider" style="width:40px"></div></div>
+          <div class="param-row">DEST<span style="color:var(--text);margin-left:4px">pitch</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>パラメータ</th><th>範囲</th><th>説明</th></tr>
+    <tr><td>波形</td><td>SINE / SQ / SAW / TRI</td><td>オシレータ波形</td></tr>
+    <tr><td>DETUNE</td><td>−50〜+50セント</td><td>ピッチをセント単位でずらす</td></tr>
+    <tr><td>NOISE</td><td>ON / OFF</td><td>ノイズ発生器を有効にする</td></tr>
+    <tr><td>NOISE MIX</td><td>0〜100%</td><td>トーンとノイズのミックス比率</td></tr>
+    <tr><td>N.PERIOD</td><td>1〜31</td><td>ノイズの周期（小さいほど高いノイズ）</td></tr>
+    <tr><td>ENV TYPE</td><td>none / AD / ADSR / HW など</td><td>ハードウェアエンベロープ方式</td></tr>
+    <tr><td>ENV TIME</td><td>10〜5000ms</td><td>ハードウェアエンベロープの周期</td></tr>
+    <tr><td>LFO TYPE</td><td>none / sine / square / saw / tri</td><td>LFO波形</td></tr>
+    <tr><td>LFO RATE</td><td>0.1〜20Hz</td><td>LFO速度</td></tr>
+    <tr><td>LFO DEPTH</td><td>0〜100%</td><td>LFO変調深さ</td></tr>
+    <tr><td>LFO DEST</td><td>pitch / volume</td><td>LFOの変調先（ビブラートまたはトレモロ）</td></tr>
+  </table>
+</section>
+
+<!-- ===== ドラム ===== -->
+<section id="drums">
+  <div class="sec-header">
+    <div class="sec-num">13</div>
+    <div><h1>ドラム（DRM）</h1></div>
+  </div>
+
+  <p>8パートの内蔵リズムマシンです。各パートは独立したシンセシス（Web Audio APIによるリズム音合成）で動作します。</p>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">DRUM SEQUENCER</span>
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <div class="step-grid"><div class="step-label" style="color:#c88">KICK</div><div class="step-cell on beat-s"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell on play beat-s"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell on beat-s"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell on beat-s"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell"></div></div>
+      <div class="step-grid"><div class="step-label" style="color:#8a8">SNR</div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell on beat-s" style="background:#2a3a2a;border-color:#6a8"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell on beat-s" style="background:#2a3a2a;border-color:#6a8"></div><div class="step-cell"></div><div class="step-cell"></div><div class="step-cell"></div></div>
+      <div class="step-grid"><div class="step-label" style="color:#88a">HAT</div><div class="step-cell on beat-s" style="background:#1a1a3a;border-color:#55a"></div><div class="step-cell"></div><div class="step-cell on" style="background:#1a1a3a;border-color:#55a"></div><div class="step-cell"></div><div class="step-cell on beat-s" style="background:#1a1a3a;border-color:#55a"></div><div class="step-cell"></div><div class="step-cell on" style="background:#1a1a3a;border-color:#55a"></div><div class="step-cell"></div><div class="step-cell on beat-s" style="background:#1a1a3a;border-color:#55a"></div><div class="step-cell"></div><div class="step-cell on" style="background:#1a1a3a;border-color:#55a"></div><div class="step-cell"></div><div class="step-cell on beat-s" style="background:#1a1a3a;border-color:#55a"></div><div class="step-cell"></div><div class="step-cell on" style="background:#1a1a3a;border-color:#55a"></div><div class="step-cell"></div></div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>パート</th><th>説明</th></tr>
+    <tr><td>KICK</td><td>バスドラム（低周波サイン波＋ピッチダウンエンベロープ）</td></tr>
+    <tr><td>SNARE</td><td>スネア（ノイズ＋トーン合成）</td></tr>
+    <tr><td>HAT</td><td>クローズドハイハット（高周波ノイズ・短い減衰）</td></tr>
+    <tr><td>TOMhi</td><td>ハイタム</td></tr>
+    <tr><td>TOMmid</td><td>ミッドタム</td></tr>
+    <tr><td>TOMlo</td><td>ロータム</td></tr>
+    <tr><td>OpenHH</td><td>オープンハイハット（長い余韻）</td></tr>
+    <tr><td>CloseHH</td><td>クローズドHH（別バリエーション）</td></tr>
+    <tr><td>PCM</td><td>PCMトーンバンクのサンプルをドラムとして使用</td></tr>
+  </table>
+
+  <p>FXパネルの MIXER セクションでドラム各パートの音量を個別調整できます。</p>
+</section>
+
+<!-- ===== PCM ===== -->
+<section id="pcm">
+  <div class="sec-header">
+    <div class="sec-num">14</div>
+    <div><h1>PCM サンプラー</h1></div>
+  </div>
+
+  <p>WAVファイルを読み込んでシーケンサーで再生するサンプラーです。最大32スロットのトーンバンクを持ちます。</p>
+
+  <h2>PCMトーンバンク（音色エディタ PCM タブ）</h2>
+  <div class="ui-mock">
+    <span class="ui-mock-label">PCM BANK PANEL</span>
+    <div class="mock-panel" style="background:#120d06;border-color:#5a3a10">
+      <div style="font-size:8px;color:#c4803a;letter-spacing:2px;margin-bottom:5px">PCM TONE BANK</div>
+      <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px">
+        <div style="background:#241508;border:1px solid #e0901a;border-radius:3px;padding:3px;font-size:7px;color:#f0b050;text-align:center;min-height:42px;display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font-size:8px;color:#e0a040;font-weight:bold">0</div><div>kick.wav</div><div style="font-size:6px;color:#c08838">44.1k 16bit</div></div>
+        <div style="background:#1a1006;border:1px solid #7a5020;border-radius:3px;padding:3px;font-size:7px;color:#c49060;text-align:center;min-height:42px;display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font-size:8px;color:#8a6030;font-weight:bold">1</div><div>snare</div></div>
+        <div style="background:#0e0a04;border:1px solid #3a2a10;border-radius:3px;padding:3px;font-size:7px;color:#5a4020;text-align:center;min-height:42px;display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font-size:8px;color:#4a3018;font-weight:bold">2</div><div style="font-size:8px">LOAD</div></div>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>操作</th><th>動作</th></tr>
+    <tr><td>スロット タップ</td><td>そのスロットをアクティブにする（再生対象）</td></tr>
+    <tr><td><code>LOAD</code> ボタン</td><td>WAVファイルをそのスロットに読み込む</td></tr>
+    <tr><td>長押し（PC右クリック）</td><td>スロットの削除・名前変更</td></tr>
+  </table>
+
+  <h2>PCMシーケンサー（シーケンサー PCM タブ）</h2>
+  <p>各ステップでPCMスロット・再生周波数・音量を個別設定できます。周波数はHzで入力（null=デフォルト6kHz相当）。</p>
+</section>
+
+<!-- ===== FX ===== -->
+<section id="fx">
+  <div class="sec-header">
+    <div class="sec-num">15</div>
+    <div><h1>FX エフェクト</h1></div>
+  </div>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">FX PANEL</span>
+    <div class="mock-panel">
+      <div class="mock-row" style="gap:24px;flex-wrap:wrap;align-items:flex-start">
+        <div class="fx-section">
+          <div class="mock-title" style="color:#55a">DELAY</div>
+          <div class="param-row">SYNC<span class="mock-btn" style="margin-left:4px">1/4T</span></div>
+          <div class="param-row">FB<div class="mock-slider" style="width:50px"></div><span class="param-val">30%</span></div>
+          <div class="param-row">WET<div class="mock-slider" style="width:50px"></div><span class="param-val">0%</span></div>
+        </div>
+        <div class="fx-section">
+          <div class="mock-title" style="color:#55a">CHORUS</div>
+          <div class="param-row">RATE<div class="mock-slider" style="width:50px"></div><span class="param-val">0.3Hz</span></div>
+          <div class="param-row">DEPTH<div class="mock-slider" style="width:50px"></div><span class="param-val">0%</span></div>
+          <div class="param-row">WET<div class="mock-slider" style="width:50px"></div><span class="param-val">0%</span></div>
+        </div>
+        <div class="fx-section">
+          <div class="mock-title" style="color:#55a">DJ FILTER</div>
+          <div class="wave-btns">
+            <div class="wave-btn active" style="border-color:var(--green);color:var(--green2);background:#1a2a1a">LPF</div>
+            <div class="wave-btn">HPF</div>
+          </div>
+          <div class="param-row" style="margin-top:4px">FREQ<div class="mock-slider" style="width:50px"></div><span class="param-val">20000</span></div>
+          <div class="param-row">RES<div class="mock-slider" style="width:50px"></div><span class="param-val">1.0</span></div>
+        </div>
+        <div>
+          <div class="mock-title" style="color:#55a">MIXER</div>
+          <div class="mock-row" style="flex-wrap:wrap;gap:6px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:7px;color:var(--text3)">
+              <span>SUB</span><div class="mock-slider" style="width:30px"></div>
+              <span>PAN</span><div class="mock-slider" style="width:30px"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:7px;color:var(--text3)">
+              <span>FM1</span><div class="mock-slider" style="width:30px"></div>
+              <span>PAN</span><div class="mock-slider" style="width:30px"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;font-size:7px;color:var(--text3)">
+              <span>PS1</span><div class="mock-slider" style="width:30px"></div>
+              <span>PAN</span><div class="mock-slider" style="width:30px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>パラメータ</th><th>範囲</th><th>説明</th></tr>
+    <tr><td>DELAY SYNC</td><td>OFF / 1/1〜1/16 / 付点 / 3連</td><td>ディレイタイムをBPMに同期。1/4T=4分音符3連符</td></tr>
+    <tr><td>DELAY FB</td><td>0〜90%</td><td>ディレイのフィードバック量（音が続く回数）</td></tr>
+    <tr><td>DELAY WET</td><td>0〜100%</td><td>ディレイのウェット量（0でディレイなし）</td></tr>
+    <tr><td>CHORUS RATE</td><td>0.1〜10Hz</td><td>コーラスLFOの速さ</td></tr>
+    <tr><td>CHORUS DEPTH</td><td>0〜100%</td><td>コーラスの深さ</td></tr>
+    <tr><td>CHORUS WET</td><td>0〜100%</td><td>コーラスウェット量</td></tr>
+    <tr><td>DJ FILTER</td><td>LPF / HPF、100〜20000Hz</td><td>マスターフィルター。ライブパフォーマンス用</td></tr>
+    <tr><td>MIXER</td><td>各チャンネル 0〜100%</td><td>SUB・FM1〜6・PS1〜3の個別音量とパン</td></tr>
+  </table>
+</section>
+
+<!-- ===== トーンバンク ===== -->
+<section id="tonebank">
+  <div class="sec-header">
+    <div class="sec-num">16</div>
+    <div><h1>トーンバンク（音色プリセット）</h1></div>
+  </div>
+
+  <p>FM・PSG・SUBの音色パラメータをスロットに保存・呼び出しできます。シーケンサーの音色切替行でステップごとに音色を変更することも可能です。</p>
+
+  <table>
+    <tr><th>種類</th><th>スロット数</th><th>説明</th></tr>
+    <tr><td>FM トーンバンク</td><td>最大400スロット</td><td>FM1〜6のいずれかにアサイン可能。シーケンサーのfmTone行でステップ自動切替。</td></tr>
+    <tr><td>PSG（SSG）トーンバンク</td><td>50スロット</td><td>PSG1〜3のいずれかにアサイン可能。</td></tr>
+    <tr><td>SUB トーンバンク</td><td>50スロット</td><td>SUBチャンネルの音色をスロットに保存。</td></tr>
+    <tr><td>PCM トーンバンク</td><td>32スロット</td><td>WAVファイルを格納するサンプルバンク。</td></tr>
+  </table>
+
+  <div class="callout">
+    <span class="callout-icon">💡</span>
+    <div class="callout-text">
+      <strong>音色切替シーケンス</strong><br>
+      シーケンサーの各チャンネルタブに「音色切替行」があります。ON にしたステップで自動的に指定トーンスロットに切り替わります。1つのパターン内で動的に音色変化をつけられます。
+    </div>
+  </div>
+</section>
+
+<!-- ===== MML ===== -->
+<section id="mml">
+  <div class="sec-header">
+    <div class="sec-num">17</div>
+    <div><h1>MML（Music Macro Language）</h1></div>
+  </div>
+
+  <p>MUCOM88 / FMP7互換のテキスト楽譜です。モードボタン「MML」を押すとテキストエリアが表示され、直接入力できます。</p>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">MML PANEL</span>
+    <div class="mock-panel">
+      <div class="mock-row" style="margin-bottom:6px">
+        <span class="mock-btn blue-a">LOOP OFF</span>
+        <span class="mock-btn" style="background:#1a1a2a;border-color:#446;color:#88c">📂 .MUC/.FMP</span>
+        <span style="font-size:8px;color:#446">▶ MML記法ガイド（折りたたみ）</span>
+      </div>
+      <pre style="font-size:10px;padding:8px;margin:0">; MUCOM88形式
+A T120 O4 L8 C D E F G A B &gt; C
+B O3 L4 C E G C
+G L16 %K R %S R %K %K %S R</pre>
+    </div>
+  </div>
+
+  <h2>チャンネル対応表</h2>
+  <table>
+    <tr><th>文字</th><th>チャンネル</th><th>備考</th></tr>
+    <tr><td><code>A B C</code></td><td>FM1〜3</td><td>MUCOM88形式</td></tr>
+    <tr><td><code>H I J</code></td><td>FM4〜6</td><td></td></tr>
+    <tr><td><code>D E F</code></td><td>PSG/SSG 1〜3</td><td></td></tr>
+    <tr><td><code>G</code></td><td>ドラム（リズム）</td><td>%K=KICK %S=SNARE %H=HAT %OH=OpenHH</td></tr>
+    <tr><td><code>K</code></td><td>ADPCM / PCM</td><td></td></tr>
+    <tr><td><code>@0</code> チャンネル</td><td>SUB シンセ</td><td>MMLで指定可能</td></tr>
+  </table>
+
+  <h2>主要コマンド</h2>
+  <table>
+    <tr><th>コマンド</th><th>例</th><th>説明</th></tr>
+    <tr><td>音符</td><td><code>C D E F G A B R</code></td><td>C〜B + 休符R</td></tr>
+    <tr><td>音長</td><td><code>C4 C8 C16 C4.</code></td><td>4分・8分・16分・付点4分</td></tr>
+    <tr><td>デフォルト音長</td><td><code>L8</code></td><td>以降の音符のデフォルト音長</td></tr>
+    <tr><td>オクターブ</td><td><code>O4</code> / <code>&lt;</code> / <code>&gt;</code></td><td>絶対指定／1下げ／1上げ</td></tr>
+    <tr><td>テンポ</td><td><code>T120</code></td><td>BPM指定</td></tr>
+    <tr><td>音量</td><td><code>V8</code></td><td>0〜15</td></tr>
+    <tr><td>音色</td><td><code>@1</code></td><td>@0=SUB @1〜6=FM @7〜9=PSG</td></tr>
+    <tr><td>スラー</td><td><code>C4 &amp; D4</code></td><td>音をつなげる</td></tr>
+    <tr><td>ポルタメント</td><td><code>_5</code></td><td>0=OFF、1〜=速度</td></tr>
+    <tr><td>パン</td><td><code>p3</code></td><td>0=消音 1=右 2=左 3=中央</td></tr>
+    <tr><td>ループ</td><td><code>[CDE]4</code></td><td>4回繰り返し。<code>/</code>で最終ループスキップ</td></tr>
+    <tr><td>LFO</td><td><code>MAH8,3,6,0</code></td><td>M{ch}H delay,freq,pms,ams</td></tr>
+    <tr><td>デチューン</td><td><code>D-5</code></td><td>セント単位のデチューン</td></tr>
+    <tr><td>コメント</td><td><code>; これはコメント</code></td><td></td></tr>
+  </table>
+
+  <h2>FMP7形式</h2>
+  <p>チャンネル行が <code>'A0</code> で始まるとFMP7モードとして自動判別されます。</p>
+  <pre>; FMP7形式
+'A0 O4 L8 C D E F G A B > C
+'B0 O3 L4 C E G
+'@ FA 1         ; 音色番号1を宣言
+'@ 31,8,0,4,1,20,1,1,3,0  ; OP1 (AR,DR,SR,RR,SL,TL,KS,MUL,DT,AM)
+'@ 20,10,0,4,3,38,1,6,0,0 ; OP2
+'@ 31,6,0,4,1,10,1,1,0,0  ; OP3
+'@ 20,8,0,4,3,0,1,3,0,0   ; OP4
+'@ 4,4                     ; ALGO,FB</pre>
+
+  <div class="callout info">
+    <span class="callout-icon">📂</span>
+    <div class="callout-text">
+      <strong>.MUC / .FMP ファイル読み込み</strong><br>
+      「📂 .MUC/.FMP」ボタンから既存のMUCOM88・FMP7形式ファイルを直接ロードできます。
+    </div>
+  </div>
+</section>
+
+<!-- ===== FXシーケンス ===== -->
+<section id="fxseq">
+  <div class="sec-header">
+    <div class="sec-num">18</div>
+    <div><h1>FX / BPM シーケンス自動化</h1></div>
+  </div>
+
+  <p>シーケンサーのFXタブ・BPMタブでは、エフェクトパラメータとテンポをステップごとに自動化できます。</p>
+
+  <table>
+    <tr><th>項目</th><th>説明</th></tr>
+    <tr><td>FX シーケンス</td><td>各ステップで Delay WET/FB・Chorus RATE/DEPTH/WET・DJ FILTER FREQ/RES を変化させる</td></tr>
+    <tr><td>BPM トラック</td><td>各ステップに個別のBPMを設定（nullでグローバルBPMを使用）。段階的テンポチェンジが可能</td></tr>
+  </table>
+
+  <div class="callout warn">
+    <span class="callout-icon">⚠</span>
+    <div class="callout-text">
+      FX・BPMシーケンスをONにしたステップでは、そのステップでの再生時にパラメータが即座に切り替わります。不意の大きな音量変化に注意してください。
+    </div>
+  </div>
+</section>
+
+<!-- ===== セーブ/ロード ===== -->
+<section id="save">
+  <div class="sec-header">
+    <div class="sec-num">19</div>
+    <div><h1>セーブ / ロード</h1></div>
+  </div>
+
+  <p>現在の全設定（トーン・シーケンス・FX・バンク・SONGなど）をJSONファイルとしてエクスポート・インポートできます。</p>
+
+  <table>
+    <tr><th>ボタン</th><th>動作</th></tr>
+    <tr><td><code>💾 SAVE</code></td><td>全設定を <code>.json</code> ファイルとしてダウンロード。ブラウザの「保存」ダイアログが開く。</td></tr>
+    <tr><td><code>📂 LOAD</code></td><td>ファイル選択ダイアログからJSONを選んで設定を完全復元。現在の設定は上書きされる。</td></tr>
+  </table>
+
+  <div class="callout">
+    <span class="callout-icon">💾</span>
+    <div class="callout-text">
+      <strong>セーブのタイミング</strong><br>
+      ブラウザをリロードすると設定はリセットされます。作業終了前に必ずSAVEしてください。JSONファイルは外部エディタで直接編集も可能です。
+    </div>
+  </div>
+
+  <h2>メモリ管理について</h2>
+  <p>ページを離れる・非表示にすると AudioContext が自動的にサスペンド／クローズされ、PCMバッファも解放されます。長時間使用で動作が重くなったと感じたらリロードしてください（事前にSAVEを忘れずに）。</p>
+</section>
+
+
+<!-- ===== セーブデータの形式 ===== -->
+<section id="saveformat">
+  <div class="sec-header">
+    <div class="sec-num">20</div>
+    <div><h1>セーブデータの形式（honodori.json）</h1></div>
+  </div>
+
+  <p>💾 SAVEボタンで保存されるファイルはプレーンJSON形式です（圧縮なし）。テキストエディタで直接確認・編集できます。</p>
+
+  <div class="callout info">
+    <span class="callout-icon">💡</span>
+    <div class="callout-text">
+      <strong>PCMトーンバンクはメインSAVEに含まれません。</strong><br>
+      WAVサンプルは別ファイル（<code>.hpcmb</code>）として個別に保存します。
+      詳細は次のセクション「PCM バンクの保存」を参照してください。
+    </div>
+  </div>
+
+  <h2>トップレベル構造</h2>
+  <pre>{
+  "_version": 1,           // フォーマットバージョン（現在は常に1）
+  "bpm": 120,              // グローバルBPM (40〜300)
+  "masterGain": 30,        // マスターボリューム (0〜100)
+  "mode": "pattern",       // 再生モード: "pattern" | "song" | "mml"
+  "currentBank": 0,        // 選択中のバンク番号 (0〜15)
+  "currentSeqTab": "sub",  // 選択中のシーケンサータブ
+  "pcmBits": 6,            // PCMビット深度
+  "song": { ... },         // SONGモードのデータ
+  "banks": [ ... ],        // 16バンク分のシーケンスデータ
+  "fmParams": [ ... ],     // FM1〜6の音色パラメータ
+  "psgParams": [ ... ],    // PSG1〜3の音色パラメータ
+  "subParams": { ... },    // SUBの音色パラメータ
+  "fx": { ... },           // FXエフェクトのパラメータ
+  "mix": { ... },          // ミキサー（音量・パン）
+  "drumsGain": { ... },    // ドラム各パートのゲイン
+  "fmToneBank": [ ... ],   // FM音色バンク（最大400スロット）
+  "ssgToneBank": [ ... ],  // PSG音色バンク（50スロット）
+  "subToneBank": [ ... ],  // SUB音色バンク（50スロット）
+  "mml": { ... }           // MMLテキストとループ設定
+}</pre>
+
+  <h2>banks（シーケンスデータ）</h2>
+  <p>16要素の配列で、各バンクが以下の構造を持ちます。</p>
+  <pre>banks[n] = {
+  "stepLen": 16,               // ステップ数 (1〜32)
+  "beatGroups": [4, 4, 4, 4],  // 拍グループ（合計 = stepLen）
+  "bpmTrack": [ null, ... ],   // ステップごとのBPM（null=グローバルBPM）
+  "seqData": {
+    "sub":  { notes, vols, on, tie, pan },  // 各32要素の配列
+    "fm1":  { notes, vols, on, tie, pan },
+    ...
+    "psg1": { notes, vols, on, tie, pan },
+    ...
+    "drums": {
+      kick, snare, hat, tomhi, tommid, tomlo, openhh, closehh, pcm
+      // 各32要素のboolean配列
+    },
+    "pcmSeq": {
+      "on":   [ false, ... ],   // ステップON/OFF (32要素)
+      "freq": [ null, ... ],    // 再生周波数Hz (null=デフォルト)
+      "vol":  [ null, ... ],    // 音量 0〜100 (null=デフォルト)
+      "slot": [ null, ... ]     // スロット番号 (null=アクティブスロット)
+    },
+    "fmTone":  [ { on[32], slot[32] }, ... ],  // FM1〜6 音色切替 (6要素)
+    "psgTone": [ { on[32], slot[32] }, ... ],  // PSG1〜3 音色切替 (3要素)
+    "subTone": { on[32], slot[32] },           // SUB 音色切替
+    "fxSeq": {
+      "delayWet":   { on[32], vals[32] },
+      "delayFb":    { on[32], vals[32] },
+      "chorusRate": { on[32], vals[32] },
+      "chorusDepth":{ on[32], vals[32] },
+      "chorusWet":  { on[32], vals[32] },
+      "djFreq":     { on[32], vals[32] },
+      "djRes":      { on[32], vals[32] }
+    }
+  }
+}</pre>
+
+  <h2>fmParams（FM音色）</h2>
+  <pre>fmParams[n] = {
+  "algo": 4,                          // アルゴリズム (0〜7)
+  "fb":   4,                          // フィードバック (0〜7)
+  "lfo": {
+    "enable": false, "freq": 3,
+    "pms": 4, "ams": 0, "delay": 0, "sync": true
+  },
+  "ops": [                            // 4オペレータ
+    { "ar":31, "dr":8, "sr":0, "rr":4,
+      "sl":1, "tl":20, "ks":1, "mul":1, "dt":3 },
+    ...
+  ]
+}</pre>
+
+  <h2>fx / mix / drumsGain</h2>
+  <pre>fx = {
+  "delayFb": 30, "delayWet": 0,
+  "chorusRate": 30, "chorusDepth": 0, "chorusWet": 0,
+  "djFilterFreq": 20000, "djFilterType": "lowpass", "djFilterRes": 1,
+  "delaySync": "3"   // "0"=OFF, "1"=1/1, "2"=1/2, "4"=1/4,
+                     // "8"=1/8, "16"=1/16, "2d"=1/2D, "4d"=1/4D, "3"=1/4T
+}
+
+mix = {
+  "sub": 80, "fm1": 65, ..., "psg3": 56,       // 音量 0〜100
+  "panSub": 0, "panFm1": 0, ..., "panPsg3": 0  // パン -100〜+100
+}
+
+drumsGain = {
+  "kick":100, "snare":100, "hat":100, "tomhi":100, "tommid":100,
+  "tomlo":100, "openhh":100, "closehh":100, "pcm":100
+}</pre>
+
+  <h2>トーンバンクの個別保存</h2>
+  <p>FM・PSG・SUBのトーンバンクはメインSAVEに含まれますが、それぞれ個別ファイルへの書き出し・読み込みもできます。</p>
+  <table>
+    <tr><th>種類</th><th>ファイル名</th><th>識別子</th></tr>
+    <tr><td>FM トーンバンク</td><td><code>honodori_fm.json</code></td><td><code>_type: "fmToneBank"</code></td></tr>
+    <tr><td>PSG トーンバンク</td><td><code>honodori_psg.json</code></td><td><code>_type: "psgToneBank"</code></td></tr>
+    <tr><td>SUB トーンバンク</td><td><code>honodori_sub.json</code></td><td><code>_type: "subToneBank"</code></td></tr>
+  </table>
+  <p>各ファイルには <code>_version</code>, <code>_app: "honodori"</code>, <code>_type</code>, <code>_saved</code>（ISO日時）のヘッダーと、スロット配列が含まれます。</p>
+</section>
+
+<!-- ===== PCM バンクの保存 ===== -->
+<section id="pcmsave">
+  <div class="sec-header">
+    <div class="sec-num">21</div>
+    <div><h1>PCM バンクの保存・読み込み</h1></div>
+  </div>
+
+  <p>PCMトーンバンク（最大32スロットのWAVサンプル）はメインSAVEとは別に、専用の <code>.hpcmb</code> ファイルとして保存します。サンプルデータはgzip圧縮＋Base64エンコードでJSON内に埋め込まれるため、ファイル1個で全スロットを自己完結に持ち運べます。</p>
+
+  <h2>.hpcmb ファイルの内部構造</h2>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">honodori_pcm.hpcmb（テキストで見るとこうなる）</span>
+    <pre style="font-size:10px;padding:8px;margin:0;line-height:1.6">{
+  "_version": 2,
+  "_app": "honodori",
+  "_type": "pcmToneBank",
+  "_saved": "2024-01-01T00:00:00.000Z",
+  "slots": [
+    {
+      "slot": 0,
+      "name": "kick.wav",
+      "bits": 6,
+      "sampleRate": 16000,
+      "gain": 100,
+      "wav": "H4sIAAAAAAAAA..."  // gzip圧縮済みWAVのBase64
+    },
+    null,                        // 空スロット
+    {
+      "slot": 2,
+      "name": "snare",
+      ...
+    }
+  ]
+}</pre>
+  </div>
+
+  <h2>SAVE（保存）の処理フロー</h2>
+  <p>SAVEボタンを押すと、メモリ上のAudioBufferが次の手順でファイルに書き出されます。</p>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">SAVE パイプライン</span>
+    <div style="display:flex;flex-direction:column;gap:6px;padding:4px 0">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="background:#1a2a1a;border:1px solid #4a7;border-radius:3px;padding:4px 10px;font-size:10px;color:#8d8;min-width:160px;text-align:center">メモリ上の AudioBuffer<br><span style="font-size:8px;color:#4a7">（マルチチャンネルfloat32）</span></div>
+        <div style="color:var(--text3);font-size:12px">→</div>
+        <div style="font-size:9px;color:var(--text2)">モノラルミックス＋<br>16bit PCM変換</div>
+      </div>
+      <div style="padding-left:80px;font-size:10px;color:var(--text3)">↓</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="background:#1a2a1a;border:1px solid #4a7;border-radius:3px;padding:4px 10px;font-size:10px;color:#8d8;min-width:160px;text-align:center">WAV ArrayBuffer<br><span style="font-size:8px;color:#4a7">（RIFFヘッダー付き16bit mono）</span></div>
+        <div style="color:var(--text3);font-size:12px">→</div>
+        <div style="font-size:9px;color:var(--text2)">Web CompressionStream API<br>（gzip圧縮）</div>
+      </div>
+      <div style="padding-left:80px;font-size:10px;color:var(--text3)">↓</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="background:#2a1a2a;border:1px solid #96a;border-radius:3px;padding:4px 10px;font-size:10px;color:#c8c;min-width:160px;text-align:center">gzip圧縮済み ArrayBuffer</div>
+        <div style="color:var(--text3);font-size:12px">→</div>
+        <div style="font-size:9px;color:var(--text2)">btoa() で<br>Base64文字列に変換</div>
+      </div>
+      <div style="padding-left:80px;font-size:10px;color:var(--text3)">↓</div>
+      <div style="background:#1a1a2a;border:1px solid #46a;border-radius:3px;padding:4px 10px;font-size:10px;color:#8af;text-align:center">JSON文字列として<br><code>honodori_pcm.hpcmb</code> にダウンロード</div>
+    </div>
+  </div>
+
+  <h2>LOAD（読み込み）の処理フロー</h2>
+  <p>逆順で完全に復元されます。</p>
+
+  <div class="ui-mock">
+    <span class="ui-mock-label">LOAD パイプライン</span>
+    <div style="display:flex;flex-direction:column;gap:6px;padding:4px 0">
+      <div style="background:#1a1a2a;border:1px solid #46a;border-radius:3px;padding:4px 10px;font-size:10px;color:#8af;text-align:center"><code>.hpcmb</code> ファイル選択 → JSON.parse() → <code>slots[].wav</code> 取得</div>
+      <div style="padding-left:80px;font-size:10px;color:var(--text3)">↓</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="background:#2a1a2a;border:1px solid #96a;border-radius:3px;padding:4px 10px;font-size:10px;color:#c8c;min-width:160px;text-align:center">Base64文字列</div>
+        <div style="color:var(--text3);font-size:12px">→</div>
+        <div style="font-size:9px;color:var(--text2)">atob() で<br>ArrayBufferに戻す</div>
+      </div>
+      <div style="padding-left:80px;font-size:10px;color:var(--text3)">↓</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="background:#2a1a2a;border:1px solid #96a;border-radius:3px;padding:4px 10px;font-size:10px;color:#c8c;min-width:160px;text-align:center">gzip 圧縮済みバイナリ</div>
+        <div style="color:var(--text3);font-size:12px">→</div>
+        <div style="font-size:9px;color:var(--text2)">Web DecompressionStream API<br>（gzip展開）</div>
+      </div>
+      <div style="padding-left:80px;font-size:10px;color:var(--text3)">↓</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="background:#1a1a1a;border:1px solid #555;border-radius:3px;padding:4px 10px;font-size:10px;color:#aaa;min-width:160px;text-align:center">WAV ArrayBuffer</div>
+        <div style="color:var(--text3);font-size:12px">→</div>
+        <div style="font-size:9px;color:var(--text2)">audioCtx.decodeAudioData()</div>
+      </div>
+      <div style="padding-left:80px;font-size:10px;color:var(--text3)">↓</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="background:#1a2a1a;border:1px solid #4a7;border-radius:3px;padding:4px 10px;font-size:10px;color:#8d8;min-width:160px;text-align:center">AudioBuffer（rawBuffer）</div>
+        <div style="color:var(--text3);font-size:12px">→</div>
+        <div style="font-size:9px;color:var(--text2)">applyPcmSlotBits() でビット深度適用<br>→ スロットに格納・再生可能に</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>PCMバンクのUI操作</h2>
+  <div class="ui-mock">
+    <span class="ui-mock-label">PCM BANK PANEL — 保存・読み込みボタン</span>
+    <div class="mock-panel" style="background:#120d06;border-color:#5a3a10">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+        <span style="font-size:8px;color:#c4803a;letter-spacing:2px">PCM TONE BANK</span>
+        <span class="mock-btn" style="background:#1a0e04;border-color:#c08040;color:#f0b050;font-size:9px">💾 PCM SAVE</span>
+        <span class="mock-btn" style="background:#1a0e04;border-color:#c08040;color:#f0b050;font-size:9px">📂 PCM LOAD</span>
+        <span class="mock-btn" style="background:#1a0e04;border-color:#805030;color:#c08050;font-size:9px">📂 .bin（MUCOM88）</span>
+        <span style="font-size:8px;color:#6a4020">BITS:</span>
+        <span class="mock-btn" style="background:#241508;border-color:#e0901a;color:#f0b050;font-size:9px">6bit</span>
+        <span class="mock-btn" style="font-size:9px">8bit</span>
+        <span class="mock-btn" style="font-size:9px">12bit</span>
+        <span class="mock-btn" style="font-size:9px">16bit</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px">
+        <div style="background:#241508;border:1px solid #e0901a;border-radius:3px;padding:3px;font-size:7px;color:#f0b050;text-align:center;min-height:36px;display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font-size:8px;color:#e0a040;font-weight:bold">S1</div><div>kick.wav</div></div>
+        <div style="background:#1a1006;border:1px solid #7a5020;border-radius:3px;padding:3px;font-size:7px;color:#c49060;text-align:center;min-height:36px;display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font-size:8px;color:#8a6030;font-weight:bold">S2</div><div>snare</div></div>
+        <div style="background:#0e0a04;border:1px solid #3a2a10;border-radius:3px;padding:3px;font-size:7px;color:#5a4020;text-align:center;min-height:36px;display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font-size:8px;font-weight:bold">S3</div><div style="font-size:8px">LOAD</div></div>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>ボタン</th><th>動作</th></tr>
+    <tr><td><code>💾 PCM SAVE</code></td><td>ロード済みの全スロットを <code>honodori_pcm.hpcmb</code> として保存。空スロットは <code>null</code> で記録される。</td></tr>
+    <tr><td><code>📂 PCM LOAD</code></td><td><code>.hpcmb</code> ファイルを選択して全スロットを復元。再生に必要なAudioBufferが即座に再構築される。</td></tr>
+    <tr><td><code>📂 .bin</code>（MUCOM88）</td><td>MUCOM88用のADPCMバイナリ（YM2608形式）を読み込み。ダイアログでサンプルレートと展開先スロットを指定できる。</td></tr>
+    <tr><td>スロット右下の <code>LOAD</code></td><td>そのスロットにWAVファイルを個別ロード</td></tr>
+    <tr><td>BITS ボタン</td><td>PCMのビット深度（6 / 8 / 12 / 16bit）。低いほどローファイなADPCM風の音になる。</td></tr>
+  </table>
+
+  <h2>MUCOM88 PCMバイナリ（.bin）の形式</h2>
+  <p>YM2608 ADPCM（OKI/Yamaha 4bitニブル形式）のバイナリファイルです。</p>
+  <pre>0x000〜0x3FF  ヘッダー: 32エントリ × 32バイト
+  [0..15]  名前（ASCII、nullパディング）
+  [16..27] 予約パラメータ
+  [28..29] スタートオフセット（LE16、0x400からの相対バイト数）
+  [30..31] データ長（LE16、バイト数）
+
+0x400〜EOF  ADPCMデータ（4bitニブル連結、Highニブル優先）</pre>
+
+  <table>
+    <tr><th>読み込み時の設定</th><th>説明</th></tr>
+    <tr><td>サンプルレート</td><td>8000 / 11025 / 16000 / 22050 / 44100 Hz から選択。元音源のADPCMクロック設定に合わせる。</td></tr>
+    <tr><td>スタートスロット</td><td>S1〜S32 から展開先を指定。ヘッダーのエントリ番号にオフセットが加算される（最大32スロットまで）。</td></tr>
+  </table>
+
+  <div class="callout">
+    <span class="callout-icon">⚠</span>
+    <div class="callout-text">
+      <strong>メモリ管理</strong><br>
+      PCMスロットはAudioContextのバッファをメモリに保持します。ブラウザを長時間使用する場合や大量のサンプルをロードする場合、動作が重くなったらページをリロードしてください（事前にSAVEを忘れずに）。ページ離脱・非表示時は自動でバッファが解放されます。
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<script>
+const links = document.querySelectorAll('nav a');
+const sections = document.querySelectorAll('section[id]');
+
+function onScroll() {
+  let cur = '';
+  sections.forEach(sec => {
+    if (window.scrollY >= sec.offsetTop - 60) cur = sec.id;
+  });
+  links.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + cur);
+  });
+}
+window.addEventListener('scroll', onScroll, { passive: true });
+onScroll();
+</script>
+</body>
+</html>
